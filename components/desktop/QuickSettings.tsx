@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { HardwareProfile, DEConfig, ArchType, HARDWARE_PROFILES, AppId } from '@/lib/oxide-types';
-import { Zap, Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast } from 'lucide-react';
+import { Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast, Wifi, WifiOff } from 'lucide-react';
 
 interface QuickSettingsProps {
   isOpen: boolean;
@@ -77,6 +77,7 @@ export default function QuickSettings({
 }: QuickSettingsProps) {
   const [volume, setVolume] = useState(75);
   const [casting, setCasting] = useState(false);
+  const [wifiOn, setWifiOn] = useState(true);
 
   if (!isOpen) return null;
 
@@ -103,11 +104,11 @@ export default function QuickSettings({
     >
       <div className="grid grid-cols-2 gap-2">
         <QuickToggle
-          active={config.lowSpecMode}
-          icon={<Zap className="h-5 w-5" />}
-          title="Low-Spec"
-          subtitle={config.lowSpecMode ? 'Software blit' : 'Standard'}
-          onClick={() => onUpdateConfig({ lowSpecMode: !config.lowSpecMode })}
+          active={wifiOn}
+          icon={wifiOn ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}
+          title="Wi-Fi"
+          subtitle={wifiOn ? 'Connected' : 'Off'}
+          onClick={() => setWifiOn((on) => !on)}
           accent={accent}
           idleBg={idleBg}
           idleColor={idleColor}
