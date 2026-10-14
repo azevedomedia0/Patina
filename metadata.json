@@ -1,0 +1,6 @@
+{
+  "name": "OxideDE - Modern Lightweight Rust Desktop Environment",
+  "description": "Ultra-fast, modern, memory-efficient Linux desktop environment written in Rust with Wayland compositor, dual GPU/software rendering for 32-bit and 64-bit ARM, and full architecture studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
