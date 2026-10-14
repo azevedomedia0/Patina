@@ -160,8 +160,12 @@ export default function WindowFrame({
       onMouseDown={onFocus}
       data-window-frame=""
       onContextMenu={(event) => event.stopPropagation()}
-      className={`flex flex-col overflow-hidden select-none border transition-opacity duration-[600ms] ease-out ${
-        win.isClosing ? 'pointer-events-none opacity-0' : 'opacity-100'
+      className={`flex flex-col overflow-hidden select-none border ${
+        win.isMinimizing
+          ? 'oxide-window-minimizing'
+          : `transition-opacity duration-[600ms] ease-out ${
+              win.isClosing ? 'pointer-events-none opacity-0' : 'opacity-100'
+            }`
       }`}
     >
       {/* Title Bar */}

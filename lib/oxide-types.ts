@@ -125,6 +125,7 @@ export interface WindowState {
   height: number;
   isMinimized: boolean;
   isMaximized: boolean;
+  isMinimizing?: boolean;
   isClosing?: boolean;
   zIndex: number;
   workspace: number;

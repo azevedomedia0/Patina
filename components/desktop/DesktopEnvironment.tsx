@@ -253,7 +253,15 @@ export default function DesktopEnvironment() {
   };
 
   const closeTimers = useRef<Map<string, number>>(new Map());
+  const minimizeTimers = useRef<Map<string, number>>(new Map());
   const restartTimer = useRef<number | null>(null);
+
+  const cancelMinimize = (id: string) => {
+    const timer = minimizeTimers.current.get(id);
+    if (timer === undefined) return;
+    window.clearTimeout(timer);
+    minimizeTimers.current.delete(id);
+  };
 
   const openApp = useCallback((appId: AppId) => {
     const appDef = APPS.find((a) => a.id === appId);
@@ -264,9 +272,12 @@ export default function DesktopEnvironment() {
       (w) => w.appId === appId && w.workspace === currentWorkspace && !w.isClosing
     );
     if (existing) {
-      if (existing.isMinimized) {
+      if (existing.isMinimized || existing.isMinimizing) {
+        cancelMinimize(existing.id);
         setWindows((prev) =>
-          prev.map((w) => (w.id === existing.id ? { ...w, isMinimized: false } : w))
+          prev.map((w) =>
+            w.id === existing.id ? { ...w, isMinimized: false, isMinimizing: false } : w
+          )
         );
       }
       setActiveWindowId(existing.id);
@@ -298,7 +309,10 @@ export default function DesktopEnvironment() {
 
   const closeWindow = (id: string) => {
     if (closeTimers.current.has(id)) return;
-    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isClosing: true } : w)));
+    cancelMinimize(id);
+    setWindows((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, isClosing: true, isMinimizing: false } : w))
+    );
     if (activeWindowId === id) {
       const remaining = windows.filter((w) => w.id !== id && !w.isClosing);
       setActiveWindowId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
@@ -313,8 +327,10 @@ export default function DesktopEnvironment() {
 
   useEffect(() => {
     const timers = closeTimers.current;
+    const minimizing = minimizeTimers.current;
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
+      minimizing.forEach((timer) => window.clearTimeout(timer));
       if (restartTimer.current !== null) window.clearTimeout(restartTimer.current);
     };
   }, []);
@@ -322,6 +338,8 @@ export default function DesktopEnvironment() {
   const closeAllWindows = () => {
     closeTimers.current.forEach((timer) => window.clearTimeout(timer));
     closeTimers.current.clear();
+    minimizeTimers.current.forEach((timer) => window.clearTimeout(timer));
+    minimizeTimers.current.clear();
     setWindows([]);
     setActiveWindowId(null);
   };
@@ -353,10 +371,20 @@ export default function DesktopEnvironment() {
   };
 
   const minimizeWindow = (id: string) => {
-    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w)));
+    if (minimizeTimers.current.has(id) || closeTimers.current.has(id)) return;
+    const target = windows.find((windowState) => windowState.id === id);
+    if (!target || target.isMinimized || target.isClosing) return;
+    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isMinimizing: true } : w)));
     if (activeWindowId === id) {
       setActiveWindowId(null);
     }
+    const timer = window.setTimeout(() => {
+      minimizeTimers.current.delete(id);
+      setWindows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, isMinimized: true, isMinimizing: false } : w))
+      );
+    }, 500);
+    minimizeTimers.current.set(id, timer);
   };
 
   const toggleMaximizeWindow = (id: string) => {
@@ -393,10 +421,13 @@ export default function DesktopEnvironment() {
   };
 
   const focusWindow = (id: string) => {
+    cancelMinimize(id);
     setActiveWindowId(id);
     setWindows((prev) => {
       const maxZ = Math.max(0, ...prev.map((w) => w.zIndex)) + 1;
-      return prev.map((w) => (w.id === id ? { ...w, zIndex: maxZ, isMinimized: false } : w));
+      return prev.map((w) =>
+        w.id === id ? { ...w, zIndex: maxZ, isMinimized: false, isMinimizing: false } : w
+      );
     });
   };
 
