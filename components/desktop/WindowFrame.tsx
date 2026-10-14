@@ -225,7 +225,7 @@ export default function WindowFrame({
         {!isMac && (
           <div
             className={`flex items-center gap-1.5 shrink-0 z-10 ${
-              isPill ? 'bg-neutral-900/60 px-2 py-0.5 rounded-full border border-neutral-800' : ''
+              isPill ? 'px-2 py-0.5 rounded-full border border-neutral-800' : ''
             }`}
             onMouseDown={(e) => e.stopPropagation()}
           >
