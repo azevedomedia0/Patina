@@ -175,7 +175,7 @@ export default function QuickSettings({
 
       <div className="grid grid-cols-2 gap-2">
         {(Object.keys(HARDWARE_PROFILES) as ArchType[])
-          .filter((archKey) => archKey !== 'x86_64_low')
+          .filter((archKey) => archKey !== 'armv7l' && archKey !== 'aarch64' && archKey !== 'x86_64_low')
           .map((archKey) => {
           const label = HARDWARE_LABELS[archKey];
           return (
