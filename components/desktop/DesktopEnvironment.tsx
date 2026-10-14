@@ -405,7 +405,6 @@ export default function DesktopEnvironment() {
 
       {/* Top Status Bar (Wayland Layer-shell) */}
       <TopPanel
-        hardware={hardware}
         config={config}
         activeWindowTitle={activeWindow ? activeWindow.title : null}
         onToggleLauncher={() => setLauncherOpen((o) => !o)}

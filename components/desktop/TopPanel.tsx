@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { HardwareProfile, DEConfig, AppDefinition, AppId } from '@/lib/oxide-types';
+import { DEConfig, AppDefinition, AppId } from '@/lib/oxide-types';
 import { Terminal, Cpu, HardDrive, Wifi, Volume2, Sliders, LayoutGrid, Monitor, ShieldCheck } from 'lucide-react';
 
 interface TopPanelProps {
-  hardware: HardwareProfile;
   config: DEConfig;
   activeWindowTitle: string | null;
   onToggleLauncher: () => void;
@@ -15,7 +14,6 @@ interface TopPanelProps {
 }
 
 export default function TopPanel({
-  hardware,
   config,
   activeWindowTitle,
   onToggleLauncher,
@@ -38,7 +36,6 @@ export default function TopPanel({
   }, []);
 
   const theme = config.activeTheme;
-  const activeRamMB = config.lowSpecMode ? hardware.idleRamMB - 6 : hardware.idleRamMB;
   const isPill = theme.windowStyle.isPillShape;
   const isMac = theme.windowStyle.isMacStyle;
 
@@ -89,25 +86,8 @@ export default function TopPanel({
         <span className="font-mono font-semibold">{timeStr}</span>
       </div>
 
-      {/* Right Zone: Hardware Telemetry Pills & Quick Settings Trigger */}
+      {/* Right Zone: Quick Settings Trigger */}
       <div className="flex items-center gap-2">
-        {/* Low-Spec / Architecture Indicator */}
-        <div
-          style={{
-            backgroundColor: theme.palette.background,
-            borderColor: theme.palette.border,
-          }}
-          className={`hidden sm:flex items-center gap-1.5 py-0.5 border text-[11px] font-mono ${
-            isPill ? 'rounded-full px-3' : 'rounded px-2'
-          }`}
-        >
-          <span style={{ color: theme.palette.success }} className="font-semibold">{hardware.architecture}</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.accent }} className="tabular-nums">{activeRamMB}M</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.textSecondary }} className="tabular-nums">60fps</span>
-        </div>
-
         {/* Quick Settings Drawer Toggle */}
         <button
           onClick={onToggleQuickSettings}
