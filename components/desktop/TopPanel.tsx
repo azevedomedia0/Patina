@@ -11,6 +11,8 @@ interface TopPanelProps {
   quickSettingsOpen: boolean;
   onToggleNotifications: () => void;
   notificationsOpen: boolean;
+  onToggleWorkspaces: () => void;
+  workspacesOpen: boolean;
   onOpenApp: (appId: AppId) => void;
   onContextMenu: (event: React.MouseEvent) => void;
 }
@@ -22,6 +24,8 @@ export default function TopPanel({
   quickSettingsOpen,
   onToggleNotifications,
   notificationsOpen,
+  onToggleWorkspaces,
+  workspacesOpen,
   onOpenApp,
   onContextMenu,
 }: TopPanelProps) {
@@ -69,15 +73,21 @@ export default function TopPanel({
           <LayoutGrid className="w-3.5 h-3.5" />
         </button>
 
-        {/* Active Window Title */}
-        <div
-          style={{ borderColor: theme.palette.border }}
-          className="hidden md:flex items-center gap-2 pl-2 border-l text-[11px]"
+        <button
+          type="button"
+          onClick={onToggleWorkspaces}
+          aria-expanded={workspacesOpen}
+          aria-label="Workspaces"
+          title="Workspaces"
+          style={{
+            borderColor: theme.palette.border,
+            color: theme.palette.textPrimary,
+            backgroundColor: workspacesOpen ? theme.palette.surface : 'transparent',
+          }}
+          className="hidden md:flex items-center gap-2 rounded-md border-l py-1 pl-2 pr-2 text-[11px] font-medium transition-colors hover:opacity-80"
         >
-          <span style={{ color: theme.palette.textPrimary }} className="font-medium">
-            Workspace
-          </span>
-        </div>
+          Workspace
+        </button>
       </div>
 
       {/* Center Zone: System Clock & Date */}

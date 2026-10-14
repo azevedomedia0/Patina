@@ -14,8 +14,9 @@ import {
   OptimizationSettings,
 } from '@/lib/oxide-types';
 import TopPanel from './TopPanel';
-import QuickSettings from './QuickSettings';
+import QuickSettings, { SessionAction } from './QuickSettings';
 import NotificationPanel from './NotificationPanel';
+import WorkspacesPanel from './WorkspacesPanel';
 import AppLauncher from './AppLauncher';
 import WindowFrame from './WindowFrame';
 import ContextMenu, { ContextMenuEntry } from './ContextMenu';
@@ -154,10 +155,12 @@ export const APPS: AppDefinition[] = [
 
 export default function DesktopEnvironment() {
   const [currentHardwareId, setCurrentHardwareId] = useState<ArchType>('armv7l');
-  const currentWorkspace = 1;
+  const [currentWorkspace, setCurrentWorkspace] = useState(1);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
+  const [sessionPhase, setSessionPhase] = useState<'running' | 'restarting' | 'off'>('running');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [workspacesOpen, setWorkspacesOpen] = useState(false);
   const [brightness, setBrightness] = useState(100);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entries: ContextMenuEntry[] } | null>(null);
   const [activeWindowId, setActiveWindowId] = useState<string | null>('win-theme-studio');
@@ -250,6 +253,7 @@ export default function DesktopEnvironment() {
   };
 
   const closeTimers = useRef<Map<string, number>>(new Map());
+  const restartTimer = useRef<number | null>(null);
 
   const openApp = useCallback((appId: AppId) => {
     const appDef = APPS.find((a) => a.id === appId);
@@ -311,8 +315,42 @@ export default function DesktopEnvironment() {
     const timers = closeTimers.current;
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
+      if (restartTimer.current !== null) window.clearTimeout(restartTimer.current);
     };
   }, []);
+
+  const closeAllWindows = () => {
+    closeTimers.current.forEach((timer) => window.clearTimeout(timer));
+    closeTimers.current.clear();
+    setWindows([]);
+    setActiveWindowId(null);
+  };
+
+  const handleSessionAction = (action: SessionAction) => {
+    if (restartTimer.current !== null) {
+      window.clearTimeout(restartTimer.current);
+      restartTimer.current = null;
+    }
+    closeAllWindows();
+    setQuickSettingsOpen(false);
+    setLauncherOpen(false);
+    setNotificationsOpen(false);
+    setWorkspacesOpen(false);
+    setContextMenu(null);
+    if (action === 'log-off') {
+      setSessionPhase('running');
+      return;
+    }
+    if (action === 'restart') {
+      setSessionPhase('restarting');
+      restartTimer.current = window.setTimeout(() => {
+        restartTimer.current = null;
+        setSessionPhase('running');
+      }, 1600);
+      return;
+    }
+    setSessionPhase('off');
+  };
 
   const minimizeWindow = (id: string) => {
     setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w)));
@@ -343,9 +381,11 @@ export default function DesktopEnvironment() {
     else if (action === 'launcher') {
       setLauncherOpen(true);
       setNotificationsOpen(false);
+      setWorkspacesOpen(false);
     } else if (action === 'quick-settings') {
       setQuickSettingsOpen(true);
       setNotificationsOpen(false);
+      setWorkspacesOpen(false);
     }
     else if (action === 'minimize') minimizeWindow(target);
     else if (action === 'maximize') toggleMaximizeWindow(target);
@@ -375,7 +415,10 @@ export default function DesktopEnvironment() {
       if ((e.key === 'Meta' && !e.ctrlKey) || (e.altKey && e.code === 'Space')) {
         e.preventDefault();
         setLauncherOpen((prev) => {
-          if (!prev) setNotificationsOpen(false);
+          if (!prev) {
+            setNotificationsOpen(false);
+            setWorkspacesOpen(false);
+          }
           return !prev;
         });
       }
@@ -499,13 +542,19 @@ export default function DesktopEnvironment() {
         config={config}
         onToggleLauncher={() =>
           setLauncherOpen((open) => {
-            if (!open) setNotificationsOpen(false);
+            if (!open) {
+              setNotificationsOpen(false);
+              setWorkspacesOpen(false);
+            }
             return !open;
           })
         }
         onToggleQuickSettings={() =>
           setQuickSettingsOpen((open) => {
-            if (!open) setNotificationsOpen(false);
+            if (!open) {
+              setNotificationsOpen(false);
+              setWorkspacesOpen(false);
+            }
             return !open;
           })
         }
@@ -515,11 +564,23 @@ export default function DesktopEnvironment() {
             if (!open) {
               setQuickSettingsOpen(false);
               setLauncherOpen(false);
+              setWorkspacesOpen(false);
             }
             return !open;
           })
         }
         notificationsOpen={notificationsOpen}
+        onToggleWorkspaces={() =>
+          setWorkspacesOpen((open) => {
+            if (!open) {
+              setNotificationsOpen(false);
+              setQuickSettingsOpen(false);
+              setLauncherOpen(false);
+            }
+            return !open;
+          })
+        }
+        workspacesOpen={workspacesOpen}
         onOpenApp={openApp}
         onContextMenu={(event) =>
           openContextMenu(event, [
@@ -533,6 +594,16 @@ export default function DesktopEnvironment() {
 
       <NotificationPanel isOpen={notificationsOpen} config={config} />
 
+      <WorkspacesPanel
+        isOpen={workspacesOpen}
+        config={config}
+        currentWorkspace={currentWorkspace}
+        onSelectWorkspace={(workspace) => {
+          setCurrentWorkspace(workspace);
+          setWorkspacesOpen(false);
+        }}
+      />
+
       {/* Quick Settings Flyout */}
       <QuickSettings
         isOpen={quickSettingsOpen}
@@ -540,6 +611,7 @@ export default function DesktopEnvironment() {
         config={config}
         onUpdateConfig={handleUpdateConfig}
         onOpenApp={openApp}
+        onSessionAction={handleSessionAction}
         brightness={brightness}
         onBrightnessChange={setBrightness}
       />
@@ -559,6 +631,7 @@ export default function DesktopEnvironment() {
         onClick={() => {
           setQuickSettingsOpen(false);
           setNotificationsOpen(false);
+          setWorkspacesOpen(false);
         }}
         onContextMenu={(event) =>
           openContextMenu(event, [
@@ -721,6 +794,27 @@ export default function DesktopEnvironment() {
           onSelect={handleContextMenuSelect}
           onClose={closeContextMenu}
         />
+      )}
+
+      {sessionPhase !== 'running' && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 z-[80] flex flex-col items-center justify-center gap-4"
+          style={{ backgroundColor: '#050506', color: theme.palette.textPrimary }}
+        >
+          <p className="text-[15px] font-medium">{sessionPhase === 'restarting' ? 'Restarting…' : 'System is off'}</p>
+          {sessionPhase === 'off' && (
+            <button
+              type="button"
+              onClick={() => setSessionPhase('running')}
+              style={{ backgroundColor: theme.palette.surface, color: theme.palette.textPrimary }}
+              className="rounded-[18px] px-4 py-2.5 text-[13px] font-medium transition-colors hover:brightness-110"
+            >
+              Power On
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
