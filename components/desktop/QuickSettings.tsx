@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { DEConfig, AppId } from '@/lib/oxide-types';
-import { Palette, Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
+import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
 
 interface QuickSettingsProps {
   isOpen: boolean;
@@ -138,6 +138,7 @@ export default function QuickSettings({
   const [casting, setCasting] = useState(false);
   const [wifiOn, setWifiOn] = useState(true);
   const [bluetoothOn, setBluetoothOn] = useState(true);
+  const [vpnOn, setVpnOn] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
 
@@ -207,10 +208,11 @@ export default function QuickSettings({
           activeColor={activeColor}
         />
         <QuickToggle
-          icon={<Palette className="h-5 w-5" />}
-          title="Themes"
-          subtitle="Studio"
-          onClick={() => openApp('theme-studio')}
+          active={vpnOn}
+          icon={vpnOn ? <Shield className="h-5 w-5" /> : <ShieldOff className="h-5 w-5" />}
+          title="VPN"
+          subtitle={vpnOn ? 'Connected' : 'Off'}
+          onClick={() => setVpnOn((on) => !on)}
           accent={accent}
           idleBg={idleBg}
           idleColor={idleColor}
