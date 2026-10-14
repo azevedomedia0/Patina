@@ -5,8 +5,6 @@ import { HardwareProfile, DEConfig, AppDefinition, AppId } from '@/lib/oxide-typ
 import { Terminal, Cpu, HardDrive, Wifi, Volume2, Sliders, LayoutGrid, Monitor, ShieldCheck } from 'lucide-react';
 
 interface TopPanelProps {
-  currentWorkspace: number;
-  onSelectWorkspace: (ws: number) => void;
   hardware: HardwareProfile;
   config: DEConfig;
   activeWindowTitle: string | null;
@@ -17,8 +15,6 @@ interface TopPanelProps {
 }
 
 export default function TopPanel({
-  currentWorkspace,
-  onSelectWorkspace,
   hardware,
   config,
   activeWindowTitle,
@@ -56,7 +52,7 @@ export default function TopPanel({
       }}
       className="h-9 w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between text-xs select-none z-50 shrink-0 transition-colors duration-200"
     >
-      {/* Left Zone: Launcher Button & Workspaces */}
+      {/* Left Zone: Launcher Button */}
       <div className="flex items-center gap-2">
         {/* Oxide Brand / Launcher Button */}
         <button
@@ -72,35 +68,6 @@ export default function TopPanel({
         >
           <span className="font-mono text-xs">{isMac ? ' OXIDE' : 'OXIDE'}</span>
         </button>
-
-        {/* Workspaces 1-4 */}
-        <div
-          style={{
-            backgroundColor: theme.palette.background,
-            borderColor: theme.palette.border,
-          }}
-          className={`flex items-center gap-1 p-0.5 border ${isPill ? 'rounded-full px-1.5' : 'rounded'}`}
-        >
-          {[1, 2, 3, 4].map((ws) => (
-            <button
-              key={ws}
-              onClick={() => onSelectWorkspace(ws)}
-              style={
-                currentWorkspace === ws
-                  ? {
-                      backgroundColor: theme.palette.surface,
-                      color: theme.palette.accent,
-                    }
-                  : { color: theme.palette.textSecondary }
-              }
-              className={`w-5 h-5 flex items-center justify-center font-mono text-[11px] font-bold transition-colors ${
-                isPill ? 'rounded-full' : 'rounded'
-              }`}
-            >
-              {ws}
-            </button>
-          ))}
-        </div>
 
         {/* Active Window Title */}
         {activeWindowTitle && (

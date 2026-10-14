@@ -127,7 +127,7 @@ export const APPS: AppDefinition[] = [
 
 export default function DesktopEnvironment() {
   const [currentHardwareId, setCurrentHardwareId] = useState<ArchType>('armv7l');
-  const [currentWorkspace, setCurrentWorkspace] = useState(1);
+  const currentWorkspace = 1;
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
   const [activeWindowId, setActiveWindowId] = useState<string | null>('win-theme-studio');
@@ -313,11 +313,6 @@ export default function DesktopEnvironment() {
         e.preventDefault();
         setConfig((c) => ({ ...c, tilingMode: !c.tilingMode }));
       }
-      // Super+1..4 -> Workspaces
-      if (e.metaKey && ['1', '2', '3', '4'].includes(e.key)) {
-        e.preventDefault();
-        setCurrentWorkspace(parseInt(e.key, 10));
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -410,8 +405,6 @@ export default function DesktopEnvironment() {
 
       {/* Top Status Bar (Wayland Layer-shell) */}
       <TopPanel
-        currentWorkspace={currentWorkspace}
-        onSelectWorkspace={setCurrentWorkspace}
         hardware={hardware}
         config={config}
         activeWindowTitle={activeWindow ? activeWindow.title : null}
