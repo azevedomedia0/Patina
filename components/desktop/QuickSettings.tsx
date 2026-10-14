@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { DEConfig, AppId } from '@/lib/oxide-types';
 import { Palette, Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
 
@@ -134,6 +134,7 @@ export default function QuickSettings({
   onBrightnessChange,
 }: QuickSettingsProps) {
   const [volume, setVolume] = useState(75);
+  const lastVolume = useRef(75);
   const [casting, setCasting] = useState(false);
   const [wifiOn, setWifiOn] = useState(true);
   const [bluetoothOn, setBluetoothOn] = useState(true);
@@ -141,6 +142,15 @@ export default function QuickSettings({
   const [playing, setPlaying] = useState(true);
 
   if (!isOpen) return null;
+
+  const toggleMute = () => {
+    if (volume === 0) {
+      setVolume(lastVolume.current > 0 ? lastVolume.current : 75);
+      return;
+    }
+    lastVolume.current = volume;
+    setVolume(0);
+  };
 
   const theme = config.activeTheme;
   const accent = theme.palette.accent;
@@ -242,14 +252,26 @@ export default function QuickSettings({
         className="flex items-center gap-3 rounded-[18px] px-3 py-2.5"
         style={{ backgroundColor: idleBg, color: idleColor }}
       >
-        {volume === 0 ? <VolumeX className="h-5 w-5 shrink-0" /> : <Volume2 className="h-5 w-5 shrink-0" />}
+        <button
+          type="button"
+          aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+          aria-pressed={volume === 0}
+          onClick={toggleMute}
+          className="shrink-0 rounded-full p-0.5 transition-opacity hover:opacity-80"
+        >
+          {volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+        </button>
         <input
           type="range"
           min={0}
           max={100}
           value={volume}
           aria-label="Volume"
-          onChange={(event) => setVolume(Number(event.target.value))}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (next > 0) lastVolume.current = next;
+            setVolume(next);
+          }}
           style={{
             background: `linear-gradient(to right, ${accent} ${volume}%, rgba(255,255,255,0.18) ${volume}%)`,
           }}
