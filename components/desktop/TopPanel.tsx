@@ -61,9 +61,10 @@ export default function TopPanel({
           className={`flex items-center gap-1.5 px-2.5 py-1 font-bold text-xs transition-opacity hover:opacity-90 shadow-xs ${
             isPill ? 'rounded-full px-3.5' : isMac ? 'rounded-md px-2.5' : 'rounded'
           }`}
+          aria-label="Apps"
           title="Open Application Launcher (Super / Alt+Space)"
         >
-          <span className="font-mono text-xs">{isMac ? ' OXIDE' : 'OXIDE'}</span>
+          <LayoutGrid className="w-3.5 h-3.5" />
         </button>
 
         {/* Active Window Title */}
