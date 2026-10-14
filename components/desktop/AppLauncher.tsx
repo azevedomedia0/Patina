@@ -102,9 +102,7 @@ export default function AppLauncher({ isOpen, onClose, apps, onLaunchApp }: AppL
                       : 'hover:bg-neutral-850 text-neutral-300'
                   }`}
                 >
-                  <div className="p-2 rounded-lg bg-neutral-950 border border-neutral-800 shrink-0">
-                    <AppGlyph id={app.id} className="h-6 w-6" />
-                  </div>
+                  <AppGlyph id={app.id} className="h-6 w-6 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-xs text-white flex items-center justify-between">
                       <span>{app.title}</span>

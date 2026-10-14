@@ -726,7 +726,6 @@ export default function DesktopEnvironment() {
       >
         {APPS.map((app) => {
           const appWindows = windows.filter((win) => win.appId === app.id && !win.isClosing);
-          const focused = appWindows.some((win) => win.id === activeWindowId && !win.isMinimized);
           return (
             <button
               key={app.id}
@@ -765,13 +764,8 @@ export default function DesktopEnvironment() {
             >
               <span
                 style={{
-                  backgroundColor: theme.palette.surface,
                   width: chrome.dockTile,
                   height: chrome.dockTile,
-                  borderRadius: theme.windowStyle.isPillShape ? 9999 : 12,
-                  boxShadow: focused
-                    ? `inset 0 0 0 2px ${theme.palette.accent}`
-                    : `inset 0 0 0 1px ${theme.palette.border}`,
                 }}
                 className="flex items-center justify-center transition-transform group-hover:-translate-y-1 group-hover:scale-110"
               >
