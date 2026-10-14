@@ -303,7 +303,7 @@ export default function DesktopEnvironment() {
       closeTimers.current.delete(id);
       setWindows((prev) => prev.filter((w) => w.id !== id));
       setActiveWindowId((current) => (current === id ? null : current));
-    }, 1000);
+    }, 600);
     closeTimers.current.set(id, timer);
   };
 

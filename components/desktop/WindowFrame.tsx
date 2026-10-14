@@ -160,7 +160,7 @@ export default function WindowFrame({
       onMouseDown={onFocus}
       data-window-frame=""
       onContextMenu={(event) => event.stopPropagation()}
-      className={`flex flex-col overflow-hidden select-none border transition-opacity duration-[1000ms] ease-out ${
+      className={`flex flex-col overflow-hidden select-none border transition-opacity duration-[600ms] ease-out ${
         win.isClosing ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
     >
