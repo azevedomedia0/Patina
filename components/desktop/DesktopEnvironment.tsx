@@ -9,6 +9,7 @@ import {
   HARDWARE_PROFILES,
   ArchType,
   DEConfig,
+  CHROME_METRICS,
   PRESET_THEMES,
   DynamicTheme,
   OptimizationSettings,
@@ -138,6 +139,7 @@ export default function DesktopEnvironment() {
     tilingMode: false,
     lowSpecMode: hardware.defaultLowSpecMode,
     fontScale: 100,
+    chromeSize: 'default',
     damageTracking: true,
     showFpsOverlay: false,
     animationsEnabled: true,
@@ -435,6 +437,7 @@ export default function DesktopEnvironment() {
 
   const currentWorkspaceWindows = windows.filter((w) => w.workspace === currentWorkspace);
   const theme = config.activeTheme;
+  const chrome = CHROME_METRICS[config.chromeSize];
   const screenBrightness = brightness === 100 ? undefined : { filter: `brightness(${brightness}%)` };
 
   // Background style renderer
@@ -714,11 +717,12 @@ export default function DesktopEnvironment() {
         style={{
           backgroundColor: 'transparent',
           borderColor: theme.palette.textSecondary,
+          gap: chrome.dockGap,
+          padding: `${chrome.dockPadY}px ${chrome.dockPadX}px`,
+          borderRadius: theme.windowStyle.isPillShape ? 9999 : chrome.dockRadius,
           ...screenBrightness,
         }}
-        className={`absolute bottom-[10px] left-1/2 z-40 flex -translate-x-1/2 items-end gap-1 border-[3px] px-2 py-1.5 select-none ${
-          theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded-[22px]'
-        }`}
+        className="absolute bottom-[10px] left-1/2 z-40 flex -translate-x-1/2 items-end border-[3px] select-none"
       >
         {APPS.map((app) => {
           const appWindows = windows.filter((win) => win.appId === app.id && !win.isClosing);
@@ -756,24 +760,30 @@ export default function DesktopEnvironment() {
                 const next = appWindows.find((win) => win.isMinimized) ?? appWindows[appWindows.length - 1];
                 focusWindow(next.id);
               }}
-              className="group flex w-12 flex-col items-center gap-1"
+              className="group flex flex-col items-center gap-1"
+              style={{ width: chrome.dockButton }}
             >
               <span
                 style={{
                   backgroundColor: theme.palette.surface,
+                  width: chrome.dockTile,
+                  height: chrome.dockTile,
+                  borderRadius: theme.windowStyle.isPillShape ? 9999 : 12,
                   boxShadow: focused
                     ? `inset 0 0 0 2px ${theme.palette.accent}`
                     : `inset 0 0 0 1px ${theme.palette.border}`,
                 }}
-                className={`flex h-10 w-10 items-center justify-center transition-transform group-hover:-translate-y-1 group-hover:scale-110 ${
-                  theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded-xl'
-                }`}
+                className="flex items-center justify-center transition-transform group-hover:-translate-y-1 group-hover:scale-110"
               >
-                <AppGlyph id={app.id} />
+                <AppGlyph id={app.id} size={chrome.dockGlyph} />
               </span>
               <span
-                className="h-1 w-1 rounded-full"
-                style={{ backgroundColor: appWindows.length > 0 ? theme.palette.textPrimary : 'transparent' }}
+                className="rounded-full"
+                style={{
+                  width: chrome.dockIndicator,
+                  height: chrome.dockIndicator,
+                  backgroundColor: appWindows.length > 0 ? theme.palette.textPrimary : 'transparent',
+                }}
               />
             </button>
           );

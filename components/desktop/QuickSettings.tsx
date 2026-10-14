@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { DEConfig, AppId } from '@/lib/oxide-types';
+import { DEConfig, AppId, CHROME_METRICS } from '@/lib/oxide-types';
 import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Music, LogOut, RotateCcw, Power } from 'lucide-react';
 
 export type SessionAction = 'log-off' | 'restart' | 'shutdown';
@@ -240,8 +240,9 @@ export default function QuickSettings({
         borderColor: theme.palette.border,
         color: theme.palette.textPrimary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
+        top: CHROME_METRICS[config.chromeSize].flyoutTop,
       }}
-      className="absolute top-11 right-2 z-50 flex w-[23.5rem] max-h-[88vh] flex-col gap-2 overflow-y-auto rounded-[26px] border p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
+      className="absolute right-2 z-50 flex w-[23.5rem] max-h-[88vh] flex-col gap-2 overflow-y-auto rounded-[26px] border p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
     >
       <div className="grid grid-cols-2 gap-2">
         <QuickToggle

@@ -413,12 +413,75 @@ export interface OptimizationSettings {
   ltoAggressive: boolean; // Fat LTO + 1 codegen unit
 }
 
+export type ChromeSize = 'small' | 'default' | 'large';
+
+export interface ChromeMetrics {
+  panelHeight: number;
+  panelFont: number;
+  panelIcon: number;
+  dockTile: number;
+  dockGlyph: number;
+  dockButton: number;
+  dockGap: number;
+  dockPadX: number;
+  dockPadY: number;
+  dockRadius: number;
+  dockIndicator: number;
+  flyoutTop: number;
+}
+
+export const CHROME_METRICS: Record<ChromeSize, ChromeMetrics> = {
+  small: {
+    panelHeight: 28,
+    panelFont: 11,
+    panelIcon: 12,
+    dockTile: 32,
+    dockGlyph: 24,
+    dockButton: 40,
+    dockGap: 2,
+    dockPadX: 6,
+    dockPadY: 4,
+    dockRadius: 16,
+    dockIndicator: 3,
+    flyoutTop: 34,
+  },
+  default: {
+    panelHeight: 36,
+    panelFont: 12,
+    panelIcon: 14,
+    dockTile: 40,
+    dockGlyph: 32,
+    dockButton: 48,
+    dockGap: 4,
+    dockPadX: 8,
+    dockPadY: 6,
+    dockRadius: 22,
+    dockIndicator: 4,
+    flyoutTop: 44,
+  },
+  large: {
+    panelHeight: 48,
+    panelFont: 14,
+    panelIcon: 18,
+    dockTile: 52,
+    dockGlyph: 40,
+    dockButton: 64,
+    dockGap: 6,
+    dockPadX: 12,
+    dockPadY: 8,
+    dockRadius: 28,
+    dockIndicator: 5,
+    flyoutTop: 56,
+  },
+};
+
 export interface DEConfig {
   activeTheme: DynamicTheme;
   wallpaper: 'stock' | 'oxide-mesh' | 'nordic-aurora' | 'rust-metal' | 'minimal-charcoal';
   tilingMode: boolean; // false = floating, true = dynamic auto-tiling
   lowSpecMode: boolean; // bypass blur, reduce shadow radius, direct scanout
   fontScale: 90 | 100 | 110;
+  chromeSize: ChromeSize;
   damageTracking: boolean; // re-render only damaged rects
   showFpsOverlay: boolean;
   animationsEnabled: boolean;

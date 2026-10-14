@@ -13,7 +13,15 @@ const PAPIRUS_ICONS: Record<AppId, string> = {
   guide: '/icons/papirus/guide.svg',
 };
 
-export default function AppGlyph({ id, className = 'h-8 w-8' }: { id: AppId; className?: string }) {
+export default function AppGlyph({
+  id,
+  className = 'h-8 w-8',
+  size,
+}: {
+  id: AppId;
+  className?: string;
+  size?: number;
+}) {
   return (
     <Image
       src={PAPIRUS_ICONS[id]}
@@ -21,7 +29,8 @@ export default function AppGlyph({ id, className = 'h-8 w-8' }: { id: AppId; cla
       width={48}
       height={48}
       unoptimized
-      className={`${className} object-contain`}
+      className={size ? 'object-contain' : `${className} object-contain`}
+      style={size ? { width: size, height: size } : undefined}
     />
   );
 }

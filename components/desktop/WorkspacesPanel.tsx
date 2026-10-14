@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { DEConfig } from '@/lib/oxide-types';
+import { DEConfig, CHROME_METRICS } from '@/lib/oxide-types';
 
 const WORKSPACES = [1, 2, 3, 4] as const;
 
@@ -31,8 +31,9 @@ export default function WorkspacesPanel({
         borderColor: theme.palette.border,
         color: theme.palette.textPrimary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
+        top: CHROME_METRICS[config.chromeSize].flyoutTop,
       }}
-      className="absolute top-11 left-3 z-50 flex w-fit flex-row items-center gap-1 rounded-full border px-1.5 py-1 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
+      className="absolute left-3 z-50 flex w-fit flex-row items-center gap-1 rounded-full border px-1.5 py-1 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
     >
       {WORKSPACES.map((workspace) => {
         const active = workspace === currentWorkspace;

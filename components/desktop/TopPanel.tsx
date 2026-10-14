@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DEConfig, AppDefinition, AppId } from '@/lib/oxide-types';
+import { DEConfig, AppDefinition, AppId, CHROME_METRICS } from '@/lib/oxide-types';
 import { Terminal, Cpu, HardDrive, Wifi, Volume2, ToggleLeft, ToggleRight, LayoutGrid, Monitor, ShieldCheck } from 'lucide-react';
 
 interface TopPanelProps {
@@ -45,6 +45,7 @@ export default function TopPanel({
 
   const theme = config.activeTheme;
   const isPill = theme.windowStyle.isPillShape;
+  const chrome = CHROME_METRICS[config.chromeSize];
 
   return (
     <header
@@ -53,8 +54,10 @@ export default function TopPanel({
         borderColor: theme.palette.border,
         color: theme.palette.textSecondary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
+        height: chrome.panelHeight,
+        fontSize: chrome.panelFont,
       }}
-      className="relative h-9 w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between text-xs select-none z-50 shrink-0 transition-colors duration-200"
+      className="relative w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between select-none z-50 shrink-0 transition-colors duration-200"
       onContextMenu={onContextMenu}
     >
       {/* Left Zone: Launcher Button */}
@@ -70,7 +73,7 @@ export default function TopPanel({
           aria-label="Apps"
           title="Open Application Launcher (Super / Alt+Space)"
         >
-          <LayoutGrid className="w-3.5 h-3.5" />
+          <LayoutGrid style={{ width: chrome.panelIcon, height: chrome.panelIcon }} />
         </button>
 
         <button
@@ -125,9 +128,9 @@ export default function TopPanel({
           title="Quick Settings & Hardware Tuner"
         >
           {quickSettingsOpen ? (
-            <ToggleRight className="w-4 h-4" />
+            <ToggleRight style={{ width: chrome.panelIcon + 2, height: chrome.panelIcon + 2 }} />
           ) : (
-            <ToggleLeft className="w-4 h-4" />
+            <ToggleLeft style={{ width: chrome.panelIcon + 2, height: chrome.panelIcon + 2 }} />
           )}
         </button>
       </div>

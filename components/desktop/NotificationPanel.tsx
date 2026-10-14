@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { DEConfig } from '@/lib/oxide-types';
+import { DEConfig, CHROME_METRICS } from '@/lib/oxide-types';
 import { Bell, Download, Image as ImageIcon, Music, X } from 'lucide-react';
 
 interface NotificationPanelProps {
@@ -69,8 +69,9 @@ export default function NotificationPanel({ isOpen, config }: NotificationPanelP
         borderColor: theme.palette.border,
         color: theme.palette.textPrimary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
+        top: CHROME_METRICS[config.chromeSize].flyoutTop,
       }}
-      className="absolute top-11 left-1/2 z-50 flex w-[22rem] max-h-[70vh] -translate-x-1/2 flex-col gap-2 overflow-y-auto rounded-[26px] border p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
+      className="absolute left-1/2 z-50 flex w-[22rem] max-h-[70vh] -translate-x-1/2 flex-col gap-2 overflow-y-auto rounded-[26px] border p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
     >
       <div className="flex items-center justify-between px-1">
         <span className="text-[13px] font-medium">Notifications</span>
