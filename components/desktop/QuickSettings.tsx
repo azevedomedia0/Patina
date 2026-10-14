@@ -296,7 +296,7 @@ export default function QuickSettings({
         style={{ backgroundColor: idleBg, color: idleColor }}
         className="rounded-[18px] py-2.5 text-[13px] font-medium transition-colors hover:brightness-110"
       >
-        Settings
+        All Settings
       </button>
     </div>
   );
