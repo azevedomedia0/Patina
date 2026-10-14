@@ -549,7 +549,7 @@ export default function DesktopEnvironment() {
           borderColor: theme.palette.textSecondary,
           ...screenBrightness,
         }}
-        className={`absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-end gap-1 border-4 px-2 py-1.5 select-none ${
+        className={`absolute bottom-[10px] left-1/2 z-40 flex -translate-x-1/2 items-end gap-1 border-4 px-2 py-1.5 select-none ${
           theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded-[22px]'
         }`}
       >
