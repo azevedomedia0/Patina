@@ -6,7 +6,6 @@ import { Terminal, Cpu, HardDrive, Wifi, Volume2, ToggleLeft, ToggleRight, Layou
 
 interface TopPanelProps {
   config: DEConfig;
-  activeWindowTitle: string | null;
   onToggleLauncher: () => void;
   onToggleQuickSettings: () => void;
   quickSettingsOpen: boolean;
@@ -15,7 +14,6 @@ interface TopPanelProps {
 
 export default function TopPanel({
   config,
-  activeWindowTitle,
   onToggleLauncher,
   onToggleQuickSettings,
   quickSettingsOpen,
@@ -68,16 +66,14 @@ export default function TopPanel({
         </button>
 
         {/* Active Window Title */}
-        {activeWindowTitle && (
-          <div
-            style={{ borderColor: theme.palette.border }}
-            className="hidden md:flex items-center gap-2 pl-2 border-l text-[11px]"
-          >
-            <span style={{ color: theme.palette.textPrimary }} className="truncate max-w-[200px] font-medium">
-              {activeWindowTitle}
-            </span>
-          </div>
-        )}
+        <div
+          style={{ borderColor: theme.palette.border }}
+          className="hidden md:flex items-center gap-2 pl-2 border-l text-[11px]"
+        >
+          <span style={{ color: theme.palette.textPrimary }} className="font-medium">
+            Workspace
+          </span>
+        </div>
       </div>
 
       {/* Center Zone: System Clock & Date */}

@@ -344,7 +344,6 @@ export default function DesktopEnvironment() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [openApp]);
 
-  const activeWindow = windows.find((w) => w.id === activeWindowId);
   const currentWorkspaceWindows = windows.filter((w) => w.workspace === currentWorkspace);
   const theme = config.activeTheme;
 
@@ -438,7 +437,6 @@ export default function DesktopEnvironment() {
       {/* Top Status Bar (Wayland Layer-shell) */}
       <TopPanel
         config={config}
-        activeWindowTitle={activeWindow ? activeWindow.title : null}
         onToggleLauncher={() => setLauncherOpen((o) => !o)}
         onToggleQuickSettings={() => setQuickSettingsOpen((o) => !o)}
         quickSettingsOpen={quickSettingsOpen}
