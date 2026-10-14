@@ -40,7 +40,7 @@ export default function SettingsApp({
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-200 font-sans select-none text-xs overflow-y-auto p-4 space-y-5">
+    <div className="flex h-full min-h-0 flex-col space-y-5 overflow-y-auto bg-neutral-950 p-4 font-sans text-xs text-neutral-200 select-none">
       {/* Target Hardware Architecture Selector */}
       <div className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-lg space-y-3">
         <div className="flex items-center justify-between">

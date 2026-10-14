@@ -263,7 +263,7 @@ export default function WindowFrame({
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-hidden relative">{children}</div>
+      <div className="relative min-h-0 flex-1 overflow-auto">{children}</div>
 
       {/* Resize Handle (Bottom-Right) */}
       {!win.isMaximized && !config.tilingMode && (

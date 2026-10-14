@@ -103,7 +103,7 @@ export default function ThemeStudioApp({ currentTheme, onApplyTheme }: ThemeStud
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-200 font-sans select-none text-xs overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-neutral-950 font-sans text-xs text-neutral-200 select-none">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-neutral-900 border-b border-neutral-800 shrink-0">
         <div className="flex items-center gap-2">
@@ -159,9 +159,9 @@ export default function ThemeStudioApp({ currentTheme, onApplyTheme }: ThemeStud
       </div>
 
       {/* Main Split: Control Panel on Left + Live Theme Preview on Right */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left Side: Controls for Selected Tab */}
-        <div className="w-full md:w-80 lg:w-96 p-4 overflow-y-auto border-r border-neutral-800 space-y-4 shrink-0 bg-neutral-900/40">
+        <div className="min-h-0 w-full space-y-4 overflow-y-auto border-r border-neutral-800 bg-neutral-900/40 p-4 md:w-80 md:shrink-0 lg:w-96">
           {activeTab === 'presets' && (
             <div className="space-y-3">
               <div className="font-semibold text-white text-xs">Curated Desktop Presets</div>
@@ -449,7 +449,7 @@ export default function ThemeStudioApp({ currentTheme, onApplyTheme }: ThemeStud
         </div>
 
         {/* Right Side: Interactive Live Theme Preview Sandbox */}
-        <div className="flex-1 p-5 overflow-y-auto flex flex-col justify-center items-center bg-neutral-950">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-neutral-950 p-5">
           <div className="w-full max-w-lg space-y-3">
             <div className="flex items-center justify-between text-neutral-400 text-[11px]">
               <span>Real-Time Component Preview</span>

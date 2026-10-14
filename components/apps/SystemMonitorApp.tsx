@@ -55,7 +55,7 @@ export default function SystemMonitorApp({ hardware, config, onToggleLowSpec }: 
   const avgCpu = Math.round(coreLoads.reduce((a, b) => a + b, 0) / coreLoads.length);
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-200 select-none overflow-y-auto p-4 space-y-4 font-sans text-xs">
+    <div className="flex h-full min-h-0 flex-col space-y-4 overflow-y-auto bg-neutral-950 p-4 font-sans text-xs text-neutral-200 select-none">
       {/* Top Banner: Architecture & Active Compositor Pipeline */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-neutral-900 border border-neutral-800">
         <div>
