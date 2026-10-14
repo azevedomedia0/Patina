@@ -468,7 +468,9 @@ export default function DesktopEnvironment() {
       <main className="relative flex-1 overflow-hidden" onClick={() => setQuickSettingsOpen(false)}>
         {/* Desktop Shortcuts Strip (Clean unboxed icon dock on left edge) */}
         <div className="absolute top-4 left-3 flex flex-col gap-2.5 z-10">
-          {APPS.slice(0, 6).map((app) => (
+          {APPS.slice(0, 6)
+            .filter((app) => app.id !== 'benchmark')
+            .map((app) => (
             <button
               key={app.id}
               onClick={() => openApp(app.id)}
