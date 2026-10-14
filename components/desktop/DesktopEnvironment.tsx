@@ -537,10 +537,8 @@ export default function DesktopEnvironment() {
       <QuickSettings
         isOpen={quickSettingsOpen}
         onClose={() => setQuickSettingsOpen(false)}
-        hardware={hardware}
         config={config}
         onUpdateConfig={handleUpdateConfig}
-        onSelectHardware={handleSelectHardware}
         onOpenApp={openApp}
         brightness={brightness}
         onBrightnessChange={setBrightness}

@@ -1,27 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { HardwareProfile, DEConfig, ArchType, HARDWARE_PROFILES, AppId } from '@/lib/oxide-types';
-import { Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
+import { DEConfig, AppId } from '@/lib/oxide-types';
+import { Palette, Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
 
 interface QuickSettingsProps {
   isOpen: boolean;
   onClose: () => void;
-  hardware: HardwareProfile;
   config: DEConfig;
   onUpdateConfig: (partial: Partial<DEConfig>) => void;
-  onSelectHardware: (arch: ArchType) => void;
   onOpenApp: (appId: AppId) => void;
   brightness: number;
   onBrightnessChange: (value: number) => void;
 }
-
-const HARDWARE_LABELS: Record<ArchType, { title: string; subtitle: string }> = {
-  armv7l: { title: 'Pi 2 / 3', subtitle: '32-bit ARM' },
-  aarch64: { title: 'Pi 4 / 5', subtitle: '64-bit ARM' },
-  x86_64_low: { title: 'Netbook', subtitle: '64-bit x86' },
-  x86_64_high: { title: 'Workstation', subtitle: '64-bit x86' },
-};
 
 const NOW_PLAYING = [
   { title: 'Wayland Drift', artist: 'Oxide Ensemble' },
@@ -136,10 +127,8 @@ function QuickToggle({
 export default function QuickSettings({
   isOpen,
   onClose,
-  hardware,
   config,
   onUpdateConfig,
-  onSelectHardware,
   onOpenApp,
   brightness,
   onBrightnessChange,
@@ -228,28 +217,6 @@ export default function QuickSettings({
           idleColor={idleColor}
           activeColor={activeColor}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {(Object.keys(HARDWARE_PROFILES) as ArchType[])
-          .filter((archKey) => archKey !== 'armv7l' && archKey !== 'aarch64' && archKey !== 'x86_64_low')
-          .map((archKey) => {
-          const label = HARDWARE_LABELS[archKey];
-          return (
-            <QuickToggle
-              key={archKey}
-              active={hardware.id === archKey}
-              icon={<Cpu className="h-5 w-5" />}
-              title={label.title}
-              subtitle={label.subtitle}
-              onClick={() => onSelectHardware(archKey)}
-              accent={accent}
-              idleBg={idleBg}
-              idleColor={idleColor}
-              activeColor={activeColor}
-            />
-          );
-        })}
       </div>
 
       <div
