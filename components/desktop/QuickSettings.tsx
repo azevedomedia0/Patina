@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { DEConfig, AppId } from '@/lib/oxide-types';
-import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, Music } from 'lucide-react';
+import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, Music, LogOut, RotateCcw, Power } from 'lucide-react';
 
 export type SessionAction = 'log-off' | 'restart' | 'shutdown';
 
@@ -205,7 +205,7 @@ export default function QuickSettings({
     onSessionAction(action);
   };
   const sessionButtonClass =
-    'min-w-0 flex-1 rounded-[18px] px-1.5 py-2.5 text-[13px] font-medium transition-colors hover:brightness-110';
+    'flex min-w-0 flex-1 items-center justify-center rounded-[18px] px-1.5 py-2.5 text-[13px] font-medium transition-colors hover:brightness-110';
 
   return (
     <div
@@ -360,27 +360,33 @@ export default function QuickSettings({
         </button>
         <button
           type="button"
+          aria-label="Log Off"
+          title="Log Off"
           onClick={() => runSession('log-off')}
           style={{ backgroundColor: idleBg, color: idleColor }}
           className={sessionButtonClass}
         >
-          Log Off
+          <LogOut className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
+          aria-label="Restart"
+          title="Restart"
           onClick={() => runSession('restart')}
           style={{ backgroundColor: idleBg, color: idleColor }}
           className={sessionButtonClass}
         >
-          Restart
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
+          aria-label="Shutdown"
+          title="Shutdown"
           onClick={() => runSession('shutdown')}
           style={{ backgroundColor: idleBg, color: idleColor }}
           className={sessionButtonClass}
         >
-          Shutdown
+          <Power className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </div>
