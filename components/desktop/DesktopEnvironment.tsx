@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   AppDefinition,
   AppId,
@@ -244,12 +244,16 @@ export default function DesktopEnvironment() {
     }));
   };
 
+  const closeTimers = useRef<Map<string, number>>(new Map());
+
   const openApp = useCallback((appId: AppId) => {
     const appDef = APPS.find((a) => a.id === appId);
     if (!appDef) return;
 
     // Check if window already exists in current workspace
-    const existing = windows.find((w) => w.appId === appId && w.workspace === currentWorkspace);
+    const existing = windows.find(
+      (w) => w.appId === appId && w.workspace === currentWorkspace && !w.isClosing
+    );
     if (existing) {
       if (existing.isMinimized) {
         setWindows((prev) =>
@@ -284,12 +288,26 @@ export default function DesktopEnvironment() {
   }, [currentWorkspace, windows]);
 
   const closeWindow = (id: string) => {
-    setWindows((prev) => prev.filter((w) => w.id !== id));
+    if (closeTimers.current.has(id)) return;
+    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isClosing: true } : w)));
     if (activeWindowId === id) {
-      const remaining = windows.filter((w) => w.id !== id);
+      const remaining = windows.filter((w) => w.id !== id && !w.isClosing);
       setActiveWindowId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
     }
+    const timer = window.setTimeout(() => {
+      closeTimers.current.delete(id);
+      setWindows((prev) => prev.filter((w) => w.id !== id));
+      setActiveWindowId((current) => (current === id ? null : current));
+    }, 2000);
+    closeTimers.current.set(id, timer);
   };
+
+  useEffect(() => {
+    const timers = closeTimers.current;
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, []);
 
   const minimizeWindow = (id: string) => {
     setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w)));
@@ -558,7 +576,7 @@ export default function DesktopEnvironment() {
         }`}
       >
         {APPS.map((app) => {
-          const appWindows = windows.filter((win) => win.appId === app.id);
+          const appWindows = windows.filter((win) => win.appId === app.id && !win.isClosing);
           const focused = appWindows.some((win) => win.id === activeWindowId && !win.isMinimized);
           return (
             <button

@@ -156,7 +156,9 @@ export default function WindowFrame({
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
       onMouseDown={onFocus}
-      className="flex flex-col overflow-hidden transition-all duration-75 select-none border"
+      className={`flex flex-col overflow-hidden select-none border transition-opacity duration-[2000ms] ease-out ${
+        win.isClosing ? 'pointer-events-none opacity-0' : 'opacity-100'
+      }`}
     >
       {/* Title Bar */}
       <div
