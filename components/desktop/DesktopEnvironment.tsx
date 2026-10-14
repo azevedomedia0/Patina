@@ -137,7 +137,7 @@ export default function DesktopEnvironment() {
   // Default configuration with Dynamic Theme and Optimization settings
   const [config, setConfig] = useState<DEConfig>({
     activeTheme: PRESET_THEMES['oxide-dark'],
-    wallpaper: 'oxide-mesh',
+    wallpaper: 'stock',
     tilingMode: false,
     lowSpecMode: hardware.defaultLowSpecMode,
     fontScale: 100,
@@ -391,17 +391,24 @@ export default function DesktopEnvironment() {
       }}
       className={`relative w-full h-screen overflow-hidden select-none flex flex-col font-sans transition-colors duration-200 ${getWallpaperClasses()}`}
     >
-      {/* Decorative Minimalist Geometric Backdrop Lines (Zero-lag, pure SVG vector) */}
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid-pattern" width="48" height="48" patternUnits="userSpaceOnUse">
-              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-        </svg>
-      </div>
+      {config.wallpaper === 'stock' ? (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none bg-cover bg-center"
+          style={{ backgroundImage: 'url(/wallpapers/stock.svg)' }}
+        />
+      ) : (
+        <div className="absolute inset-0 pointer-events-none opacity-20">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="grid-pattern" width="48" height="48" patternUnits="userSpaceOnUse">
+                <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+          </svg>
+        </div>
+      )}
 
       {/* Top Status Bar (Wayland Layer-shell) */}
       <TopPanel

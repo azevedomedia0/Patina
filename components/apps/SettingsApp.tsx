@@ -25,6 +25,7 @@ export default function SettingsApp({
   onSelectHardware,
 }: SettingsAppProps) {
   const wallpapers: { id: DEConfig['wallpaper']; name: string; desc: string }[] = [
+    { id: 'stock', name: 'Stock Wallpaper', desc: 'Default scenic desktop background' },
     { id: 'oxide-mesh', name: 'Oxide Charcoal Mesh', desc: 'Minimalist dark mesh with subtle amber accents' },
     { id: 'nordic-aurora', name: 'Nordic Indigo Aurora', desc: 'Deep indigo gradient with soft cyan rim' },
     { id: 'rust-metal', name: 'Anodized Slate & Rust', desc: 'Sleek industrial metal surfaces' },

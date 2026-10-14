@@ -413,7 +413,7 @@ export interface OptimizationSettings {
 
 export interface DEConfig {
   activeTheme: DynamicTheme;
-  wallpaper: 'oxide-mesh' | 'nordic-aurora' | 'rust-metal' | 'minimal-charcoal';
+  wallpaper: 'stock' | 'oxide-mesh' | 'nordic-aurora' | 'rust-metal' | 'minimal-charcoal';
   tilingMode: boolean; // false = floating, true = dynamic auto-tiling
   lowSpecMode: boolean; // bypass blur, reduce shadow radius, direct scanout
   fontScale: 90 | 100 | 110;
