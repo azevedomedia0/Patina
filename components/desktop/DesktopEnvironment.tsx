@@ -155,6 +155,7 @@ export default function DesktopEnvironment() {
   const currentWorkspace = 1;
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
+  const [brightness, setBrightness] = useState(100);
   const [activeWindowId, setActiveWindowId] = useState<string | null>('win-theme-studio');
 
   const hardware = HARDWARE_PROFILES[currentHardwareId];
@@ -364,6 +365,7 @@ export default function DesktopEnvironment() {
 
   const currentWorkspaceWindows = windows.filter((w) => w.workspace === currentWorkspace);
   const theme = config.activeTheme;
+  const screenBrightness = brightness === 100 ? undefined : { filter: `brightness(${brightness}%)` };
 
   // Background style renderer
   const getWallpaperClasses = () => {
@@ -431,16 +433,23 @@ export default function DesktopEnvironment() {
         backgroundColor: theme.palette.background,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
-      className={`relative w-full h-screen overflow-hidden select-none flex flex-col font-sans transition-colors duration-200 ${getWallpaperClasses()}`}
+      className="relative w-full h-screen overflow-hidden select-none flex flex-col font-sans transition-colors duration-200 bg-neutral-950"
     >
       {config.wallpaper === 'stock' ? (
         <div
           aria-hidden
           className="absolute inset-0 pointer-events-none bg-cover bg-center"
-          style={{ backgroundImage: 'url(/wallpapers/stock.svg)' }}
+          style={{ backgroundImage: 'url(/wallpapers/stock.svg)', ...screenBrightness }}
         />
       ) : (
-        <div className="absolute inset-0 pointer-events-none opacity-20">
+        <div
+          aria-hidden
+          className={`absolute inset-0 pointer-events-none ${getWallpaperClasses()}`}
+          style={screenBrightness}
+        />
+      )}
+      {config.wallpaper !== 'stock' && (
+        <div className="absolute inset-0 pointer-events-none opacity-20" style={screenBrightness}>
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="grid-pattern" width="48" height="48" patternUnits="userSpaceOnUse">
@@ -470,6 +479,8 @@ export default function DesktopEnvironment() {
         onUpdateConfig={handleUpdateConfig}
         onSelectHardware={handleSelectHardware}
         onOpenApp={openApp}
+        brightness={brightness}
+        onBrightnessChange={setBrightness}
       />
 
       {/* Application Launcher Modal */}
@@ -481,7 +492,11 @@ export default function DesktopEnvironment() {
       />
 
       {/* Desktop Workspace Canvas */}
-      <main className="relative flex-1 overflow-hidden" onClick={() => setQuickSettingsOpen(false)}>
+      <main
+        className="relative flex-1 overflow-hidden"
+        style={screenBrightness}
+        onClick={() => setQuickSettingsOpen(false)}
+      >
         {/* Desktop Shortcuts Strip (Clean unboxed icon dock on left edge) */}
         <div className="absolute top-4 left-3 flex flex-col gap-2.5 z-10">
           {APPS.slice(0, 6)
@@ -570,6 +585,7 @@ export default function DesktopEnvironment() {
         style={{
           backgroundColor: 'transparent',
           borderColor: theme.palette.textSecondary,
+          ...screenBrightness,
         }}
         className={`absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-end gap-1 border-2 px-2 py-1.5 select-none ${
           theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded-[22px]'

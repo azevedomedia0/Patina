@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { HardwareProfile, DEConfig, ArchType, HARDWARE_PROFILES, AppId } from '@/lib/oxide-types';
-import { Zap, Monitor, Layout, Palette, Volume2, VolumeX, Cpu, Activity } from 'lucide-react';
+import { Zap, Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Activity } from 'lucide-react';
 
 interface QuickSettingsProps {
   isOpen: boolean;
@@ -12,6 +12,8 @@ interface QuickSettingsProps {
   onUpdateConfig: (partial: Partial<DEConfig>) => void;
   onSelectHardware: (arch: ArchType) => void;
   onOpenApp: (appId: AppId) => void;
+  brightness: number;
+  onBrightnessChange: (value: number) => void;
 }
 
 const HARDWARE_LABELS: Record<ArchType, { title: string; subtitle: string }> = {
@@ -70,6 +72,8 @@ export default function QuickSettings({
   onUpdateConfig,
   onSelectHardware,
   onOpenApp,
+  brightness,
+  onBrightnessChange,
 }: QuickSettingsProps) {
   const [volume, setVolume] = useState(75);
 
@@ -183,6 +187,25 @@ export default function QuickSettings({
             />
           );
         })}
+      </div>
+
+      <div
+        className="flex items-center gap-3 rounded-[18px] px-3 py-2.5"
+        style={{ backgroundColor: idleBg, color: idleColor }}
+      >
+        {brightness === 0 ? <SunDim className="h-5 w-5 shrink-0" /> : <Sun className="h-5 w-5 shrink-0" />}
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={brightness}
+          aria-label="Brightness"
+          onChange={(event) => onBrightnessChange(Number(event.target.value))}
+          style={{
+            background: `linear-gradient(to right, ${accent} ${brightness}%, rgba(255,255,255,0.18) ${brightness}%)`,
+          }}
+          className="h-1 w-full cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+        />
       </div>
 
       <div
