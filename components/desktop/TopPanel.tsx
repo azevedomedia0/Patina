@@ -37,7 +37,6 @@ export default function TopPanel({
 
   const theme = config.activeTheme;
   const isPill = theme.windowStyle.isPillShape;
-  const isMac = theme.windowStyle.isMacStyle;
 
   return (
     <header
@@ -59,9 +58,7 @@ export default function TopPanel({
             backgroundColor: theme.palette.accent,
             color: theme.palette.background,
           }}
-          className={`flex items-center gap-1.5 px-2.5 py-1 font-bold text-xs transition-opacity hover:opacity-90 shadow-xs ${
-            isPill ? 'rounded-full px-3.5' : isMac ? 'rounded-md px-2.5' : 'rounded'
-          }`}
+          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold text-xs transition-opacity hover:opacity-90 shadow-xs"
           aria-label="Apps"
           title="Open Application Launcher (Super / Alt+Space)"
         >
