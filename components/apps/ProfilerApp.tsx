@@ -39,6 +39,12 @@ export default function ProfilerApp({
   const totalFrameUs = dispatchUs + damageUs + baseBlitUs + kmsFlipUs;
   const frameBudgetUs = 16666; // 60Hz target (16.666 ms)
   const cpuCycleSavings = opts.damageTracking ? (opts.neonSimd ? 78 : 62) : 15;
+  const frameStages = [
+    { name: 'Dispatch', us: dispatchUs, bar: 'bg-purple-500', dot: 'bg-purple-400' },
+    { name: 'Damage', us: damageUs, bar: 'bg-blue-500', dot: 'bg-blue-400' },
+    { name: opts.neonSimd ? 'NEON blit' : 'Scalar blit', us: baseBlitUs, bar: 'bg-amber-500', dot: 'bg-amber-400' },
+    { name: 'KMS flip', us: kmsFlipUs, bar: 'bg-emerald-500', dot: 'bg-emerald-400' },
+  ];
 
   const runLiveProfile = () => {
     setIsProfiling(true);
@@ -110,42 +116,32 @@ export default function ProfilerApp({
           </span>
         </div>
 
-        {/* Visual Segmented Flamegraph Timeline Bar */}
-        <div className="space-y-1">
-          <div className="w-full bg-neutral-950 h-5 rounded-lg border border-neutral-800 overflow-hidden flex text-[10px] font-mono font-bold">
-            <div
-              style={{ width: `${(dispatchUs / totalFrameUs) * 100}%` }}
-              className="bg-purple-600/80 flex items-center justify-center text-purple-100 truncate px-1"
-              title={`Client Dispatch: ${dispatchUs} µs`}
-            >
-              Dispatch ({dispatchUs}µs)
-            </div>
-            <div
-              style={{ width: `${(damageUs / totalFrameUs) * 100}%` }}
-              className="bg-blue-600/80 flex items-center justify-center text-blue-100 truncate px-1"
-              title={`Damage Tracking: ${damageUs} µs`}
-            >
-              Damage ({damageUs}µs)
-            </div>
-            <div
-              style={{ width: `${(baseBlitUs / totalFrameUs) * 100}%` }}
-              className="bg-amber-600/80 flex items-center justify-center text-amber-100 truncate px-1"
-              title={`SIMD/NEON Blit: ${baseBlitUs} µs`}
-            >
-              {opts.neonSimd ? 'NEON Blit' : 'Scalar Blit'} ({baseBlitUs}µs)
-            </div>
-            <div
-              style={{ width: `${(kmsFlipUs / totalFrameUs) * 100}%` }}
-              className="bg-emerald-600/80 flex items-center justify-center text-emerald-100 truncate px-1"
-              title={`KMS Flip: ${kmsFlipUs} µs`}
-            >
-              KMS Flip ({kmsFlipUs}µs)
-            </div>
+        <div className="space-y-2.5">
+          <div
+            className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-950"
+            role="img"
+            aria-label={frameStages.map((stage) => `${stage.name} ${stage.us} microseconds`).join(', ')}
+          >
+            {frameStages.map((stage) => (
+              <div
+                key={stage.name}
+                title={`${stage.name}: ${stage.us} µs`}
+                className={stage.bar}
+                style={{ width: `${(stage.us / totalFrameUs) * 100}%` }}
+              />
+            ))}
           </div>
 
-          <div className="flex items-center justify-between text-[10px] text-neutral-500 font-mono pt-1">
-            <span>0 µs</span>
-            <span>Target: 16,666 µs (60 FPS VSYNC)</span>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {frameStages.map((stage) => (
+              <div key={stage.name} className="min-w-0 rounded-md bg-neutral-950 px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${stage.dot}`} />
+                  <span className="truncate font-medium text-neutral-100">{stage.name}</span>
+                </div>
+                <div className="mt-0.5 font-mono tabular-nums text-neutral-400">{stage.us} µs</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
