@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { HardwareProfile, DEConfig, ArchType, HARDWARE_PROFILES, AppId } from '@/lib/oxide-types';
-import { Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast, Wifi, WifiOff } from 'lucide-react';
+import { Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff } from 'lucide-react';
 
 interface QuickSettingsProps {
   isOpen: boolean;
@@ -78,6 +78,7 @@ export default function QuickSettings({
   const [volume, setVolume] = useState(75);
   const [casting, setCasting] = useState(false);
   const [wifiOn, setWifiOn] = useState(true);
+  const [bluetoothOn, setBluetoothOn] = useState(true);
 
   if (!isOpen) return null;
 
@@ -126,11 +127,11 @@ export default function QuickSettings({
           activeColor={activeColor}
         />
         <QuickToggle
-          active={opts.neonSimd}
-          icon={<Cpu className="h-5 w-5" />}
-          title="NEON"
-          subtitle={opts.neonSimd ? 'SIMD on' : 'SIMD off'}
-          onClick={() => onUpdateConfig({ optimizations: { ...opts, neonSimd: !opts.neonSimd } })}
+          active={bluetoothOn}
+          icon={bluetoothOn ? <Bluetooth className="h-5 w-5" /> : <BluetoothOff className="h-5 w-5" />}
+          title="Bluetooth"
+          subtitle={bluetoothOn ? 'On' : 'Off'}
+          onClick={() => setBluetoothOn((on) => !on)}
           accent={accent}
           idleBg={idleBg}
           idleColor={idleColor}
