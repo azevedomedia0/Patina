@@ -32,7 +32,7 @@ export default function WorkspacesPanel({
         color: theme.palette.textPrimary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
-      className="absolute top-11 left-3 z-50 flex w-fit flex-row items-center gap-2 rounded-full border px-2.5 py-2 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
+      className="absolute top-11 left-3 z-50 flex w-fit flex-row items-center gap-1 rounded-full border px-1.5 py-1 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
     >
       {WORKSPACES.map((workspace) => {
         const active = workspace === currentWorkspace;
@@ -47,7 +47,7 @@ export default function WorkspacesPanel({
               backgroundColor: active ? theme.palette.accent : theme.palette.surface,
               color: active ? theme.palette.background : theme.palette.textPrimary,
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold tabular-nums transition-colors hover:brightness-110"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums transition-colors hover:brightness-110"
           >
             {workspace}
           </button>
