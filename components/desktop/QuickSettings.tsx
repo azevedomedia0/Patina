@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { HardwareProfile, DEConfig, ArchType, HARDWARE_PROFILES, AppId } from '@/lib/oxide-types';
-import { Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff } from 'lucide-react';
+import { Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
 
 interface QuickSettingsProps {
   isOpen: boolean;
@@ -22,6 +22,75 @@ const HARDWARE_LABELS: Record<ArchType, { title: string; subtitle: string }> = {
   x86_64_low: { title: 'Netbook', subtitle: '64-bit x86' },
   x86_64_high: { title: 'Workstation', subtitle: '64-bit x86' },
 };
+
+const NOW_PLAYING = [
+  { title: 'Wayland Drift', artist: 'Oxide Ensemble' },
+  { title: 'Charcoal Hour', artist: 'Seatd Quartet' },
+  { title: 'Scanout', artist: 'KMS Trio' },
+];
+
+function NowPlaying({
+  idleBg,
+  idleColor,
+  accent,
+  activeColor,
+  trackIndex,
+  playing,
+  onTogglePlay,
+  onPrevious,
+  onNext,
+}: {
+  idleBg: string;
+  idleColor: string;
+  accent: string;
+  activeColor: string;
+  trackIndex: number;
+  playing: boolean;
+  onTogglePlay: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const track = NOW_PLAYING[trackIndex];
+  return (
+    <div
+      aria-label="Now playing"
+      style={{ backgroundColor: idleBg, color: idleColor }}
+      className="row-span-2 flex min-h-[132px] flex-col justify-between rounded-[18px] px-3 py-2.5"
+    >
+      <div className="flex items-center gap-2.5">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+          style={{ backgroundColor: accent, color: activeColor }}
+        >
+          <Music className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <span className="block truncate text-[11px] leading-tight opacity-80">{playing ? 'Now playing' : 'Paused'}</span>
+          <span className="block truncate text-[13px] font-medium leading-tight">{track.title}</span>
+          <span className="block truncate text-[11px] leading-tight opacity-80">{track.artist}</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-center gap-2">
+        <button type="button" aria-label="Previous" onClick={onPrevious} className="rounded-full p-1.5 hover:bg-white/10">
+          <SkipBack className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          aria-label={playing ? 'Pause' : 'Play'}
+          aria-pressed={playing}
+          onClick={onTogglePlay}
+          style={{ backgroundColor: accent, color: activeColor }}
+          className="rounded-full p-2"
+        >
+          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        </button>
+        <button type="button" aria-label="Next" onClick={onNext} className="rounded-full p-1.5 hover:bg-white/10">
+          <SkipForward className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function QuickToggle({
   active,
@@ -79,11 +148,12 @@ export default function QuickSettings({
   const [casting, setCasting] = useState(false);
   const [wifiOn, setWifiOn] = useState(true);
   const [bluetoothOn, setBluetoothOn] = useState(true);
+  const [trackIndex, setTrackIndex] = useState(0);
+  const [playing, setPlaying] = useState(true);
 
   if (!isOpen) return null;
 
   const theme = config.activeTheme;
-  const opts = config.optimizations;
   const accent = theme.palette.accent;
   const idleBg = theme.palette.surface;
   const idleColor = theme.palette.textPrimary;
@@ -115,16 +185,16 @@ export default function QuickSettings({
           idleColor={idleColor}
           activeColor={activeColor}
         />
-        <QuickToggle
-          active={config.tilingMode}
-          icon={<Layout className="h-5 w-5" />}
-          title="Layout"
-          subtitle={config.tilingMode ? 'Tiling' : 'Floating'}
-          onClick={() => onUpdateConfig({ tilingMode: !config.tilingMode })}
-          accent={accent}
+        <NowPlaying
           idleBg={idleBg}
           idleColor={idleColor}
+          accent={accent}
           activeColor={activeColor}
+          trackIndex={trackIndex}
+          playing={playing}
+          onTogglePlay={() => setPlaying((on) => !on)}
+          onPrevious={() => setTrackIndex((index) => (index + NOW_PLAYING.length - 1) % NOW_PLAYING.length)}
+          onNext={() => setTrackIndex((index) => (index + 1) % NOW_PLAYING.length)}
         />
         <QuickToggle
           active={bluetoothOn}
@@ -132,19 +202,6 @@ export default function QuickSettings({
           title="Bluetooth"
           subtitle={bluetoothOn ? 'On' : 'Off'}
           onClick={() => setBluetoothOn((on) => !on)}
-          accent={accent}
-          idleBg={idleBg}
-          idleColor={idleColor}
-          activeColor={activeColor}
-        />
-        <QuickToggle
-          active={opts.kmsHardwarePlanes}
-          icon={<Monitor className="h-5 w-5" />}
-          title="KMS"
-          subtitle={opts.kmsHardwarePlanes ? 'Planes on' : 'Planes off'}
-          onClick={() =>
-            onUpdateConfig({ optimizations: { ...opts, kmsHardwarePlanes: !opts.kmsHardwarePlanes } })
-          }
           accent={accent}
           idleBg={idleBg}
           idleColor={idleColor}
