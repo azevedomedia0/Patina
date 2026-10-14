@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   AppDefinition,
   AppId,
@@ -9,14 +9,19 @@ import {
   HARDWARE_PROFILES,
   ArchType,
   DEConfig,
+  CHROME_METRICS,
   PRESET_THEMES,
   DynamicTheme,
   OptimizationSettings,
 } from '@/lib/oxide-types';
 import TopPanel from './TopPanel';
-import QuickSettings from './QuickSettings';
+import QuickSettings, { SessionAction } from './QuickSettings';
+import NotificationPanel from './NotificationPanel';
+import WorkspacesPanel from './WorkspacesPanel';
 import AppLauncher from './AppLauncher';
 import WindowFrame from './WindowFrame';
+import ContextMenu, { ContextMenuEntry } from './ContextMenu';
+import AppGlyph from './AppGlyph';
 
 // Apps
 import TerminalApp from '@/components/apps/TerminalApp';
@@ -28,18 +33,6 @@ import SettingsApp from '@/components/apps/SettingsApp';
 import GuideApp from '@/components/apps/GuideApp';
 import ThemeStudioApp from '@/components/apps/ThemeStudioApp';
 import ProfilerApp from '@/components/apps/ProfilerApp';
-
-import {
-  Terminal,
-  Activity,
-  Folder,
-  FileCode,
-  Gauge,
-  Settings,
-  BookOpen,
-  Palette,
-  Cpu,
-} from 'lucide-react';
 
 export const APPS: AppDefinition[] = [
   {
@@ -130,6 +123,11 @@ export default function DesktopEnvironment() {
   const [currentWorkspace, setCurrentWorkspace] = useState(1);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
+  const [sessionPhase, setSessionPhase] = useState<'running' | 'restarting' | 'off'>('running');
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [workspacesOpen, setWorkspacesOpen] = useState(false);
+  const [brightness, setBrightness] = useState(100);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entries: ContextMenuEntry[] } | null>(null);
   const [activeWindowId, setActiveWindowId] = useState<string | null>('win-theme-studio');
 
   const hardware = HARDWARE_PROFILES[currentHardwareId];
@@ -137,10 +135,11 @@ export default function DesktopEnvironment() {
   // Default configuration with Dynamic Theme and Optimization settings
   const [config, setConfig] = useState<DEConfig>({
     activeTheme: PRESET_THEMES['oxide-dark'],
-    wallpaper: 'oxide-mesh',
+    wallpaper: 'stock',
     tilingMode: false,
     lowSpecMode: hardware.defaultLowSpecMode,
     fontScale: 100,
+    chromeSize: 'default',
     damageTracking: true,
     showFpsOverlay: false,
     animationsEnabled: true,
@@ -219,16 +218,32 @@ export default function DesktopEnvironment() {
     }));
   };
 
+  const closeTimers = useRef<Map<string, number>>(new Map());
+  const minimizeTimers = useRef<Map<string, number>>(new Map());
+  const restartTimer = useRef<number | null>(null);
+
+  const cancelMinimize = (id: string) => {
+    const timer = minimizeTimers.current.get(id);
+    if (timer === undefined) return;
+    window.clearTimeout(timer);
+    minimizeTimers.current.delete(id);
+  };
+
   const openApp = useCallback((appId: AppId) => {
     const appDef = APPS.find((a) => a.id === appId);
     if (!appDef) return;
 
     // Check if window already exists in current workspace
-    const existing = windows.find((w) => w.appId === appId && w.workspace === currentWorkspace);
+    const existing = windows.find(
+      (w) => w.appId === appId && w.workspace === currentWorkspace && !w.isClosing
+    );
     if (existing) {
-      if (existing.isMinimized) {
+      if (existing.isMinimized || existing.isMinimizing) {
+        cancelMinimize(existing.id);
         setWindows((prev) =>
-          prev.map((w) => (w.id === existing.id ? { ...w, isMinimized: false } : w))
+          prev.map((w) =>
+            w.id === existing.id ? { ...w, isMinimized: false, isMinimizing: false } : w
+          )
         );
       }
       setActiveWindowId(existing.id);
@@ -259,18 +274,83 @@ export default function DesktopEnvironment() {
   }, [currentWorkspace, windows]);
 
   const closeWindow = (id: string) => {
-    setWindows((prev) => prev.filter((w) => w.id !== id));
+    if (closeTimers.current.has(id)) return;
+    cancelMinimize(id);
+    setWindows((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, isClosing: true, isMinimizing: false } : w))
+    );
     if (activeWindowId === id) {
-      const remaining = windows.filter((w) => w.id !== id);
+      const remaining = windows.filter((w) => w.id !== id && !w.isClosing);
       setActiveWindowId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
     }
+    const timer = window.setTimeout(() => {
+      closeTimers.current.delete(id);
+      setWindows((prev) => prev.filter((w) => w.id !== id));
+      setActiveWindowId((current) => (current === id ? null : current));
+    }, 600);
+    closeTimers.current.set(id, timer);
+  };
+
+  useEffect(() => {
+    const timers = closeTimers.current;
+    const minimizing = minimizeTimers.current;
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      minimizing.forEach((timer) => window.clearTimeout(timer));
+      if (restartTimer.current !== null) window.clearTimeout(restartTimer.current);
+    };
+  }, []);
+
+  const closeAllWindows = () => {
+    closeTimers.current.forEach((timer) => window.clearTimeout(timer));
+    closeTimers.current.clear();
+    minimizeTimers.current.forEach((timer) => window.clearTimeout(timer));
+    minimizeTimers.current.clear();
+    setWindows([]);
+    setActiveWindowId(null);
+  };
+
+  const handleSessionAction = (action: SessionAction) => {
+    if (restartTimer.current !== null) {
+      window.clearTimeout(restartTimer.current);
+      restartTimer.current = null;
+    }
+    closeAllWindows();
+    setQuickSettingsOpen(false);
+    setLauncherOpen(false);
+    setNotificationsOpen(false);
+    setWorkspacesOpen(false);
+    setContextMenu(null);
+    if (action === 'log-off') {
+      setSessionPhase('running');
+      return;
+    }
+    if (action === 'restart') {
+      setSessionPhase('restarting');
+      restartTimer.current = window.setTimeout(() => {
+        restartTimer.current = null;
+        setSessionPhase('running');
+      }, 1600);
+      return;
+    }
+    setSessionPhase('off');
   };
 
   const minimizeWindow = (id: string) => {
-    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isMinimized: true } : w)));
+    if (minimizeTimers.current.has(id) || closeTimers.current.has(id)) return;
+    const target = windows.find((windowState) => windowState.id === id);
+    if (!target || target.isMinimized || target.isClosing) return;
+    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, isMinimizing: true } : w)));
     if (activeWindowId === id) {
       setActiveWindowId(null);
     }
+    const timer = window.setTimeout(() => {
+      minimizeTimers.current.delete(id);
+      setWindows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, isMinimized: true, isMinimizing: false } : w))
+      );
+    }, 500);
+    minimizeTimers.current.set(id, timer);
   };
 
   const toggleMaximizeWindow = (id: string) => {
@@ -279,11 +359,41 @@ export default function DesktopEnvironment() {
     );
   };
 
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const openContextMenu = (event: React.MouseEvent, entries: ContextMenuEntry[]) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ x: event.clientX, y: event.clientY, entries });
+  };
+
+  const handleContextMenuSelect = (id: string) => {
+    const separator = id.indexOf(':');
+    const action = separator === -1 ? id : id.slice(0, separator);
+    const target = separator === -1 ? '' : id.slice(separator + 1);
+    if (action === 'open-app') openApp(target as AppId);
+    else if (action === 'launcher') {
+      setLauncherOpen(true);
+      setNotificationsOpen(false);
+      setWorkspacesOpen(false);
+    } else if (action === 'quick-settings') {
+      setQuickSettingsOpen(true);
+      setNotificationsOpen(false);
+      setWorkspacesOpen(false);
+    }
+    else if (action === 'minimize') minimizeWindow(target);
+    else if (action === 'maximize') toggleMaximizeWindow(target);
+    else if (action === 'close') closeWindow(target);
+  };
+
   const focusWindow = (id: string) => {
+    cancelMinimize(id);
     setActiveWindowId(id);
     setWindows((prev) => {
       const maxZ = Math.max(0, ...prev.map((w) => w.zIndex)) + 1;
-      return prev.map((w) => (w.id === id ? { ...w, zIndex: maxZ, isMinimized: false } : w));
+      return prev.map((w) =>
+        w.id === id ? { ...w, zIndex: maxZ, isMinimized: false, isMinimizing: false } : w
+      );
     });
   };
 
@@ -301,7 +411,13 @@ export default function DesktopEnvironment() {
       // Super / Windows key or Alt+Space -> Launcher
       if ((e.key === 'Meta' && !e.ctrlKey) || (e.altKey && e.code === 'Space')) {
         e.preventDefault();
-        setLauncherOpen((prev) => !prev);
+        setLauncherOpen((prev) => {
+          if (!prev) {
+            setNotificationsOpen(false);
+            setWorkspacesOpen(false);
+          }
+          return !prev;
+        });
       }
       // Super+Return -> Terminal
       if (e.metaKey && e.key === 'Enter') {
@@ -313,20 +429,16 @@ export default function DesktopEnvironment() {
         e.preventDefault();
         setConfig((c) => ({ ...c, tilingMode: !c.tilingMode }));
       }
-      // Super+1..4 -> Workspaces
-      if (e.metaKey && ['1', '2', '3', '4'].includes(e.key)) {
-        e.preventDefault();
-        setCurrentWorkspace(parseInt(e.key, 10));
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [openApp]);
 
-  const activeWindow = windows.find((w) => w.id === activeWindowId);
   const currentWorkspaceWindows = windows.filter((w) => w.workspace === currentWorkspace);
   const theme = config.activeTheme;
+  const chrome = CHROME_METRICS[config.chromeSize];
+  const screenBrightness = brightness === 100 ? undefined : { filter: `brightness(${brightness}%)` };
 
   // Background style renderer
   const getWallpaperClasses = () => {
@@ -394,42 +506,112 @@ export default function DesktopEnvironment() {
         backgroundColor: theme.palette.background,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
-      className={`relative w-full h-screen overflow-hidden select-none flex flex-col font-sans transition-colors duration-200 ${getWallpaperClasses()}`}
+      className="relative w-full h-screen overflow-hidden select-none flex flex-col font-sans transition-colors duration-200 bg-neutral-950"
+      onContextMenu={(event) => event.preventDefault()}
     >
-      {/* Decorative Minimalist Geometric Backdrop Lines (Zero-lag, pure SVG vector) */}
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid-pattern" width="48" height="48" patternUnits="userSpaceOnUse">
-              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-        </svg>
-      </div>
+      {config.wallpaper === 'stock' ? (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none bg-cover bg-center"
+          style={{ backgroundImage: 'url(/wallpapers/stock.svg)', ...screenBrightness }}
+        />
+      ) : (
+        <div
+          aria-hidden
+          className={`absolute inset-0 pointer-events-none ${getWallpaperClasses()}`}
+          style={screenBrightness}
+        />
+      )}
+      {config.wallpaper !== 'stock' && (
+        <div className="absolute inset-0 pointer-events-none opacity-20" style={screenBrightness}>
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="grid-pattern" width="48" height="48" patternUnits="userSpaceOnUse">
+                <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+          </svg>
+        </div>
+      )}
 
       {/* Top Status Bar (Wayland Layer-shell) */}
       <TopPanel
-        currentWorkspace={currentWorkspace}
-        onSelectWorkspace={setCurrentWorkspace}
-        hardware={hardware}
         config={config}
-        activeWindowTitle={activeWindow ? activeWindow.title : null}
-        onToggleLauncher={() => setLauncherOpen((o) => !o)}
-        onToggleQuickSettings={() => setQuickSettingsOpen((o) => !o)}
+        onToggleLauncher={() =>
+          setLauncherOpen((open) => {
+            if (!open) {
+              setNotificationsOpen(false);
+              setWorkspacesOpen(false);
+            }
+            return !open;
+          })
+        }
+        onToggleQuickSettings={() =>
+          setQuickSettingsOpen((open) => {
+            if (!open) {
+              setNotificationsOpen(false);
+              setWorkspacesOpen(false);
+            }
+            return !open;
+          })
+        }
         quickSettingsOpen={quickSettingsOpen}
+        onToggleNotifications={() =>
+          setNotificationsOpen((open) => {
+            if (!open) {
+              setQuickSettingsOpen(false);
+              setLauncherOpen(false);
+              setWorkspacesOpen(false);
+            }
+            return !open;
+          })
+        }
+        notificationsOpen={notificationsOpen}
+        onToggleWorkspaces={() =>
+          setWorkspacesOpen((open) => {
+            if (!open) {
+              setNotificationsOpen(false);
+              setQuickSettingsOpen(false);
+              setLauncherOpen(false);
+            }
+            return !open;
+          })
+        }
+        workspacesOpen={workspacesOpen}
         onOpenApp={openApp}
+        onContextMenu={(event) =>
+          openContextMenu(event, [
+            { kind: 'item', id: 'launcher', label: 'App Launcher' },
+            { kind: 'item', id: 'quick-settings', label: 'Quick Settings' },
+            { kind: 'separator' },
+            { kind: 'item', id: 'open-app:settings', label: 'Settings' },
+          ])
+        }
+      />
+
+      <NotificationPanel isOpen={notificationsOpen} config={config} />
+
+      <WorkspacesPanel
+        isOpen={workspacesOpen}
+        config={config}
+        currentWorkspace={currentWorkspace}
+        onSelectWorkspace={(workspace) => {
+          setCurrentWorkspace(workspace);
+          setWorkspacesOpen(false);
+        }}
       />
 
       {/* Quick Settings Flyout */}
       <QuickSettings
         isOpen={quickSettingsOpen}
         onClose={() => setQuickSettingsOpen(false)}
-        hardware={hardware}
         config={config}
         onUpdateConfig={handleUpdateConfig}
-        onSelectHardware={handleSelectHardware}
         onOpenApp={openApp}
+        onSessionAction={handleSessionAction}
+        brightness={brightness}
+        onBrightnessChange={setBrightness}
       />
 
       {/* Application Launcher Modal */}
@@ -441,52 +623,27 @@ export default function DesktopEnvironment() {
       />
 
       {/* Desktop Workspace Canvas */}
-      <main className="relative flex-1 overflow-hidden" onClick={() => setQuickSettingsOpen(false)}>
-        {/* Desktop Shortcuts Strip (Clean unboxed icon dock on left edge) */}
-        <div className="absolute top-4 left-3 flex flex-col gap-2.5 z-10">
-          {APPS.slice(0, 6).map((app) => (
-            <button
-              key={app.id}
-              onClick={() => openApp(app.id)}
-              style={{
-                backgroundColor: theme.palette.surface,
-                borderColor: theme.palette.border,
-                borderRadius: theme.windowStyle.isPillShape ? '9999px' : `${Math.max(4, theme.windowStyle.borderRadius - 2)}px`,
-              }}
-              className={`group flex items-center gap-2.5 p-2 border transition-all text-left shadow-sm hover:scale-102 ${
-                theme.windowStyle.isPillShape ? 'rounded-full' : ''
-              }`}
-              title={`${app.title} - ${app.description}`}
-            >
-              <div
-                style={{
-                  backgroundColor: theme.palette.panel,
-                }}
-                className={`w-7 h-7 flex items-center justify-center transition-transform group-hover:scale-105 ${
-                  theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded'
-                }`}
-              >
-                {app.id === 'theme-studio' && <Palette className="w-4 h-4 text-purple-400" />}
-                {app.id === 'profiler' && <Cpu className="w-4 h-4 text-cyan-400" />}
-                {app.id === 'terminal' && <Terminal className="w-4 h-4 text-amber-400" />}
-                {app.id === 'sysmon' && <Activity className="w-4 h-4 text-emerald-400" />}
-                {app.id === 'codebase' && <FileCode className="w-4 h-4 text-amber-300" />}
-                {app.id === 'benchmark' && <Gauge className="w-4 h-4 text-rose-400" />}
-                {app.id === 'files' && <Folder className="w-4 h-4 text-cyan-400" />}
-              </div>
-              <span
-                style={{ color: theme.palette.textPrimary }}
-                className="text-[11px] font-medium pr-1 hidden lg:inline-block max-w-[130px] truncate"
-              >
-                {app.title}
-              </span>
-            </button>
-          ))}
-        </div>
-
+      <main
+        className="relative flex-1 overflow-hidden"
+        style={screenBrightness}
+        onClick={() => {
+          setQuickSettingsOpen(false);
+          setNotificationsOpen(false);
+          setWorkspacesOpen(false);
+        }}
+        onContextMenu={(event) =>
+          openContextMenu(event, [
+            { kind: 'item', id: 'open-app:terminal', label: 'Open Terminal' },
+            { kind: 'item', id: 'open-app:files', label: 'Open Files' },
+            { kind: 'item', id: 'open-app:settings', label: 'Settings' },
+            { kind: 'separator' },
+            { kind: 'item', id: 'launcher', label: 'App Launcher' },
+          ])
+        }
+      >
         {/* Dynamic Tiling Container OR Free-floating Window Manager Canvas */}
         {config.tilingMode ? (
-          <div className="absolute inset-0 pt-2 p-3 pl-16 md:pl-20 grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
+          <div className="absolute inset-0 pt-2 p-3 grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
             {currentWorkspaceWindows
               .filter((w) => !w.isMinimized)
               .map((win) => (
@@ -501,6 +658,19 @@ export default function DesktopEnvironment() {
                     onToggleMaximize={() => toggleMaximizeWindow(win.id)}
                     onUpdatePosition={(x, y) => updateWindowPosition(win.id, x, y)}
                     onUpdateSize={(w, h) => updateWindowSize(win.id, w, h)}
+                    onTitleContextMenu={(event) =>
+                      openContextMenu(event, [
+                        { kind: 'item', id: `minimize:${win.id}`, label: 'Minimize' },
+                        {
+                          kind: 'item',
+                          id: `maximize:${win.id}`,
+                          label: win.isMaximized ? 'Restore' : 'Maximize',
+                          disabled: config.tilingMode,
+                        },
+                        { kind: 'separator' },
+                        { kind: 'item', id: `close:${win.id}`, label: 'Close', danger: true },
+                      ])
+                    }
                   >
                     {renderAppContent(win.appId)}
                   </WindowFrame>
@@ -521,6 +691,19 @@ export default function DesktopEnvironment() {
                 onToggleMaximize={() => toggleMaximizeWindow(win.id)}
                 onUpdatePosition={(x, y) => updateWindowPosition(win.id, x, y)}
                 onUpdateSize={(w, h) => updateWindowSize(win.id, w, h)}
+                onTitleContextMenu={(event) =>
+                  openContextMenu(event, [
+                    { kind: 'item', id: `minimize:${win.id}`, label: 'Minimize' },
+                    {
+                      kind: 'item',
+                      id: `maximize:${win.id}`,
+                      label: win.isMaximized ? 'Restore' : 'Maximize',
+                      disabled: config.tilingMode,
+                    },
+                    { kind: 'separator' },
+                    { kind: 'item', id: `close:${win.id}`, label: 'Close', danger: true },
+                  ])
+                }
               >
                 {renderAppContent(win.appId)}
               </WindowFrame>
@@ -529,74 +712,109 @@ export default function DesktopEnvironment() {
         )}
       </main>
 
-      {/* Bottom Taskbar / Running Window Tabs */}
-      <footer
+      <nav
+        aria-label="Dock"
         style={{
-          backgroundColor: theme.palette.panel,
-          borderColor: theme.palette.border,
-          color: theme.palette.textSecondary,
+          backgroundColor: 'transparent',
+          borderColor: theme.palette.textSecondary,
+          gap: chrome.dockGap,
+          padding: `${chrome.dockPadY}px ${chrome.dockPadX}px`,
+          borderRadius: theme.windowStyle.isPillShape ? 9999 : chrome.dockRadius,
+          ...screenBrightness,
         }}
-        className="h-8 border-t px-3 flex items-center justify-between text-xs shrink-0 z-40 select-none transition-colors duration-200"
+        className="absolute bottom-[10px] left-1/2 z-40 flex -translate-x-1/2 items-end border-[3px] select-none"
       >
-        {/* Open Application Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-          {windows.map((win) => (
+        {APPS.map((app) => {
+          const appWindows = windows.filter((win) => win.appId === app.id && !win.isClosing);
+          return (
             <button
-              key={win.id}
-              onClick={() => {
-                if (win.isMinimized) {
-                  focusWindow(win.id);
-                } else if (activeWindowId === win.id) {
-                  minimizeWindow(win.id);
-                } else {
-                  focusWindow(win.id);
+              key={app.id}
+              type="button"
+              title={app.title}
+              aria-label={app.title}
+              onContextMenu={(event) => {
+                const running = appWindows[0];
+                const entries: ContextMenuEntry[] = [{ kind: 'item', id: `open-app:${app.id}`, label: 'Open' }];
+                if (running) {
+                  entries.push({
+                    kind: 'item',
+                    id: running.isMinimized ? `open-app:${app.id}` : `minimize:${running.id}`,
+                    label: running.isMinimized ? 'Restore' : 'Minimize',
+                  });
+                  entries.push({ kind: 'separator' });
+                  entries.push({ kind: 'item', id: `close:${running.id}`, label: 'Close', danger: true });
                 }
+                openContextMenu(event, entries);
               }}
-              style={
-                activeWindowId === win.id && !win.isMinimized
-                  ? {
-                      backgroundColor: theme.palette.surface,
-                      color: theme.palette.textPrimary,
-                      borderBottom: `2px solid ${theme.palette.accent}`,
-                    }
-                  : {
-                      backgroundColor: theme.palette.background,
-                      color: theme.palette.textSecondary,
-                    }
-              }
-              className={`flex items-center gap-1.5 py-1 text-[11px] font-medium transition-colors ${
-                theme.windowStyle.isPillShape ? 'rounded-full px-3' : 'rounded px-2.5'
-              }`}
+              onClick={() => {
+                if (appWindows.length === 0) {
+                  openApp(app.id);
+                  return;
+                }
+                const current = appWindows.find((win) => win.id === activeWindowId && !win.isMinimized);
+                if (current) {
+                  minimizeWindow(current.id);
+                  return;
+                }
+                const next = appWindows.find((win) => win.isMinimized) ?? appWindows[appWindows.length - 1];
+                focusWindow(next.id);
+              }}
+              className="group flex flex-col items-center gap-1"
+              style={{ width: chrome.dockButton }}
             >
               <span
                 style={{
-                  backgroundColor: win.isMinimized ? theme.palette.border : theme.palette.success,
+                  width: chrome.dockTile,
+                  height: chrome.dockTile,
                 }}
-                className="w-1.5 h-1.5 rounded-full"
+                className="flex items-center justify-center transition-transform group-hover:-translate-y-1 group-hover:scale-110"
+              >
+                <AppGlyph id={app.id} size={chrome.dockGlyph} />
+              </span>
+              <span
+                className="rounded-full"
+                style={{
+                  width: chrome.dockIndicator,
+                  height: chrome.dockIndicator,
+                  backgroundColor: appWindows.length > 0 ? theme.palette.textPrimary : 'transparent',
+                }}
               />
-              <span className="truncate max-w-[120px]">{win.title}</span>
             </button>
-          ))}
-          {windows.length === 0 && (
-            <span style={{ color: theme.palette.textSecondary }} className="text-[11px]">
-              No windows open. Press Super or click OXIDE.
-            </span>
+          );
+        })}
+      </nav>
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          entries={contextMenu.entries}
+          theme={theme}
+          onSelect={handleContextMenuSelect}
+          onClose={closeContextMenu}
+        />
+      )}
+
+      {sessionPhase !== 'running' && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 z-[80] flex flex-col items-center justify-center gap-4"
+          style={{ backgroundColor: '#050506', color: theme.palette.textPrimary }}
+        >
+          <p className="text-[15px] font-medium">{sessionPhase === 'restarting' ? 'Restarting…' : 'System is off'}</p>
+          {sessionPhase === 'off' && (
+            <button
+              type="button"
+              onClick={() => setSessionPhase('running')}
+              style={{ backgroundColor: theme.palette.surface, color: theme.palette.textPrimary }}
+              className="rounded-[18px] px-4 py-2.5 text-[13px] font-medium transition-colors hover:brightness-110"
+            >
+              Power On
+            </button>
           )}
         </div>
-
-        {/* Hardware Status Tag */}
-        <div className="flex items-center gap-2 text-[11px] font-mono">
-          <span style={{ color: theme.palette.textPrimary }}>{hardware.name.split('(')[0]}</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.success }}>{hardware.bits}</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.accent }}>
-            {config.optimizations.neonSimd ? 'NEON SIMD' : 'Scalar'}
-          </span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span>{config.lowSpecMode ? 'Low-Spec Direct Scanout' : 'GLES Blended'}</span>
-        </div>
-      </footer>
+      )}
     </div>
   );
 }

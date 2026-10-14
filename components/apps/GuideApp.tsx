@@ -14,7 +14,7 @@ export default function GuideApp() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-200 font-sans select-none text-xs overflow-y-auto p-4 space-y-4">
+    <div className="flex h-full min-h-0 flex-col space-y-4 overflow-y-auto bg-neutral-950 p-4 font-sans text-xs text-neutral-200 select-none">
       {/* Title */}
       <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-lg">
         <div className="flex items-center gap-2">

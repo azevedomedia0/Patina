@@ -239,9 +239,9 @@ strip = "symbols"`}
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-100 font-mono select-text">
+    <div className="flex h-full min-h-0 flex-col bg-neutral-950 font-mono text-neutral-100 select-text">
       {/* Terminal Top Info Strip */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-900 border-b border-neutral-800 text-[11px] text-neutral-400">
+      <div className="flex shrink-0 items-center justify-between border-b border-neutral-800 bg-neutral-900 px-3 py-1.5 text-[11px] text-neutral-400">
         <div className="flex items-center gap-2">
           <TerminalIcon className="w-3.5 h-3.5 text-amber-400" />
           <span>oxide@arm-box: ~</span>
@@ -254,7 +254,7 @@ strip = "symbols"`}
       </div>
 
       {/* Terminal Scrollback Body */}
-      <div className="flex-1 p-3 overflow-y-auto space-y-3 font-mono text-xs">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 font-mono text-xs">
         {history.map((item) => (
           <div key={item.id} className="space-y-1">
             <div className="flex items-center gap-2 text-neutral-300">
@@ -268,7 +268,7 @@ strip = "symbols"`}
       </div>
 
       {/* Input prompt */}
-      <form onSubmit={handleCommand} className="flex items-center gap-2 px-3 py-2 bg-neutral-900/60 border-t border-neutral-800">
+      <form onSubmit={handleCommand} className="flex shrink-0 items-center gap-2 border-t border-neutral-800 bg-neutral-900/60 px-3 py-2">
         <span className="text-amber-400 font-bold text-xs select-none">oxide@arm:~$</span>
         <input
           type="text"

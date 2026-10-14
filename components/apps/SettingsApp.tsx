@@ -8,6 +8,7 @@ import {
   ArchType,
   PRESET_THEMES,
   DynamicTheme,
+  ChromeSize,
 } from '@/lib/oxide-types';
 import { Settings as SettingsIcon, Palette, Monitor, Zap, Layout, Activity, ShieldCheck } from 'lucide-react';
 
@@ -25,6 +26,7 @@ export default function SettingsApp({
   onSelectHardware,
 }: SettingsAppProps) {
   const wallpapers: { id: DEConfig['wallpaper']; name: string; desc: string }[] = [
+    { id: 'stock', name: 'Stock Wallpaper', desc: 'Default scenic desktop background' },
     { id: 'oxide-mesh', name: 'Oxide Charcoal Mesh', desc: 'Minimalist dark mesh with subtle amber accents' },
     { id: 'nordic-aurora', name: 'Nordic Indigo Aurora', desc: 'Deep indigo gradient with soft cyan rim' },
     { id: 'rust-metal', name: 'Anodized Slate & Rust', desc: 'Sleek industrial metal surfaces' },
@@ -39,7 +41,7 @@ export default function SettingsApp({
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-200 font-sans select-none text-xs overflow-y-auto p-4 space-y-5">
+    <div className="flex h-full min-h-0 flex-col space-y-5 overflow-y-auto bg-neutral-950 p-4 font-sans text-xs text-neutral-200 select-none">
       {/* Target Hardware Architecture Selector */}
       <div className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-lg space-y-3">
         <div className="flex items-center justify-between">
@@ -156,6 +158,40 @@ export default function SettingsApp({
                 Auto-Tiling
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-lg space-y-3">
+        <div className="flex items-center gap-2">
+          <Layout className="w-4 h-4 text-sky-400" />
+          <span className="font-semibold text-white text-xs">Dock and menu bar</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 p-2.5 bg-neutral-950 rounded-lg border border-neutral-800">
+          <div>
+            <div className="font-medium text-neutral-200">Size</div>
+            <div className="text-[11px] text-neutral-400">
+              Scales the top menu bar and the dock together.
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1 bg-neutral-800 p-1 rounded-lg" role="group" aria-label="Dock and menu bar size">
+            {([
+              ['small', 'Small'],
+              ['default', 'Default'],
+              ['large', 'Large'],
+            ] as const).map(([size, label]) => (
+              <button
+                key={size}
+                type="button"
+                aria-pressed={config.chromeSize === size}
+                onClick={() => onUpdateConfig({ chromeSize: size satisfies ChromeSize })}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+                  config.chromeSize === size ? 'bg-neutral-700 text-white shadow-xs' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

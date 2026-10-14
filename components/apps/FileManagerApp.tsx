@@ -67,9 +67,9 @@ export default function FileManagerApp() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-200 font-sans select-none text-xs">
+    <div className="flex h-full min-h-0 flex-col bg-neutral-950 font-sans text-xs text-neutral-200 select-none">
       {/* Top Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-neutral-900 border-b border-neutral-800 gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-800 bg-neutral-900 px-3 py-2">
         <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
           <button
             onClick={handleGoUp}
@@ -97,7 +97,7 @@ export default function FileManagerApp() {
       </div>
 
       {/* Main Body: File List + Preview Pane */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Left: Quick Access Side Menu */}
         <div className="w-36 bg-neutral-900/60 border-r border-neutral-800 p-2 space-y-1 shrink-0 hidden sm:block">
           <div className="text-[10px] text-neutral-400 uppercase tracking-wider px-2 py-1 font-semibold">Bookmarks</div>
@@ -125,7 +125,7 @@ export default function FileManagerApp() {
         </div>
 
         {/* Center: Files Grid / List */}
-        <div className="flex-1 p-3 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
           {items.length === 0 ? (
             <div className="text-neutral-500 text-center py-12">No files match &quot;{searchQuery}&quot;</div>
           ) : (
@@ -169,7 +169,7 @@ export default function FileManagerApp() {
 
         {/* Right: File Preview Sidebar if file selected */}
         {selectedFile && (
-          <div className="w-64 bg-neutral-900 border-l border-neutral-800 p-3 flex flex-col space-y-2 shrink-0 overflow-y-auto">
+          <div className="flex w-64 shrink-0 flex-col space-y-2 overflow-y-auto border-l border-neutral-800 bg-neutral-900 p-3 min-h-0">
             <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
               <span className="font-semibold text-white truncate">{selectedFile.name}</span>
               <button

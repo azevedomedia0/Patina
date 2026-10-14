@@ -14,6 +14,7 @@ interface WindowFrameProps {
   onToggleMaximize: () => void;
   onUpdatePosition: (x: number, y: number) => void;
   onUpdateSize: (w: number, h: number) => void;
+  onTitleContextMenu: (event: React.MouseEvent) => void;
   children: React.ReactNode;
 }
 
@@ -27,6 +28,7 @@ export default function WindowFrame({
   onToggleMaximize,
   onUpdatePosition,
   onUpdateSize,
+  onTitleContextMenu,
   children,
 }: WindowFrameProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -46,7 +48,7 @@ export default function WindowFrame({
 
   // Handle Dragging
   const handleTitleMouseDown = (e: React.MouseEvent) => {
-    if (win.isMaximized || config.tilingMode) return;
+    if (e.button !== 0 || win.isMaximized || config.tilingMode) return;
     onFocus();
     setIsDragging(true);
     dragStartRef.current = {
@@ -59,7 +61,7 @@ export default function WindowFrame({
 
   // Handle Resizing
   const handleResizeMouseDown = (e: React.MouseEvent) => {
-    if (win.isMaximized || config.tilingMode) return;
+    if (e.button !== 0 || win.isMaximized || config.tilingMode) return;
     e.stopPropagation();
     onFocus();
     setIsResizing(true);
@@ -156,12 +158,25 @@ export default function WindowFrame({
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
       onMouseDown={onFocus}
-      className="flex flex-col overflow-hidden transition-all duration-75 select-none border"
+      data-window-frame=""
+      onContextMenu={(event) => event.stopPropagation()}
+      className={`flex flex-col overflow-hidden select-none border ${
+        win.isMinimizing
+          ? 'oxide-window-minimizing'
+          : `transition-opacity duration-[600ms] ease-out ${
+              win.isClosing ? 'pointer-events-none opacity-0' : 'opacity-100'
+            }`
+      }`}
     >
       {/* Title Bar */}
       <div
         onMouseDown={handleTitleMouseDown}
         onDoubleClick={onToggleMaximize}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onTitleContextMenu(event);
+        }}
         style={{
           height: titlebarHeight,
           backgroundColor: theme.palette.panel,
@@ -225,7 +240,7 @@ export default function WindowFrame({
         {!isMac && (
           <div
             className={`flex items-center gap-1.5 shrink-0 z-10 ${
-              isPill ? 'bg-neutral-900/60 px-2 py-0.5 rounded-full border border-neutral-800' : ''
+              isPill ? 'px-2 py-0.5 rounded-full border border-neutral-800' : ''
             }`}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -261,7 +276,7 @@ export default function WindowFrame({
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-hidden relative">{children}</div>
+      <div className="relative min-h-0 flex-1 overflow-auto">{children}</div>
 
       {/* Resize Handle (Bottom-Right) */}
       {!win.isMaximized && !config.tilingMode && (

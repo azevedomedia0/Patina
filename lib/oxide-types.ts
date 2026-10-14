@@ -125,6 +125,8 @@ export interface WindowState {
   height: number;
   isMinimized: boolean;
   isMaximized: boolean;
+  isMinimizing?: boolean;
+  isClosing?: boolean;
   zIndex: number;
   workspace: number;
 }
@@ -134,7 +136,7 @@ export interface WindowState {
 // -----------------------------------------------------------------------------
 
 export type FontFamilyType = 'Poppins' | 'JetBrains Mono' | 'Plus Jakarta Sans' | 'DM Sans' | 'Fira Code' | 'System Sans';
-export type IconThemeType = 'oxide-minimal' | 'lucid-wire' | 'neo-glyph' | 'monochrome-lowres';
+export type IconThemeType = 'papirus' | 'oxide-minimal' | 'lucid-wire' | 'neo-glyph' | 'monochrome-lowres';
 
 export interface ColorPalette {
   background: string;
@@ -192,7 +194,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Poppins',
     fontSize: 'base',
-    iconTheme: 'neo-glyph',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 24,
       borderWidth: 1,
@@ -222,7 +224,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Poppins',
     fontSize: 'base',
-    iconTheme: 'lucid-wire',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 16,
       borderWidth: 1,
@@ -252,7 +254,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Poppins',
     fontSize: 'base',
-    iconTheme: 'oxide-minimal',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 8,
       borderWidth: 1,
@@ -282,7 +284,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Plus Jakarta Sans',
     fontSize: 'base',
-    iconTheme: 'neo-glyph',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 12,
       borderWidth: 1,
@@ -312,7 +314,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'DM Sans',
     fontSize: 'base',
-    iconTheme: 'lucid-wire',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 8,
       borderWidth: 1,
@@ -323,32 +325,32 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
       isMacStyle: false,
     },
   },
-  'gruvbox-minimal': {
-    id: 'gruvbox-minimal',
-    name: 'Gruvbox Industrial Dark',
-    description: 'Warm organic retro contrast tailored for low-eye-strain programming',
+  'cosmic-desktop': {
+    id: 'cosmic-desktop',
+    name: 'COSMIC Desktop',
+    description: 'System76 COSMIC-inspired charcoal surfaces, softly rounded windows, and a blue accent on a blurred panel',
     palette: {
-      background: '#1d2021',
-      surface: '#282828',
-      panel: '#141617',
-      border: '#3c3836',
-      textPrimary: '#ebdbb2',
-      textSecondary: '#a89984',
-      accent: '#fabd2f',
-      accentHover: '#d79921',
-      success: '#b8bb26',
-      warning: '#fe8019',
-      danger: '#fb4934',
+      background: '#1c1c1c',
+      surface: '#2b2b2b',
+      panel: '#242424',
+      border: '#454545',
+      textPrimary: '#f2f2f2',
+      textSecondary: '#c0c0c0',
+      accent: '#4482ff',
+      accentHover: '#6b9bff',
+      success: '#2ec27e',
+      warning: '#e5a50a',
+      danger: '#ed5c5c',
     },
-    fontFamily: 'Fira Code',
+    fontFamily: 'System Sans',
     fontSize: 'base',
-    iconTheme: 'oxide-minimal',
+    iconTheme: 'papirus',
     windowStyle: {
-      borderRadius: 4,
+      borderRadius: 12,
       borderWidth: 1,
-      backdropBlur: false,
+      backdropBlur: true,
       windowControls: 'right',
-      compactTitlebar: true,
+      compactTitlebar: false,
       isPillShape: false,
       isMacStyle: false,
     },
@@ -372,7 +374,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'JetBrains Mono',
     fontSize: 'sm',
-    iconTheme: 'monochrome-lowres',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 0,
       borderWidth: 1,
@@ -411,12 +413,75 @@ export interface OptimizationSettings {
   ltoAggressive: boolean; // Fat LTO + 1 codegen unit
 }
 
+export type ChromeSize = 'small' | 'default' | 'large';
+
+export interface ChromeMetrics {
+  panelHeight: number;
+  panelFont: number;
+  panelIcon: number;
+  dockTile: number;
+  dockGlyph: number;
+  dockButton: number;
+  dockGap: number;
+  dockPadX: number;
+  dockPadY: number;
+  dockRadius: number;
+  dockIndicator: number;
+  flyoutTop: number;
+}
+
+export const CHROME_METRICS: Record<ChromeSize, ChromeMetrics> = {
+  small: {
+    panelHeight: 28,
+    panelFont: 11,
+    panelIcon: 12,
+    dockTile: 32,
+    dockGlyph: 24,
+    dockButton: 40,
+    dockGap: 2,
+    dockPadX: 6,
+    dockPadY: 4,
+    dockRadius: 16,
+    dockIndicator: 3,
+    flyoutTop: 34,
+  },
+  default: {
+    panelHeight: 36,
+    panelFont: 12,
+    panelIcon: 14,
+    dockTile: 40,
+    dockGlyph: 32,
+    dockButton: 48,
+    dockGap: 4,
+    dockPadX: 8,
+    dockPadY: 6,
+    dockRadius: 22,
+    dockIndicator: 4,
+    flyoutTop: 44,
+  },
+  large: {
+    panelHeight: 48,
+    panelFont: 14,
+    panelIcon: 18,
+    dockTile: 52,
+    dockGlyph: 40,
+    dockButton: 64,
+    dockGap: 6,
+    dockPadX: 12,
+    dockPadY: 8,
+    dockRadius: 28,
+    dockIndicator: 5,
+    flyoutTop: 56,
+  },
+};
+
 export interface DEConfig {
   activeTheme: DynamicTheme;
-  wallpaper: 'oxide-mesh' | 'nordic-aurora' | 'rust-metal' | 'minimal-charcoal';
+  wallpaper: 'stock' | 'oxide-mesh' | 'nordic-aurora' | 'rust-metal' | 'minimal-charcoal';
   tilingMode: boolean; // false = floating, true = dynamic auto-tiling
   lowSpecMode: boolean; // bypass blur, reduce shadow radius, direct scanout
   fontScale: 90 | 100 | 110;
+  chromeSize: ChromeSize;
   damageTracking: boolean; // re-render only damaged rects
   showFpsOverlay: boolean;
   animationsEnabled: boolean;

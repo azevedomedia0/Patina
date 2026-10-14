@@ -79,9 +79,9 @@ export default function RustCodebaseApp() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-950 text-neutral-200 font-sans select-none text-xs">
+    <div className="flex h-full min-h-0 flex-col bg-neutral-950 font-sans text-xs text-neutral-200 select-none">
       {/* Top Header & Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-neutral-900 border-b border-neutral-800">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-neutral-800 bg-neutral-900 px-4 py-2.5">
         <div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-white text-sm">OxideDE Rust Workspace Studio</span>
@@ -113,7 +113,7 @@ export default function RustCodebaseApp() {
       </div>
 
       {/* Category Filter Bar */}
-      <div className="flex items-center gap-1 px-4 py-1.5 bg-neutral-900/60 border-b border-neutral-800 overflow-x-auto">
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900/60 px-4 py-1.5">
         <span className="text-[10px] text-neutral-400 uppercase font-semibold mr-1">Modules:</span>
         {categories.map((cat) => (
           <button
@@ -131,13 +131,13 @@ export default function RustCodebaseApp() {
       </div>
 
       {/* Main Split Layout: File Tree + Code Viewer */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Left: Files List */}
-        <div className="w-64 bg-neutral-900/40 border-r border-neutral-800 flex flex-col shrink-0">
+        <div className="flex w-64 shrink-0 flex-col border-r border-neutral-800 bg-neutral-900/40 min-h-0">
           <div className="p-2 text-[10px] uppercase font-semibold text-neutral-400 tracking-wider">
             Workspace Files ({filteredFiles.length})
           </div>
-          <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-1.5">
             {filteredFiles.map((file) => {
               const originalIndex = RUST_CODEBASE.indexOf(file);
               const isSelected = originalIndex === activeFileIndex;
@@ -174,7 +174,7 @@ export default function RustCodebaseApp() {
         </div>
 
         {/* Right: Code Viewer */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-neutral-950">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-neutral-950">
           {/* File Meta Header */}
           <div className="px-4 py-2 border-b border-neutral-800 bg-neutral-900/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ export default function RustCodebaseApp() {
           </div>
 
           {/* Code Text Content */}
-          <div className="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed text-neutral-200 select-text">
+          <div className="min-h-0 flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed text-neutral-200 select-text">
             <pre className="whitespace-pre">{activeFile.content}</pre>
           </div>
         </div>

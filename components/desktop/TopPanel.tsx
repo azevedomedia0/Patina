@@ -1,31 +1,33 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { HardwareProfile, DEConfig, AppDefinition, AppId } from '@/lib/oxide-types';
-import { Terminal, Cpu, HardDrive, Wifi, Volume2, Sliders, LayoutGrid, Monitor, ShieldCheck } from 'lucide-react';
+import { DEConfig, AppDefinition, AppId, CHROME_METRICS } from '@/lib/oxide-types';
+import { Terminal, Cpu, HardDrive, Wifi, Volume2, ToggleLeft, ToggleRight, LayoutGrid, Monitor, ShieldCheck } from 'lucide-react';
 
 interface TopPanelProps {
-  currentWorkspace: number;
-  onSelectWorkspace: (ws: number) => void;
-  hardware: HardwareProfile;
   config: DEConfig;
-  activeWindowTitle: string | null;
   onToggleLauncher: () => void;
   onToggleQuickSettings: () => void;
   quickSettingsOpen: boolean;
+  onToggleNotifications: () => void;
+  notificationsOpen: boolean;
+  onToggleWorkspaces: () => void;
+  workspacesOpen: boolean;
   onOpenApp: (appId: AppId) => void;
+  onContextMenu: (event: React.MouseEvent) => void;
 }
 
 export default function TopPanel({
-  currentWorkspace,
-  onSelectWorkspace,
-  hardware,
   config,
-  activeWindowTitle,
   onToggleLauncher,
   onToggleQuickSettings,
   quickSettingsOpen,
+  onToggleNotifications,
+  notificationsOpen,
+  onToggleWorkspaces,
+  workspacesOpen,
   onOpenApp,
+  onContextMenu,
 }: TopPanelProps) {
   const [timeStr, setTimeStr] = useState<string>('12:00');
   const [dateStr, setDateStr] = useState<string>('Oct 13');
@@ -42,9 +44,8 @@ export default function TopPanel({
   }, []);
 
   const theme = config.activeTheme;
-  const activeRamMB = config.lowSpecMode ? hardware.idleRamMB - 6 : hardware.idleRamMB;
   const isPill = theme.windowStyle.isPillShape;
-  const isMac = theme.windowStyle.isMacStyle;
+  const chrome = CHROME_METRICS[config.chromeSize];
 
   return (
     <header
@@ -53,10 +54,13 @@ export default function TopPanel({
         borderColor: theme.palette.border,
         color: theme.palette.textSecondary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
+        height: chrome.panelHeight,
+        fontSize: chrome.panelFont,
       }}
-      className="h-9 w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between text-xs select-none z-50 shrink-0 transition-colors duration-200"
+      className="relative w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between select-none z-50 shrink-0 transition-colors duration-200"
+      onContextMenu={onContextMenu}
     >
-      {/* Left Zone: Launcher Button & Workspaces */}
+      {/* Left Zone: Launcher Button */}
       <div className="flex items-center gap-2">
         {/* Oxide Brand / Launcher Button */}
         <button
@@ -65,82 +69,50 @@ export default function TopPanel({
             backgroundColor: theme.palette.accent,
             color: theme.palette.background,
           }}
-          className={`flex items-center gap-1.5 px-2.5 py-1 font-bold text-xs transition-opacity hover:opacity-90 shadow-xs ${
-            isPill ? 'rounded-full px-3.5' : isMac ? 'rounded-md px-2.5' : 'rounded'
-          }`}
+          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold text-xs transition-opacity hover:opacity-90 shadow-xs"
+          aria-label="Apps"
           title="Open Application Launcher (Super / Alt+Space)"
         >
-          <span className="font-mono text-xs">{isMac ? ' OXIDE' : 'OXIDE'}</span>
+          <LayoutGrid style={{ width: chrome.panelIcon, height: chrome.panelIcon }} />
         </button>
 
-        {/* Workspaces 1-4 */}
-        <div
+        <button
+          type="button"
+          onClick={onToggleWorkspaces}
+          aria-expanded={workspacesOpen}
+          aria-label="Workspaces"
+          title="Workspaces"
           style={{
-            backgroundColor: theme.palette.background,
             borderColor: theme.palette.border,
+            color: theme.palette.textPrimary,
+            backgroundColor: 'transparent',
           }}
-          className={`flex items-center gap-1 p-0.5 border ${isPill ? 'rounded-full px-1.5' : 'rounded'}`}
+          className="hidden md:flex items-center gap-2 rounded-md border-l py-1 pl-2 pr-2 text-[11px] font-medium transition-colors hover:opacity-80"
         >
-          {[1, 2, 3, 4].map((ws) => (
-            <button
-              key={ws}
-              onClick={() => onSelectWorkspace(ws)}
-              style={
-                currentWorkspace === ws
-                  ? {
-                      backgroundColor: theme.palette.surface,
-                      color: theme.palette.accent,
-                    }
-                  : { color: theme.palette.textSecondary }
-              }
-              className={`w-5 h-5 flex items-center justify-center font-mono text-[11px] font-bold transition-colors ${
-                isPill ? 'rounded-full' : 'rounded'
-              }`}
-            >
-              {ws}
-            </button>
-          ))}
-        </div>
-
-        {/* Active Window Title */}
-        {activeWindowTitle && (
-          <div
-            style={{ borderColor: theme.palette.border }}
-            className="hidden md:flex items-center gap-2 pl-2 border-l text-[11px]"
-          >
-            <span style={{ color: theme.palette.textPrimary }} className="truncate max-w-[200px] font-medium">
-              {activeWindowTitle}
-            </span>
-          </div>
-        )}
+          Workspace
+        </button>
       </div>
 
       {/* Center Zone: System Clock & Date */}
-      <div className="flex items-center gap-2 font-medium" style={{ color: theme.palette.textPrimary }}>
+      <button
+        type="button"
+        onClick={onToggleNotifications}
+        aria-expanded={notificationsOpen}
+        aria-label="Notifications"
+        title="Notifications"
+        style={{
+          color: theme.palette.textPrimary,
+          backgroundColor: notificationsOpen ? theme.palette.surface : 'transparent',
+        }}
+        className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-md px-2 py-1 font-medium transition-colors hover:opacity-80"
+      >
         <span style={{ color: theme.palette.textSecondary }}>{dateStr}</span>
         <span style={{ color: theme.palette.border }}>·</span>
         <span className="font-mono font-semibold">{timeStr}</span>
-      </div>
+      </button>
 
-      {/* Right Zone: Hardware Telemetry Pills & Quick Settings Trigger */}
+      {/* Right Zone: Quick Settings Trigger */}
       <div className="flex items-center gap-2">
-        {/* Low-Spec / Architecture Indicator */}
-        <div
-          style={{
-            backgroundColor: theme.palette.background,
-            borderColor: theme.palette.border,
-          }}
-          className={`hidden sm:flex items-center gap-1.5 py-0.5 border text-[11px] font-mono ${
-            isPill ? 'rounded-full px-3' : 'rounded px-2'
-          }`}
-        >
-          <span style={{ color: theme.palette.success }} className="font-semibold">{hardware.architecture}</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.accent }} className="tabular-nums">{activeRamMB}M</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.textSecondary }} className="tabular-nums">60fps</span>
-        </div>
-
         {/* Quick Settings Drawer Toggle */}
         <button
           onClick={onToggleQuickSettings}
@@ -152,9 +124,14 @@ export default function TopPanel({
           className={`flex items-center gap-1.5 px-2 py-1 transition-colors hover:opacity-80 ${
             isPill ? 'rounded-full' : 'rounded'
           }`}
+          aria-pressed={quickSettingsOpen}
           title="Quick Settings & Hardware Tuner"
         >
-          <Sliders className="w-3.5 h-3.5" />
+          {quickSettingsOpen ? (
+            <ToggleRight style={{ width: chrome.panelIcon + 2, height: chrome.panelIcon + 2 }} />
+          ) : (
+            <ToggleLeft style={{ width: chrome.panelIcon + 2, height: chrome.panelIcon + 2 }} />
+          )}
         </button>
       </div>
     </header>

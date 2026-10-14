@@ -1,254 +1,403 @@
 'use client';
 
-import React from 'react';
-import { HardwareProfile, DEConfig, ArchType, HARDWARE_PROFILES, AppId } from '@/lib/oxide-types';
-import { Sliders, Zap, Monitor, Layout, Palette, Volume2, Cpu, Activity, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { DEConfig, AppId, CHROME_METRICS } from '@/lib/oxide-types';
+import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Music, LogOut, RotateCcw, Power } from 'lucide-react';
+
+export type SessionAction = 'log-off' | 'restart' | 'shutdown';
 
 interface QuickSettingsProps {
   isOpen: boolean;
   onClose: () => void;
-  hardware: HardwareProfile;
   config: DEConfig;
   onUpdateConfig: (partial: Partial<DEConfig>) => void;
-  onSelectHardware: (arch: ArchType) => void;
   onOpenApp: (appId: AppId) => void;
+  onSessionAction: (action: SessionAction) => void;
+  brightness: number;
+  onBrightnessChange: (value: number) => void;
+}
+
+const NOW_PLAYING = [
+  { title: 'Wayland Drift', artist: 'Oxide Ensemble', duration: 204 },
+  { title: 'Charcoal Hour', artist: 'Seatd Quartet', duration: 168 },
+  { title: 'Scanout', artist: 'KMS Trio', duration: 242 },
+];
+
+function formatClock(seconds: number) {
+  const clamped = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(clamped / 60);
+  const remainder = clamped % 60;
+  return `${minutes}:${remainder.toString().padStart(2, '0')}`;
+}
+
+function NowPlaying({
+  idleBg,
+  idleColor,
+  accent,
+  activeColor,
+  trackIndex,
+  playing,
+  position,
+  onSeek,
+  onTogglePlay,
+  onPrevious,
+  onNext,
+}: {
+  idleBg: string;
+  idleColor: string;
+  accent: string;
+  activeColor: string;
+  trackIndex: number;
+  playing: boolean;
+  position: number;
+  onSeek: (seconds: number) => void;
+  onTogglePlay: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const track = NOW_PLAYING[trackIndex];
+  const progress = Math.min(100, (position / track.duration) * 100);
+  return (
+    <div
+      aria-label="Now playing"
+      style={{ backgroundColor: idleBg, color: idleColor }}
+      className="row-span-2 flex min-h-[132px] flex-col justify-between rounded-[18px] px-3 py-2.5"
+    >
+      <div className="flex items-center gap-2.5">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+          style={{ backgroundColor: accent, color: activeColor }}
+        >
+          <Music className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <span className="block truncate text-[11px] leading-tight opacity-80">{playing ? 'Now playing' : 'Paused'}</span>
+          <span className="block truncate text-[13px] font-medium leading-tight">{track.title}</span>
+          <span className="block truncate text-[11px] leading-tight opacity-80">{track.artist}</span>
+        </div>
+      </div>
+      <div>
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <span className="w-7 shrink-0 text-[10px] tabular-nums opacity-70">{formatClock(position)}</span>
+          <input
+            type="range"
+            min={0}
+            max={track.duration}
+            step={1}
+            value={Math.min(position, track.duration)}
+            aria-label="Playback position"
+            aria-valuetext={`${formatClock(position)} of ${formatClock(track.duration)}`}
+            onChange={(event) => onSeek(Number(event.target.value))}
+            style={{
+              background: `linear-gradient(to right, ${accent} ${progress}%, rgba(255,255,255,0.18) ${progress}%)`,
+            }}
+            className="h-1 w-full cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+          />
+          <span className="w-7 shrink-0 text-right text-[10px] tabular-nums opacity-70">{formatClock(track.duration)}</span>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <button type="button" aria-label="Previous" onClick={onPrevious} className="rounded-full p-1.5 hover:bg-white/10">
+            <SkipBack className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={playing ? 'Pause' : 'Play'}
+            aria-pressed={playing}
+            onClick={onTogglePlay}
+            style={{ backgroundColor: accent, color: activeColor }}
+            className="rounded-full p-2"
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+          <button type="button" aria-label="Next" onClick={onNext} className="rounded-full p-1.5 hover:bg-white/10">
+            <SkipForward className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickToggle({
+  active,
+  icon,
+  title,
+  subtitle,
+  onClick,
+  accent,
+  idleBg,
+  idleColor,
+  activeColor,
+}: {
+  active?: boolean;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+  accent: string;
+  idleBg: string;
+  idleColor: string;
+  activeColor: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        backgroundColor: active ? accent : idleBg,
+        color: active ? activeColor : idleColor,
+      }}
+      className="flex min-h-[62px] items-center gap-2.5 rounded-[18px] px-3 py-2 text-left transition-colors hover:brightness-110"
+    >
+      <span className="shrink-0">{icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-[13px] font-medium leading-tight">{title}</span>
+        <span className="block truncate text-[11px] leading-tight opacity-80">{subtitle}</span>
+      </span>
+    </button>
+  );
 }
 
 export default function QuickSettings({
   isOpen,
   onClose,
-  hardware,
   config,
   onUpdateConfig,
-  onSelectHardware,
   onOpenApp,
+  onSessionAction,
+  brightness,
+  onBrightnessChange,
 }: QuickSettingsProps) {
+  const [volume, setVolume] = useState(75);
+  const lastVolume = useRef(75);
+  const [casting, setCasting] = useState(false);
+  const [wifiOn, setWifiOn] = useState(true);
+  const [bluetoothOn, setBluetoothOn] = useState(true);
+  const [vpnOn, setVpnOn] = useState(false);
+  const [trackIndex, setTrackIndex] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [position, setPosition] = useState(48);
+  const positionRef = useRef(position);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  const seek = (seconds: number) => {
+    positionRef.current = seconds;
+    setPosition(seconds);
+  };
+
+  useEffect(() => {
+    if (!isOpen || !playing) return;
+    const timer = window.setInterval(() => {
+      const duration = NOW_PLAYING[trackIndex].duration;
+      const next = positionRef.current + 1;
+      if (next >= duration) {
+        positionRef.current = 0;
+        setPosition(0);
+        setTrackIndex((index) => (index + 1) % NOW_PLAYING.length);
+        return;
+      }
+      positionRef.current = next;
+      setPosition(next);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isOpen, playing, trackIndex]);
+
   if (!isOpen) return null;
 
+  const toggleMute = () => {
+    if (volume === 0) {
+      setVolume(lastVolume.current > 0 ? lastVolume.current : 75);
+      return;
+    }
+    lastVolume.current = volume;
+    setVolume(0);
+  };
+
   const theme = config.activeTheme;
-  const opts = config.optimizations;
+  const accent = theme.palette.accent;
+  const idleBg = theme.palette.surface;
+  const idleColor = theme.palette.textPrimary;
+  const activeColor = theme.palette.background;
+  const openApp = (appId: AppId) => {
+    onClose();
+    onOpenApp(appId);
+  };
+  const runSession = (action: SessionAction) => {
+    onClose();
+    onSessionAction(action);
+  };
+  const sessionButtonClass =
+    'flex min-w-0 flex-1 items-center justify-center rounded-[18px] px-1.5 py-2.5 text-[13px] font-medium transition-colors hover:brightness-110';
 
   return (
     <div
       style={{
-        backgroundColor: theme.palette.surface,
+        backgroundColor: theme.palette.panel,
         borderColor: theme.palette.border,
         color: theme.palette.textPrimary,
-        borderRadius: `${Math.max(8, theme.windowStyle.borderRadius)}px`,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
+        top: CHROME_METRICS[config.chromeSize].flyoutTop,
       }}
-      className="absolute top-10 right-2 w-84 max-h-[88vh] backdrop-blur-xl border shadow-2xl p-3.5 flex flex-col space-y-3.5 z-50 text-xs select-none overflow-y-auto"
+      className="absolute right-2 z-50 flex w-[23.5rem] max-h-[88vh] flex-col gap-2 overflow-y-auto rounded-[26px] border p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: theme.palette.border }}>
-        <div className="flex items-center gap-2">
-          <Sliders className="w-4 h-4" style={{ color: theme.palette.accent }} />
-          <span className="font-semibold text-white">Oxide Quick Settings</span>
-        </div>
-        <button
-          onClick={onClose}
-          style={{ color: theme.palette.textSecondary }}
-          className="hover:text-white p-1 rounded hover:bg-neutral-800 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Quick App Shortcuts for Theme Studio & Profiler */}
       <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={() => {
-            onClose();
-            onOpenApp('theme-studio');
+        <QuickToggle
+          active={wifiOn}
+          icon={wifiOn ? <Wifi className="h-5 w-5" /> : <WifiOff className="h-5 w-5" />}
+          title="Wi-Fi"
+          subtitle={wifiOn ? 'Connected' : 'Off'}
+          onClick={() => setWifiOn((on) => !on)}
+          accent={accent}
+          idleBg={idleBg}
+          idleColor={idleColor}
+          activeColor={activeColor}
+        />
+        <NowPlaying
+          idleBg={idleBg}
+          idleColor={idleColor}
+          accent={accent}
+          activeColor={activeColor}
+          trackIndex={trackIndex}
+          playing={playing}
+          position={position}
+          onSeek={seek}
+          onTogglePlay={() => setPlaying((on) => !on)}
+          onPrevious={() => {
+            seek(0);
+            setTrackIndex((index) => (index + NOW_PLAYING.length - 1) % NOW_PLAYING.length);
           }}
-          style={{
-            backgroundColor: theme.palette.panel,
-            borderColor: theme.palette.border,
+          onNext={() => {
+            seek(0);
+            setTrackIndex((index) => (index + 1) % NOW_PLAYING.length);
           }}
-          className="p-2.5 rounded-lg border text-left flex items-center gap-2 hover:border-amber-500 transition-colors"
-        >
-          <Palette className="w-4 h-4 text-purple-400 shrink-0" />
-          <div>
-            <div className="font-semibold text-xs text-white">Theme Studio</div>
-            <div className="text-[10px]" style={{ color: theme.palette.textSecondary }}>Palettes & Fonts</div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            onClose();
-            onOpenApp('profiler');
-          }}
-          style={{
-            backgroundColor: theme.palette.panel,
-            borderColor: theme.palette.border,
-          }}
-          className="p-2.5 rounded-lg border text-left flex items-center gap-2 hover:border-cyan-500 transition-colors"
-        >
-          <Activity className="w-4 h-4 text-cyan-400 shrink-0" />
-          <div>
-            <div className="font-semibold text-xs text-white">ARM Profiler</div>
-            <div className="text-[10px]" style={{ color: theme.palette.textSecondary }}>Microsecond latency</div>
-          </div>
-        </button>
-      </div>
-
-      {/* Quick Toggles Grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Low-Spec Hardware Mode */}
-        <button
-          onClick={() => onUpdateConfig({ lowSpecMode: !config.lowSpecMode })}
-          style={{
-            backgroundColor: config.lowSpecMode ? `${theme.palette.success}20` : theme.palette.background,
-            borderColor: config.lowSpecMode ? theme.palette.success : theme.palette.border,
-          }}
-          className="p-2.5 rounded-lg border text-left flex flex-col justify-between h-18 transition-all"
-        >
-          <div className="flex items-center justify-between w-full">
-            <Zap className="w-4 h-4" style={{ color: config.lowSpecMode ? theme.palette.success : theme.palette.textSecondary }} />
-            <span className="text-[10px] font-mono uppercase font-bold" style={{ color: config.lowSpecMode ? theme.palette.success : theme.palette.textSecondary }}>
-              {config.lowSpecMode ? 'ON' : 'OFF'}
-            </span>
-          </div>
-          <div>
-            <div className="font-semibold text-xs text-white">Low-Spec Mode</div>
-            <div className="text-[10px]" style={{ color: theme.palette.textSecondary }}>Software blit fallback</div>
-          </div>
-        </button>
-
-        {/* Tiling Window Mode */}
-        <button
-          onClick={() => onUpdateConfig({ tilingMode: !config.tilingMode })}
-          style={{
-            backgroundColor: config.tilingMode ? `${theme.palette.accent}20` : theme.palette.background,
-            borderColor: config.tilingMode ? theme.palette.accent : theme.palette.border,
-          }}
-          className="p-2.5 rounded-lg border text-left flex flex-col justify-between h-18 transition-all"
-        >
-          <div className="flex items-center justify-between w-full">
-            <Layout className="w-4 h-4" style={{ color: config.tilingMode ? theme.palette.accent : theme.palette.textSecondary }} />
-            <span className="text-[10px] font-mono uppercase font-bold" style={{ color: config.tilingMode ? theme.palette.accent : theme.palette.textSecondary }}>
-              {config.tilingMode ? 'TILING' : 'FLOAT'}
-            </span>
-          </div>
-          <div>
-            <div className="font-semibold text-xs text-white">Window Layout</div>
-            <div className="text-[10px]" style={{ color: theme.palette.textSecondary }}>Automatic BSP</div>
-          </div>
-        </button>
-      </div>
-
-      {/* ARM Core Optimizations Quick Strip */}
-      <div
-        style={{
-          backgroundColor: theme.palette.background,
-          borderColor: theme.palette.border,
-        }}
-        className="p-2.5 rounded-lg border space-y-2"
-      >
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-xs text-white flex items-center gap-1.5">
-            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-            <span>ARM Optimizations</span>
-          </span>
-          <span className="text-[10px] font-mono text-emerald-400">Active</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
-          <button
-            onClick={() =>
-              onUpdateConfig({
-                optimizations: { ...opts, neonSimd: !opts.neonSimd },
-              })
-            }
-            className={`px-2 py-1 rounded text-center transition-colors ${
-              opts.neonSimd ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-neutral-900 text-neutral-400'
-            }`}
-          >
-            NEON SIMD: {opts.neonSimd ? 'ON' : 'OFF'}
-          </button>
-
-          <button
-            onClick={() =>
-              onUpdateConfig({
-                optimizations: { ...opts, kmsHardwarePlanes: !opts.kmsHardwarePlanes },
-              })
-            }
-            className={`px-2 py-1 rounded text-center transition-colors ${
-              opts.kmsHardwarePlanes ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-neutral-900 text-neutral-400'
-            }`}
-          >
-            KMS Plane: {opts.kmsHardwarePlanes ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      </div>
-
-      {/* Target Hardware Architecture Selector */}
-      <div className="space-y-1.5">
-        <div className="text-[11px] font-semibold flex items-center justify-between" style={{ color: theme.palette.textPrimary }}>
-          <span>Target Architecture</span>
-          <span className="font-mono text-emerald-400 text-[10px]">{hardware.architecture}</span>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          {(Object.keys(HARDWARE_PROFILES) as ArchType[]).map((archKey) => {
-            const prof = HARDWARE_PROFILES[archKey];
-            const isSelected = hardware.id === archKey;
-            return (
-              <button
-                key={archKey}
-                onClick={() => onSelectHardware(archKey)}
-                style={{
-                  backgroundColor: isSelected ? theme.palette.panel : theme.palette.background,
-                  borderColor: isSelected ? theme.palette.accent : theme.palette.border,
-                }}
-                className="p-2 rounded border text-left transition-colors"
-              >
-                <div className="font-medium text-[11px] truncate text-white">{prof.name.split('(')[0]}</div>
-                <div className="text-[10px] font-mono" style={{ color: theme.palette.textSecondary }}>{prof.bits}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Audio Volume */}
-      <div
-        style={{
-          backgroundColor: theme.palette.background,
-          borderColor: theme.palette.border,
-        }}
-        className="space-y-1 p-2 rounded-lg border"
-      >
-        <div className="flex items-center justify-between text-[11px]" style={{ color: theme.palette.textSecondary }}>
-          <span className="flex items-center gap-1.5">
-            <Volume2 className="w-3.5 h-3.5" />
-            <span>Volume (PipeWire)</span>
-          </span>
-          <span className="font-mono text-neutral-300">75%</span>
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          defaultValue="75"
-          className="w-full accent-amber-500 h-1 bg-neutral-800 rounded-lg cursor-pointer"
+        />
+        <QuickToggle
+          active={bluetoothOn}
+          icon={bluetoothOn ? <Bluetooth className="h-5 w-5" /> : <BluetoothOff className="h-5 w-5" />}
+          title="Bluetooth"
+          subtitle={bluetoothOn ? 'On' : 'Off'}
+          onClick={() => setBluetoothOn((on) => !on)}
+          accent={accent}
+          idleBg={idleBg}
+          idleColor={idleColor}
+          activeColor={activeColor}
+        />
+        <QuickToggle
+          active={vpnOn}
+          icon={vpnOn ? <Shield className="h-5 w-5" /> : <ShieldOff className="h-5 w-5" />}
+          title="VPN"
+          subtitle={vpnOn ? 'Connected' : 'Off'}
+          onClick={() => setVpnOn((on) => !on)}
+          accent={accent}
+          idleBg={idleBg}
+          idleColor={idleColor}
+          activeColor={activeColor}
+        />
+        <QuickToggle
+          active={casting}
+          icon={<Cast className="h-5 w-5" />}
+          title="Casting"
+          subtitle={casting ? 'On' : 'Off'}
+          onClick={() => setCasting((on) => !on)}
+          accent={accent}
+          idleBg={idleBg}
+          idleColor={idleColor}
+          activeColor={activeColor}
         />
       </div>
 
-      {/* Bottom Button: Open Full Settings */}
-      <div className="pt-1 flex items-center gap-2">
+      <div
+        className="flex items-center gap-3 rounded-[18px] px-3 py-2.5"
+        style={{ backgroundColor: idleBg, color: idleColor }}
+      >
+        {brightness === 0 ? <SunDim className="h-5 w-5 shrink-0" /> : <Sun className="h-5 w-5 shrink-0" />}
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={brightness}
+          aria-label="Brightness"
+          onChange={(event) => onBrightnessChange(Number(event.target.value))}
+          style={{
+            background: `linear-gradient(to right, ${accent} ${brightness}%, rgba(255,255,255,0.18) ${brightness}%)`,
+          }}
+          className="h-1 w-full cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+        />
+      </div>
+
+      <div
+        className="flex items-center gap-3 rounded-[18px] px-3 py-2.5"
+        style={{ backgroundColor: idleBg, color: idleColor }}
+      >
         <button
-          onClick={() => {
-            onClose();
-            onOpenApp('settings');
+          type="button"
+          aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+          aria-pressed={volume === 0}
+          onClick={toggleMute}
+          className="shrink-0 rounded-full p-0.5 transition-opacity hover:opacity-80"
+        >
+          {volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={volume}
+          aria-label="Volume"
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (next > 0) lastVolume.current = next;
+            setVolume(next);
           }}
           style={{
-            backgroundColor: theme.palette.panel,
-            borderColor: theme.palette.border,
+            background: `linear-gradient(to right, ${accent} ${volume}%, rgba(255,255,255,0.18) ${volume}%)`,
           }}
-          className="w-full py-1.5 hover:bg-neutral-800 text-white font-medium rounded text-xs transition-colors border"
+          className="h-1 w-full cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => openApp('settings')}
+          style={{ backgroundColor: idleBg, color: idleColor }}
+          className="w-1/2 shrink-0 rounded-[18px] py-2.5 text-[13px] font-medium transition-colors hover:brightness-110"
         >
-          All System Settings...
+          All Settings
+        </button>
+        <button
+          type="button"
+          aria-label="Log Off"
+          title="Log Off"
+          onClick={() => runSession('log-off')}
+          style={{ backgroundColor: idleBg, color: idleColor }}
+          className={sessionButtonClass}
+        >
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-label="Restart"
+          title="Restart"
+          onClick={() => runSession('restart')}
+          style={{ backgroundColor: idleBg, color: idleColor }}
+          className={sessionButtonClass}
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-label="Shutdown"
+          title="Shutdown"
+          onClick={() => runSession('shutdown')}
+          style={{ backgroundColor: idleBg, color: idleColor }}
+          className={sessionButtonClass}
+        >
+          <Power className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </div>
