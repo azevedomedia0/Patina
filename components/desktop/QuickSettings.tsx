@@ -174,7 +174,9 @@ export default function QuickSettings({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        {(Object.keys(HARDWARE_PROFILES) as ArchType[]).map((archKey) => {
+        {(Object.keys(HARDWARE_PROFILES) as ArchType[])
+          .filter((archKey) => archKey !== 'x86_64_low')
+          .map((archKey) => {
           const label = HARDWARE_LABELS[archKey];
           return (
             <QuickToggle
