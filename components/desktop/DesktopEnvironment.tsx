@@ -41,6 +41,31 @@ import {
   Cpu,
 } from 'lucide-react';
 
+function AppGlyph({ id, className = 'w-5 h-5' }: { id: AppId; className?: string }) {
+  switch (id) {
+    case 'theme-studio':
+      return <Palette className={`${className} text-purple-400`} />;
+    case 'profiler':
+      return <Cpu className={`${className} text-cyan-400`} />;
+    case 'terminal':
+      return <Terminal className={`${className} text-amber-400`} />;
+    case 'sysmon':
+      return <Activity className={`${className} text-emerald-400`} />;
+    case 'codebase':
+      return <FileCode className={`${className} text-amber-300`} />;
+    case 'benchmark':
+      return <Gauge className={`${className} text-rose-400`} />;
+    case 'files':
+      return <Folder className={`${className} text-cyan-400`} />;
+    case 'settings':
+      return <Settings className={`${className} text-blue-400`} />;
+    case 'guide':
+      return <BookOpen className={`${className} text-amber-300`} />;
+    default:
+      return <Terminal className={`${className} text-neutral-400`} />;
+  }
+}
+
 export const APPS: AppDefinition[] = [
   {
     id: 'terminal',
@@ -465,13 +490,7 @@ export default function DesktopEnvironment() {
                   theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded'
                 }`}
               >
-                {app.id === 'theme-studio' && <Palette className="w-4 h-4 text-purple-400" />}
-                {app.id === 'profiler' && <Cpu className="w-4 h-4 text-cyan-400" />}
-                {app.id === 'terminal' && <Terminal className="w-4 h-4 text-amber-400" />}
-                {app.id === 'sysmon' && <Activity className="w-4 h-4 text-emerald-400" />}
-                {app.id === 'codebase' && <FileCode className="w-4 h-4 text-amber-300" />}
-                {app.id === 'benchmark' && <Gauge className="w-4 h-4 text-rose-400" />}
-                {app.id === 'files' && <Folder className="w-4 h-4 text-cyan-400" />}
+                <AppGlyph id={app.id} className="w-4 h-4" />
               </div>
               <span
                 style={{ color: theme.palette.textPrimary }}
@@ -528,74 +547,61 @@ export default function DesktopEnvironment() {
         )}
       </main>
 
-      {/* Bottom Taskbar / Running Window Tabs */}
-      <footer
+      <nav
+        aria-label="Dock"
         style={{
           backgroundColor: theme.palette.panel,
           borderColor: theme.palette.border,
-          color: theme.palette.textSecondary,
         }}
-        className="h-8 border-t px-3 flex items-center justify-between text-xs shrink-0 z-40 select-none transition-colors duration-200"
+        className={`absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-end gap-1 border px-2 py-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl select-none ${
+          theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded-[22px]'
+        }`}
       >
-        {/* Open Application Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-          {windows.map((win) => (
+        {APPS.map((app) => {
+          const appWindows = windows.filter((win) => win.appId === app.id);
+          const focused = appWindows.some((win) => win.id === activeWindowId && !win.isMinimized);
+          return (
             <button
-              key={win.id}
+              key={app.id}
+              type="button"
+              title={app.title}
+              aria-label={app.title}
               onClick={() => {
-                if (win.isMinimized) {
-                  focusWindow(win.id);
-                } else if (activeWindowId === win.id) {
-                  minimizeWindow(win.id);
-                } else {
-                  focusWindow(win.id);
+                if (appWindows.length === 0) {
+                  openApp(app.id);
+                  return;
                 }
+                const current = appWindows.find((win) => win.id === activeWindowId && !win.isMinimized);
+                if (current) {
+                  minimizeWindow(current.id);
+                  return;
+                }
+                const next = appWindows.find((win) => win.isMinimized) ?? appWindows[appWindows.length - 1];
+                focusWindow(next.id);
               }}
-              style={
-                activeWindowId === win.id && !win.isMinimized
-                  ? {
-                      backgroundColor: theme.palette.surface,
-                      color: theme.palette.textPrimary,
-                      borderBottom: `2px solid ${theme.palette.accent}`,
-                    }
-                  : {
-                      backgroundColor: theme.palette.background,
-                      color: theme.palette.textSecondary,
-                    }
-              }
-              className={`flex items-center gap-1.5 py-1 text-[11px] font-medium transition-colors ${
-                theme.windowStyle.isPillShape ? 'rounded-full px-3' : 'rounded px-2.5'
-              }`}
+              className="group flex w-12 flex-col items-center gap-1"
             >
               <span
                 style={{
-                  backgroundColor: win.isMinimized ? theme.palette.border : theme.palette.success,
+                  backgroundColor: theme.palette.surface,
+                  boxShadow: focused
+                    ? `inset 0 0 0 2px ${theme.palette.accent}`
+                    : `inset 0 0 0 1px ${theme.palette.border}`,
                 }}
-                className="w-1.5 h-1.5 rounded-full"
+                className={`flex h-10 w-10 items-center justify-center transition-transform group-hover:-translate-y-1 group-hover:scale-110 ${
+                  theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded-xl'
+                }`}
+              >
+                <AppGlyph id={app.id} />
+              </span>
+              <span
+                className="h-1 w-1 rounded-full"
+                style={{ backgroundColor: appWindows.length > 0 ? theme.palette.textPrimary : 'transparent' }}
               />
-              <span className="truncate max-w-[120px]">{win.title}</span>
             </button>
-          ))}
-          {windows.length === 0 && (
-            <span style={{ color: theme.palette.textSecondary }} className="text-[11px]">
-              No windows open. Press Super or click OXIDE.
-            </span>
-          )}
-        </div>
-
-        {/* Hardware Status Tag */}
-        <div className="flex items-center gap-2 text-[11px] font-mono">
-          <span style={{ color: theme.palette.textPrimary }}>{hardware.name.split('(')[0]}</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.success }}>{hardware.bits}</span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span style={{ color: theme.palette.accent }}>
-            {config.optimizations.neonSimd ? 'NEON SIMD' : 'Scalar'}
-          </span>
-          <span style={{ color: theme.palette.border }}>·</span>
-          <span>{config.lowSpecMode ? 'Low-Spec Direct Scanout' : 'GLES Blended'}</span>
-        </div>
-      </footer>
+          );
+        })}
+      </nav>
     </div>
   );
 }
