@@ -20,6 +20,7 @@ import WorkspacesPanel from './WorkspacesPanel';
 import AppLauncher from './AppLauncher';
 import WindowFrame from './WindowFrame';
 import ContextMenu, { ContextMenuEntry } from './ContextMenu';
+import AppGlyph from './AppGlyph';
 
 // Apps
 import TerminalApp from '@/components/apps/TerminalApp';
@@ -31,43 +32,6 @@ import SettingsApp from '@/components/apps/SettingsApp';
 import GuideApp from '@/components/apps/GuideApp';
 import ThemeStudioApp from '@/components/apps/ThemeStudioApp';
 import ProfilerApp from '@/components/apps/ProfilerApp';
-
-import {
-  Terminal,
-  Activity,
-  Folder,
-  FileCode,
-  Gauge,
-  Settings,
-  BookOpen,
-  Palette,
-  Cpu,
-} from 'lucide-react';
-
-function AppGlyph({ id, className = 'w-5 h-5' }: { id: AppId; className?: string }) {
-  switch (id) {
-    case 'theme-studio':
-      return <Palette className={`${className} text-purple-400`} />;
-    case 'profiler':
-      return <Cpu className={`${className} text-cyan-400`} />;
-    case 'terminal':
-      return <Terminal className={`${className} text-amber-400`} />;
-    case 'sysmon':
-      return <Activity className={`${className} text-emerald-400`} />;
-    case 'codebase':
-      return <FileCode className={`${className} text-amber-300`} />;
-    case 'benchmark':
-      return <Gauge className={`${className} text-rose-400`} />;
-    case 'files':
-      return <Folder className={`${className} text-cyan-400`} />;
-    case 'settings':
-      return <Settings className={`${className} text-blue-400`} />;
-    case 'guide':
-      return <BookOpen className={`${className} text-amber-300`} />;
-    default:
-      return <Terminal className={`${className} text-neutral-400`} />;
-  }
-}
 
 export const APPS: AppDefinition[] = [
   {

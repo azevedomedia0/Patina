@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AppDefinition, AppId } from '@/lib/oxide-types';
-import { Search, Terminal, Activity, Folder, FileCode, Gauge, Settings, BookOpen, X, Palette, Cpu } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import AppGlyph from './AppGlyph';
 
 interface AppLauncherProps {
   isOpen: boolean;
@@ -47,21 +48,6 @@ export default function AppLauncher({ isOpen, onClose, apps, onLaunchApp }: AppL
   };
 
   if (!isOpen) return null;
-
-  const getIcon = (id: AppId) => {
-    switch (id) {
-      case 'terminal': return <Terminal className="w-5 h-5 text-amber-400" />;
-      case 'sysmon': return <Activity className="w-5 h-5 text-emerald-400" />;
-      case 'theme-studio': return <Palette className="w-5 h-5 text-purple-400" />;
-      case 'profiler': return <Cpu className="w-5 h-5 text-cyan-400" />;
-      case 'files': return <Folder className="w-5 h-5 text-cyan-400" />;
-      case 'codebase': return <FileCode className="w-5 h-5 text-purple-400" />;
-      case 'benchmark': return <Gauge className="w-5 h-5 text-rose-400" />;
-      case 'settings': return <Settings className="w-5 h-5 text-blue-400" />;
-      case 'guide': return <BookOpen className="w-5 h-5 text-amber-300" />;
-      default: return <Terminal className="w-5 h-5 text-neutral-400" />;
-    }
-  };
 
   return (
     <div
@@ -117,7 +103,7 @@ export default function AppLauncher({ isOpen, onClose, apps, onLaunchApp }: AppL
                   }`}
                 >
                   <div className="p-2 rounded-lg bg-neutral-950 border border-neutral-800 shrink-0">
-                    {getIcon(app.id)}
+                    <AppGlyph id={app.id} className="h-6 w-6" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-xs text-white flex items-center justify-between">

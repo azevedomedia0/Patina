@@ -136,7 +136,7 @@ export interface WindowState {
 // -----------------------------------------------------------------------------
 
 export type FontFamilyType = 'Poppins' | 'JetBrains Mono' | 'Plus Jakarta Sans' | 'DM Sans' | 'Fira Code' | 'System Sans';
-export type IconThemeType = 'oxide-minimal' | 'lucid-wire' | 'neo-glyph' | 'monochrome-lowres';
+export type IconThemeType = 'papirus' | 'oxide-minimal' | 'lucid-wire' | 'neo-glyph' | 'monochrome-lowres';
 
 export interface ColorPalette {
   background: string;
@@ -194,7 +194,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Poppins',
     fontSize: 'base',
-    iconTheme: 'neo-glyph',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 24,
       borderWidth: 1,
@@ -224,7 +224,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Poppins',
     fontSize: 'base',
-    iconTheme: 'lucid-wire',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 16,
       borderWidth: 1,
@@ -254,7 +254,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Poppins',
     fontSize: 'base',
-    iconTheme: 'oxide-minimal',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 8,
       borderWidth: 1,
@@ -284,7 +284,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'Plus Jakarta Sans',
     fontSize: 'base',
-    iconTheme: 'neo-glyph',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 12,
       borderWidth: 1,
@@ -314,7 +314,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'DM Sans',
     fontSize: 'base',
-    iconTheme: 'lucid-wire',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 8,
       borderWidth: 1,
@@ -344,7 +344,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'System Sans',
     fontSize: 'base',
-    iconTheme: 'lucid-wire',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 12,
       borderWidth: 1,
@@ -374,7 +374,7 @@ export const PRESET_THEMES: Record<string, DynamicTheme> = {
     },
     fontFamily: 'JetBrains Mono',
     fontSize: 'sm',
-    iconTheme: 'monochrome-lowres',
+    iconTheme: 'papirus',
     windowStyle: {
       borderRadius: 0,
       borderWidth: 1,

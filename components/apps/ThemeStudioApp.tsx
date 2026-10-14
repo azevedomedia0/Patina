@@ -289,7 +289,7 @@ export default function ThemeStudioApp({ currentTheme, onApplyTheme }: ThemeStud
 
               <div className="space-y-2 pt-2 border-t border-neutral-800">
                 <label className="text-[11px] text-neutral-300 font-medium">Icon Theme Set</label>
-                {(['oxide-minimal', 'neo-glyph', 'lucid-wire', 'monochrome-lowres'] as IconThemeType[]).map((iconSet) => (
+                {(['papirus', 'oxide-minimal', 'neo-glyph', 'lucid-wire', 'monochrome-lowres'] as IconThemeType[]).map((iconSet) => (
                   <button
                     key={iconSet}
                     onClick={() => handleIconThemeChange(iconSet)}
@@ -299,7 +299,7 @@ export default function ThemeStudioApp({ currentTheme, onApplyTheme }: ThemeStud
                         : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:bg-neutral-850'
                     }`}
                   >
-                    <span className="capitalize">{iconSet.replace('-', ' ')}</span>
+                    <span className="capitalize">{iconSet === 'papirus' ? 'Papirus' : iconSet.replace('-', ' ')}</span>
                     <span className="text-[10px] text-neutral-500 font-mono">SVG vector</span>
                   </button>
                 ))}
