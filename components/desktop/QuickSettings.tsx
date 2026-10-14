@@ -2,7 +2,9 @@
 
 import React, { useRef, useState } from 'react';
 import { DEConfig, AppId } from '@/lib/oxide-types';
-import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react';
+import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, Music } from 'lucide-react';
+
+export type SessionAction = 'log-off' | 'restart' | 'shutdown';
 
 interface QuickSettingsProps {
   isOpen: boolean;
@@ -10,6 +12,7 @@ interface QuickSettingsProps {
   config: DEConfig;
   onUpdateConfig: (partial: Partial<DEConfig>) => void;
   onOpenApp: (appId: AppId) => void;
+  onSessionAction: (action: SessionAction) => void;
   brightness: number;
   onBrightnessChange: (value: number) => void;
 }
@@ -27,7 +30,11 @@ function NowPlaying({
   activeColor,
   trackIndex,
   playing,
+  shuffle,
+  repeat,
   onTogglePlay,
+  onToggleShuffle,
+  onToggleRepeat,
   onPrevious,
   onNext,
 }: {
@@ -37,7 +44,11 @@ function NowPlaying({
   activeColor: string;
   trackIndex: number;
   playing: boolean;
+  shuffle: boolean;
+  repeat: boolean;
   onTogglePlay: () => void;
+  onToggleShuffle: () => void;
+  onToggleRepeat: () => void;
   onPrevious: () => void;
   onNext: () => void;
 }) {
@@ -61,23 +72,47 @@ function NowPlaying({
           <span className="block truncate text-[11px] leading-tight opacity-80">{track.artist}</span>
         </div>
       </div>
-      <div className="flex items-center justify-center gap-2">
-        <button type="button" aria-label="Previous" onClick={onPrevious} className="rounded-full p-1.5 hover:bg-white/10">
-          <SkipBack className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          aria-label={playing ? 'Pause' : 'Play'}
-          aria-pressed={playing}
-          onClick={onTogglePlay}
-          style={{ backgroundColor: accent, color: activeColor }}
-          className="rounded-full p-2"
-        >
-          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-        </button>
-        <button type="button" aria-label="Next" onClick={onNext} className="rounded-full p-1.5 hover:bg-white/10">
-          <SkipForward className="h-4 w-4" />
-        </button>
+      <div>
+        <div className="mb-1 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            aria-label="Shuffle"
+            aria-pressed={shuffle}
+            onClick={onToggleShuffle}
+            style={{ color: shuffle ? accent : undefined }}
+            className="rounded-full p-1 hover:bg-white/10"
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            aria-label="Repeat"
+            aria-pressed={repeat}
+            onClick={onToggleRepeat}
+            style={{ color: repeat ? accent : undefined }}
+            className="rounded-full p-1 hover:bg-white/10"
+          >
+            {repeat ? <Repeat1 className="h-3.5 w-3.5" /> : <Repeat className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <button type="button" aria-label="Previous" onClick={onPrevious} className="rounded-full p-1.5 hover:bg-white/10">
+            <SkipBack className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={playing ? 'Pause' : 'Play'}
+            aria-pressed={playing}
+            onClick={onTogglePlay}
+            style={{ backgroundColor: accent, color: activeColor }}
+            className="rounded-full p-2"
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+          <button type="button" aria-label="Next" onClick={onNext} className="rounded-full p-1.5 hover:bg-white/10">
+            <SkipForward className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -130,6 +165,7 @@ export default function QuickSettings({
   config,
   onUpdateConfig,
   onOpenApp,
+  onSessionAction,
   brightness,
   onBrightnessChange,
 }: QuickSettingsProps) {
@@ -141,6 +177,8 @@ export default function QuickSettings({
   const [vpnOn, setVpnOn] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState(false);
 
   if (!isOpen) return null;
 
@@ -162,6 +200,12 @@ export default function QuickSettings({
     onClose();
     onOpenApp(appId);
   };
+  const runSession = (action: SessionAction) => {
+    onClose();
+    onSessionAction(action);
+  };
+  const sessionButtonClass =
+    'min-w-0 flex-1 rounded-[18px] px-1.5 py-2.5 text-[13px] font-medium transition-colors hover:brightness-110';
 
   return (
     <div
@@ -171,7 +215,7 @@ export default function QuickSettings({
         color: theme.palette.textPrimary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
-      className="absolute top-11 right-2 z-50 flex w-[23.5rem] max-h-[88vh] flex-col gap-2 overflow-y-auto rounded-[26px] border p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
+      className="absolute top-11 right-2 z-50 flex w-[34.5rem] max-h-[88vh] max-w-[calc(100vw-1rem)] flex-col gap-2 overflow-y-auto rounded-[26px] border p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-2xl select-none"
     >
       <div className="grid grid-cols-2 gap-2">
         <QuickToggle
@@ -192,9 +236,33 @@ export default function QuickSettings({
           activeColor={activeColor}
           trackIndex={trackIndex}
           playing={playing}
+          shuffle={shuffle}
+          repeat={repeat}
           onTogglePlay={() => setPlaying((on) => !on)}
-          onPrevious={() => setTrackIndex((index) => (index + NOW_PLAYING.length - 1) % NOW_PLAYING.length)}
-          onNext={() => setTrackIndex((index) => (index + 1) % NOW_PLAYING.length)}
+          onToggleShuffle={() => setShuffle((on) => !on)}
+          onToggleRepeat={() => setRepeat((on) => !on)}
+          onPrevious={() =>
+            setTrackIndex((index) => {
+              if (repeat) return index;
+              if (shuffle) {
+                let next = index;
+                while (next === index) next = Math.floor(Math.random() * NOW_PLAYING.length);
+                return next;
+              }
+              return (index + NOW_PLAYING.length - 1) % NOW_PLAYING.length;
+            })
+          }
+          onNext={() =>
+            setTrackIndex((index) => {
+              if (repeat) return index;
+              if (shuffle) {
+                let next = index;
+                while (next === index) next = Math.floor(Math.random() * NOW_PLAYING.length);
+                return next;
+              }
+              return (index + 1) % NOW_PLAYING.length;
+            })
+          }
         />
         <QuickToggle
           active={bluetoothOn}
