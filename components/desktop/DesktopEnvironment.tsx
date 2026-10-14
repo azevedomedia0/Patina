@@ -550,10 +550,10 @@ export default function DesktopEnvironment() {
       <nav
         aria-label="Dock"
         style={{
-          backgroundColor: theme.palette.panel,
-          borderColor: theme.palette.border,
+          backgroundColor: 'transparent',
+          borderColor: theme.palette.textSecondary,
         }}
-        className={`absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-end gap-1 border px-2 py-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.4)] backdrop-blur-xl select-none ${
+        className={`absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-end gap-1 border-2 px-2 py-1.5 select-none ${
           theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded-[22px]'
         }`}
       >
