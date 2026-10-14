@@ -82,7 +82,7 @@ export default function TopPanel({
           style={{
             borderColor: theme.palette.border,
             color: theme.palette.textPrimary,
-            backgroundColor: workspacesOpen ? theme.palette.surface : 'transparent',
+            backgroundColor: 'transparent',
           }}
           className="hidden md:flex items-center gap-2 rounded-md border-l py-1 pl-2 pr-2 text-[11px] font-medium transition-colors hover:opacity-80"
         >
