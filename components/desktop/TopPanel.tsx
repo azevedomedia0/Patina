@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DEConfig, AppDefinition, AppId } from '@/lib/oxide-types';
-import { Terminal, Cpu, HardDrive, Wifi, Volume2, Sliders, LayoutGrid, Monitor, ShieldCheck } from 'lucide-react';
+import { Terminal, Cpu, HardDrive, Wifi, Volume2, ToggleLeft, ToggleRight, LayoutGrid, Monitor, ShieldCheck } from 'lucide-react';
 
 interface TopPanelProps {
   config: DEConfig;
@@ -99,9 +99,14 @@ export default function TopPanel({
           className={`flex items-center gap-1.5 px-2 py-1 transition-colors hover:opacity-80 ${
             isPill ? 'rounded-full' : 'rounded'
           }`}
+          aria-pressed={quickSettingsOpen}
           title="Quick Settings & Hardware Tuner"
         >
-          <Sliders className="w-3.5 h-3.5" />
+          {quickSettingsOpen ? (
+            <ToggleRight className="w-4 h-4" />
+          ) : (
+            <ToggleLeft className="w-4 h-4" />
+          )}
         </button>
       </div>
     </header>
