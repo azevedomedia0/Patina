@@ -497,47 +497,9 @@ export default function DesktopEnvironment() {
         style={screenBrightness}
         onClick={() => setQuickSettingsOpen(false)}
       >
-        {/* Desktop Shortcuts Strip (Clean unboxed icon dock on left edge) */}
-        <div className="absolute top-4 left-3 flex flex-col gap-2.5 z-10">
-          {APPS.slice(0, 6)
-            .filter((app) => app.id !== 'benchmark')
-            .map((app) => (
-            <button
-              key={app.id}
-              onClick={() => openApp(app.id)}
-              style={{
-                backgroundColor: theme.palette.surface,
-                borderColor: theme.palette.border,
-                borderRadius: theme.windowStyle.isPillShape ? '9999px' : `${Math.max(4, theme.windowStyle.borderRadius - 2)}px`,
-              }}
-              className={`group flex items-center gap-2.5 p-2 border transition-all text-left shadow-sm hover:scale-102 ${
-                theme.windowStyle.isPillShape ? 'rounded-full' : ''
-              }`}
-              title={`${app.title} - ${app.description}`}
-            >
-              <div
-                style={{
-                  backgroundColor: theme.palette.panel,
-                }}
-                className={`w-7 h-7 flex items-center justify-center transition-transform group-hover:scale-105 ${
-                  theme.windowStyle.isPillShape ? 'rounded-full' : 'rounded'
-                }`}
-              >
-                <AppGlyph id={app.id} className="w-4 h-4" />
-              </div>
-              <span
-                style={{ color: theme.palette.textPrimary }}
-                className="text-[11px] font-medium pr-1 hidden lg:inline-block max-w-[130px] truncate"
-              >
-                {app.title}
-              </span>
-            </button>
-          ))}
-        </div>
-
         {/* Dynamic Tiling Container OR Free-floating Window Manager Canvas */}
         {config.tilingMode ? (
-          <div className="absolute inset-0 pt-2 p-3 pl-16 md:pl-20 grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
+          <div className="absolute inset-0 pt-2 p-3 grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
             {currentWorkspaceWindows
               .filter((w) => !w.isMinimized)
               .map((win) => (
