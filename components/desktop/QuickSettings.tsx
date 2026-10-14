@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DEConfig, AppId } from '@/lib/oxide-types';
-import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, Music, LogOut, RotateCcw, Power } from 'lucide-react';
+import { Volume2, VolumeX, Sun, SunDim, Cast, Wifi, WifiOff, Bluetooth, BluetoothOff, Shield, ShieldOff, Play, Pause, SkipBack, SkipForward, Music, LogOut, RotateCcw, Power } from 'lucide-react';
 
 export type SessionAction = 'log-off' | 'restart' | 'shutdown';
 
@@ -18,10 +18,17 @@ interface QuickSettingsProps {
 }
 
 const NOW_PLAYING = [
-  { title: 'Wayland Drift', artist: 'Oxide Ensemble' },
-  { title: 'Charcoal Hour', artist: 'Seatd Quartet' },
-  { title: 'Scanout', artist: 'KMS Trio' },
+  { title: 'Wayland Drift', artist: 'Oxide Ensemble', duration: 204 },
+  { title: 'Charcoal Hour', artist: 'Seatd Quartet', duration: 168 },
+  { title: 'Scanout', artist: 'KMS Trio', duration: 242 },
 ];
+
+function formatClock(seconds: number) {
+  const clamped = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(clamped / 60);
+  const remainder = clamped % 60;
+  return `${minutes}:${remainder.toString().padStart(2, '0')}`;
+}
 
 function NowPlaying({
   idleBg,
@@ -30,11 +37,9 @@ function NowPlaying({
   activeColor,
   trackIndex,
   playing,
-  shuffle,
-  repeat,
+  position,
+  onSeek,
   onTogglePlay,
-  onToggleShuffle,
-  onToggleRepeat,
   onPrevious,
   onNext,
 }: {
@@ -44,15 +49,14 @@ function NowPlaying({
   activeColor: string;
   trackIndex: number;
   playing: boolean;
-  shuffle: boolean;
-  repeat: boolean;
+  position: number;
+  onSeek: (seconds: number) => void;
   onTogglePlay: () => void;
-  onToggleShuffle: () => void;
-  onToggleRepeat: () => void;
   onPrevious: () => void;
   onNext: () => void;
 }) {
   const track = NOW_PLAYING[trackIndex];
+  const progress = Math.min(100, (position / track.duration) * 100);
   return (
     <div
       aria-label="Now playing"
@@ -73,27 +77,23 @@ function NowPlaying({
         </div>
       </div>
       <div>
-        <div className="mb-1 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            aria-label="Shuffle"
-            aria-pressed={shuffle}
-            onClick={onToggleShuffle}
-            style={{ color: shuffle ? accent : undefined }}
-            className="rounded-full p-1 hover:bg-white/10"
-          >
-            <Shuffle className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Repeat"
-            aria-pressed={repeat}
-            onClick={onToggleRepeat}
-            style={{ color: repeat ? accent : undefined }}
-            className="rounded-full p-1 hover:bg-white/10"
-          >
-            {repeat ? <Repeat1 className="h-3.5 w-3.5" /> : <Repeat className="h-3.5 w-3.5" />}
-          </button>
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <span className="w-7 shrink-0 text-[10px] tabular-nums opacity-70">{formatClock(position)}</span>
+          <input
+            type="range"
+            min={0}
+            max={track.duration}
+            step={1}
+            value={Math.min(position, track.duration)}
+            aria-label="Playback position"
+            aria-valuetext={`${formatClock(position)} of ${formatClock(track.duration)}`}
+            onChange={(event) => onSeek(Number(event.target.value))}
+            style={{
+              background: `linear-gradient(to right, ${accent} ${progress}%, rgba(255,255,255,0.18) ${progress}%)`,
+            }}
+            className="h-1 w-full cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+          />
+          <span className="w-7 shrink-0 text-right text-[10px] tabular-nums opacity-70">{formatClock(track.duration)}</span>
         </div>
         <div className="flex items-center justify-center gap-2">
           <button type="button" aria-label="Previous" onClick={onPrevious} className="rounded-full p-1.5 hover:bg-white/10">
@@ -177,8 +177,34 @@ export default function QuickSettings({
   const [vpnOn, setVpnOn] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState(false);
+  const [position, setPosition] = useState(48);
+  const positionRef = useRef(position);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  const seek = (seconds: number) => {
+    positionRef.current = seconds;
+    setPosition(seconds);
+  };
+
+  useEffect(() => {
+    if (!isOpen || !playing) return;
+    const timer = window.setInterval(() => {
+      const duration = NOW_PLAYING[trackIndex].duration;
+      const next = positionRef.current + 1;
+      if (next >= duration) {
+        positionRef.current = 0;
+        setPosition(0);
+        setTrackIndex((index) => (index + 1) % NOW_PLAYING.length);
+        return;
+      }
+      positionRef.current = next;
+      setPosition(next);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isOpen, playing, trackIndex]);
 
   if (!isOpen) return null;
 
@@ -236,33 +262,17 @@ export default function QuickSettings({
           activeColor={activeColor}
           trackIndex={trackIndex}
           playing={playing}
-          shuffle={shuffle}
-          repeat={repeat}
+          position={position}
+          onSeek={seek}
           onTogglePlay={() => setPlaying((on) => !on)}
-          onToggleShuffle={() => setShuffle((on) => !on)}
-          onToggleRepeat={() => setRepeat((on) => !on)}
-          onPrevious={() =>
-            setTrackIndex((index) => {
-              if (repeat) return index;
-              if (shuffle) {
-                let next = index;
-                while (next === index) next = Math.floor(Math.random() * NOW_PLAYING.length);
-                return next;
-              }
-              return (index + NOW_PLAYING.length - 1) % NOW_PLAYING.length;
-            })
-          }
-          onNext={() =>
-            setTrackIndex((index) => {
-              if (repeat) return index;
-              if (shuffle) {
-                let next = index;
-                while (next === index) next = Math.floor(Math.random() * NOW_PLAYING.length);
-                return next;
-              }
-              return (index + 1) % NOW_PLAYING.length;
-            })
-          }
+          onPrevious={() => {
+            seek(0);
+            setTrackIndex((index) => (index + NOW_PLAYING.length - 1) % NOW_PLAYING.length);
+          }}
+          onNext={() => {
+            seek(0);
+            setTrackIndex((index) => (index + 1) % NOW_PLAYING.length);
+          }}
         />
         <QuickToggle
           active={bluetoothOn}
