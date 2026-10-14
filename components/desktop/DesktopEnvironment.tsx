@@ -17,6 +17,7 @@ import TopPanel from './TopPanel';
 import QuickSettings from './QuickSettings';
 import AppLauncher from './AppLauncher';
 import WindowFrame from './WindowFrame';
+import ContextMenu, { ContextMenuEntry } from './ContextMenu';
 
 // Apps
 import TerminalApp from '@/components/apps/TerminalApp';
@@ -156,6 +157,7 @@ export default function DesktopEnvironment() {
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
   const [brightness, setBrightness] = useState(100);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entries: ContextMenuEntry[] } | null>(null);
   const [activeWindowId, setActiveWindowId] = useState<string | null>('win-theme-studio');
 
   const hardware = HARDWARE_PROFILES[currentHardwareId];
@@ -323,6 +325,26 @@ export default function DesktopEnvironment() {
     );
   };
 
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const openContextMenu = (event: React.MouseEvent, entries: ContextMenuEntry[]) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ x: event.clientX, y: event.clientY, entries });
+  };
+
+  const handleContextMenuSelect = (id: string) => {
+    const separator = id.indexOf(':');
+    const action = separator === -1 ? id : id.slice(0, separator);
+    const target = separator === -1 ? '' : id.slice(separator + 1);
+    if (action === 'open-app') openApp(target as AppId);
+    else if (action === 'launcher') setLauncherOpen(true);
+    else if (action === 'quick-settings') setQuickSettingsOpen(true);
+    else if (action === 'minimize') minimizeWindow(target);
+    else if (action === 'maximize') toggleMaximizeWindow(target);
+    else if (action === 'close') closeWindow(target);
+  };
+
   const focusWindow = (id: string) => {
     setActiveWindowId(id);
     setWindows((prev) => {
@@ -434,6 +456,7 @@ export default function DesktopEnvironment() {
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
       className="relative w-full h-screen overflow-hidden select-none flex flex-col font-sans transition-colors duration-200 bg-neutral-950"
+      onContextMenu={(event) => event.preventDefault()}
     >
       {config.wallpaper === 'stock' ? (
         <div
@@ -468,6 +491,14 @@ export default function DesktopEnvironment() {
         onToggleQuickSettings={() => setQuickSettingsOpen((o) => !o)}
         quickSettingsOpen={quickSettingsOpen}
         onOpenApp={openApp}
+        onContextMenu={(event) =>
+          openContextMenu(event, [
+            { kind: 'item', id: 'launcher', label: 'App Launcher' },
+            { kind: 'item', id: 'quick-settings', label: 'Quick Settings' },
+            { kind: 'separator' },
+            { kind: 'item', id: 'open-app:settings', label: 'Settings' },
+          ])
+        }
       />
 
       {/* Quick Settings Flyout */}
@@ -496,6 +527,15 @@ export default function DesktopEnvironment() {
         className="relative flex-1 overflow-hidden"
         style={screenBrightness}
         onClick={() => setQuickSettingsOpen(false)}
+        onContextMenu={(event) =>
+          openContextMenu(event, [
+            { kind: 'item', id: 'open-app:terminal', label: 'Open Terminal' },
+            { kind: 'item', id: 'open-app:files', label: 'Open Files' },
+            { kind: 'item', id: 'open-app:settings', label: 'Settings' },
+            { kind: 'separator' },
+            { kind: 'item', id: 'launcher', label: 'App Launcher' },
+          ])
+        }
       >
         {/* Dynamic Tiling Container OR Free-floating Window Manager Canvas */}
         {config.tilingMode ? (
@@ -514,6 +554,19 @@ export default function DesktopEnvironment() {
                     onToggleMaximize={() => toggleMaximizeWindow(win.id)}
                     onUpdatePosition={(x, y) => updateWindowPosition(win.id, x, y)}
                     onUpdateSize={(w, h) => updateWindowSize(win.id, w, h)}
+                    onTitleContextMenu={(event) =>
+                      openContextMenu(event, [
+                        { kind: 'item', id: `minimize:${win.id}`, label: 'Minimize' },
+                        {
+                          kind: 'item',
+                          id: `maximize:${win.id}`,
+                          label: win.isMaximized ? 'Restore' : 'Maximize',
+                          disabled: config.tilingMode,
+                        },
+                        { kind: 'separator' },
+                        { kind: 'item', id: `close:${win.id}`, label: 'Close', danger: true },
+                      ])
+                    }
                   >
                     {renderAppContent(win.appId)}
                   </WindowFrame>
@@ -534,6 +587,19 @@ export default function DesktopEnvironment() {
                 onToggleMaximize={() => toggleMaximizeWindow(win.id)}
                 onUpdatePosition={(x, y) => updateWindowPosition(win.id, x, y)}
                 onUpdateSize={(w, h) => updateWindowSize(win.id, w, h)}
+                onTitleContextMenu={(event) =>
+                  openContextMenu(event, [
+                    { kind: 'item', id: `minimize:${win.id}`, label: 'Minimize' },
+                    {
+                      kind: 'item',
+                      id: `maximize:${win.id}`,
+                      label: win.isMaximized ? 'Restore' : 'Maximize',
+                      disabled: config.tilingMode,
+                    },
+                    { kind: 'separator' },
+                    { kind: 'item', id: `close:${win.id}`, label: 'Close', danger: true },
+                  ])
+                }
               >
                 {renderAppContent(win.appId)}
               </WindowFrame>
@@ -562,6 +628,20 @@ export default function DesktopEnvironment() {
               type="button"
               title={app.title}
               aria-label={app.title}
+              onContextMenu={(event) => {
+                const running = appWindows[0];
+                const entries: ContextMenuEntry[] = [{ kind: 'item', id: `open-app:${app.id}`, label: 'Open' }];
+                if (running) {
+                  entries.push({
+                    kind: 'item',
+                    id: running.isMinimized ? `open-app:${app.id}` : `minimize:${running.id}`,
+                    label: running.isMinimized ? 'Restore' : 'Minimize',
+                  });
+                  entries.push({ kind: 'separator' });
+                  entries.push({ kind: 'item', id: `close:${running.id}`, label: 'Close', danger: true });
+                }
+                openContextMenu(event, entries);
+              }}
               onClick={() => {
                 if (appWindows.length === 0) {
                   openApp(app.id);
@@ -598,6 +678,17 @@ export default function DesktopEnvironment() {
           );
         })}
       </nav>
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          entries={contextMenu.entries}
+          theme={theme}
+          onSelect={handleContextMenuSelect}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   );
 }

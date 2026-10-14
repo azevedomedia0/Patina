@@ -14,6 +14,7 @@ interface WindowFrameProps {
   onToggleMaximize: () => void;
   onUpdatePosition: (x: number, y: number) => void;
   onUpdateSize: (w: number, h: number) => void;
+  onTitleContextMenu: (event: React.MouseEvent) => void;
   children: React.ReactNode;
 }
 
@@ -27,6 +28,7 @@ export default function WindowFrame({
   onToggleMaximize,
   onUpdatePosition,
   onUpdateSize,
+  onTitleContextMenu,
   children,
 }: WindowFrameProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -46,7 +48,7 @@ export default function WindowFrame({
 
   // Handle Dragging
   const handleTitleMouseDown = (e: React.MouseEvent) => {
-    if (win.isMaximized || config.tilingMode) return;
+    if (e.button !== 0 || win.isMaximized || config.tilingMode) return;
     onFocus();
     setIsDragging(true);
     dragStartRef.current = {
@@ -59,7 +61,7 @@ export default function WindowFrame({
 
   // Handle Resizing
   const handleResizeMouseDown = (e: React.MouseEvent) => {
-    if (win.isMaximized || config.tilingMode) return;
+    if (e.button !== 0 || win.isMaximized || config.tilingMode) return;
     e.stopPropagation();
     onFocus();
     setIsResizing(true);
@@ -156,6 +158,8 @@ export default function WindowFrame({
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
       onMouseDown={onFocus}
+      data-window-frame=""
+      onContextMenu={(event) => event.stopPropagation()}
       className={`flex flex-col overflow-hidden select-none border transition-opacity duration-[2000ms] ease-out ${
         win.isClosing ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
@@ -164,6 +168,11 @@ export default function WindowFrame({
       <div
         onMouseDown={handleTitleMouseDown}
         onDoubleClick={onToggleMaximize}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onTitleContextMenu(event);
+        }}
         style={{
           height: titlebarHeight,
           backgroundColor: theme.palette.panel,

@@ -10,6 +10,7 @@ interface TopPanelProps {
   onToggleQuickSettings: () => void;
   quickSettingsOpen: boolean;
   onOpenApp: (appId: AppId) => void;
+  onContextMenu: (event: React.MouseEvent) => void;
 }
 
 export default function TopPanel({
@@ -18,6 +19,7 @@ export default function TopPanel({
   onToggleQuickSettings,
   quickSettingsOpen,
   onOpenApp,
+  onContextMenu,
 }: TopPanelProps) {
   const [timeStr, setTimeStr] = useState<string>('12:00');
   const [dateStr, setDateStr] = useState<string>('Oct 13');
@@ -46,6 +48,7 @@ export default function TopPanel({
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
       className="h-9 w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between text-xs select-none z-50 shrink-0 transition-colors duration-200"
+      onContextMenu={onContextMenu}
     >
       {/* Left Zone: Launcher Button */}
       <div className="flex items-center gap-2">
