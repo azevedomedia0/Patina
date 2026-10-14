@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { HardwareProfile, DEConfig, ArchType, HARDWARE_PROFILES, AppId } from '@/lib/oxide-types';
-import { Zap, Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Activity } from 'lucide-react';
+import { Zap, Monitor, Layout, Palette, Volume2, VolumeX, Sun, SunDim, Cpu, Cast } from 'lucide-react';
 
 interface QuickSettingsProps {
   isOpen: boolean;
@@ -76,6 +76,7 @@ export default function QuickSettings({
   onBrightnessChange,
 }: QuickSettingsProps) {
   const [volume, setVolume] = useState(75);
+  const [casting, setCasting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -158,10 +159,11 @@ export default function QuickSettings({
           activeColor={activeColor}
         />
         <QuickToggle
-          icon={<Activity className="h-5 w-5" />}
-          title="Profiler"
-          subtitle="Frame times"
-          onClick={() => openApp('profiler')}
+          active={casting}
+          icon={<Cast className="h-5 w-5" />}
+          title="Casting"
+          subtitle={casting ? 'On' : 'Off'}
+          onClick={() => setCasting((on) => !on)}
           accent={accent}
           idleBg={idleBg}
           idleColor={idleColor}
