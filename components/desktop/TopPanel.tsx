@@ -54,7 +54,7 @@ export default function TopPanel({
         color: theme.palette.textSecondary,
         fontFamily: theme.fontFamily === 'System Sans' ? 'inherit' : theme.fontFamily,
       }}
-      className="h-9 w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between text-xs select-none z-50 shrink-0 transition-colors duration-200"
+      className="relative h-9 w-full backdrop-blur-md border-b px-2 sm:px-3 flex items-center justify-between text-xs select-none z-50 shrink-0 transition-colors duration-200"
       onContextMenu={onContextMenu}
     >
       {/* Left Zone: Launcher Button */}
@@ -101,7 +101,7 @@ export default function TopPanel({
           color: theme.palette.textPrimary,
           backgroundColor: notificationsOpen ? theme.palette.surface : 'transparent',
         }}
-        className="flex items-center gap-2 rounded-md px-2 py-1 font-medium transition-colors hover:opacity-80"
+        className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-md px-2 py-1 font-medium transition-colors hover:opacity-80"
       >
         <span style={{ color: theme.palette.textSecondary }}>{dateStr}</span>
         <span style={{ color: theme.palette.border }}>·</span>
