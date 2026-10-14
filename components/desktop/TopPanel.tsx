@@ -9,6 +9,8 @@ interface TopPanelProps {
   onToggleLauncher: () => void;
   onToggleQuickSettings: () => void;
   quickSettingsOpen: boolean;
+  onToggleNotifications: () => void;
+  notificationsOpen: boolean;
   onOpenApp: (appId: AppId) => void;
   onContextMenu: (event: React.MouseEvent) => void;
 }
@@ -18,6 +20,8 @@ export default function TopPanel({
   onToggleLauncher,
   onToggleQuickSettings,
   quickSettingsOpen,
+  onToggleNotifications,
+  notificationsOpen,
   onOpenApp,
   onContextMenu,
 }: TopPanelProps) {
@@ -77,11 +81,22 @@ export default function TopPanel({
       </div>
 
       {/* Center Zone: System Clock & Date */}
-      <div className="flex items-center gap-2 font-medium" style={{ color: theme.palette.textPrimary }}>
+      <button
+        type="button"
+        onClick={onToggleNotifications}
+        aria-expanded={notificationsOpen}
+        aria-label="Notifications"
+        title="Notifications"
+        style={{
+          color: theme.palette.textPrimary,
+          backgroundColor: notificationsOpen ? theme.palette.surface : 'transparent',
+        }}
+        className="flex items-center gap-2 rounded-md px-2 py-1 font-medium transition-colors hover:opacity-80"
+      >
         <span style={{ color: theme.palette.textSecondary }}>{dateStr}</span>
         <span style={{ color: theme.palette.border }}>·</span>
         <span className="font-mono font-semibold">{timeStr}</span>
-      </div>
+      </button>
 
       {/* Right Zone: Quick Settings Trigger */}
       <div className="flex items-center gap-2">

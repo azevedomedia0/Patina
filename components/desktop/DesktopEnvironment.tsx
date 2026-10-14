@@ -15,6 +15,7 @@ import {
 } from '@/lib/oxide-types';
 import TopPanel from './TopPanel';
 import QuickSettings from './QuickSettings';
+import NotificationPanel from './NotificationPanel';
 import AppLauncher from './AppLauncher';
 import WindowFrame from './WindowFrame';
 import ContextMenu, { ContextMenuEntry } from './ContextMenu';
@@ -156,6 +157,7 @@ export default function DesktopEnvironment() {
   const currentWorkspace = 1;
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [quickSettingsOpen, setQuickSettingsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [brightness, setBrightness] = useState(100);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entries: ContextMenuEntry[] } | null>(null);
   const [activeWindowId, setActiveWindowId] = useState<string | null>('win-theme-studio');
@@ -338,8 +340,13 @@ export default function DesktopEnvironment() {
     const action = separator === -1 ? id : id.slice(0, separator);
     const target = separator === -1 ? '' : id.slice(separator + 1);
     if (action === 'open-app') openApp(target as AppId);
-    else if (action === 'launcher') setLauncherOpen(true);
-    else if (action === 'quick-settings') setQuickSettingsOpen(true);
+    else if (action === 'launcher') {
+      setLauncherOpen(true);
+      setNotificationsOpen(false);
+    } else if (action === 'quick-settings') {
+      setQuickSettingsOpen(true);
+      setNotificationsOpen(false);
+    }
     else if (action === 'minimize') minimizeWindow(target);
     else if (action === 'maximize') toggleMaximizeWindow(target);
     else if (action === 'close') closeWindow(target);
@@ -367,7 +374,10 @@ export default function DesktopEnvironment() {
       // Super / Windows key or Alt+Space -> Launcher
       if ((e.key === 'Meta' && !e.ctrlKey) || (e.altKey && e.code === 'Space')) {
         e.preventDefault();
-        setLauncherOpen((prev) => !prev);
+        setLauncherOpen((prev) => {
+          if (!prev) setNotificationsOpen(false);
+          return !prev;
+        });
       }
       // Super+Return -> Terminal
       if (e.metaKey && e.key === 'Enter') {
@@ -487,9 +497,29 @@ export default function DesktopEnvironment() {
       {/* Top Status Bar (Wayland Layer-shell) */}
       <TopPanel
         config={config}
-        onToggleLauncher={() => setLauncherOpen((o) => !o)}
-        onToggleQuickSettings={() => setQuickSettingsOpen((o) => !o)}
+        onToggleLauncher={() =>
+          setLauncherOpen((open) => {
+            if (!open) setNotificationsOpen(false);
+            return !open;
+          })
+        }
+        onToggleQuickSettings={() =>
+          setQuickSettingsOpen((open) => {
+            if (!open) setNotificationsOpen(false);
+            return !open;
+          })
+        }
         quickSettingsOpen={quickSettingsOpen}
+        onToggleNotifications={() =>
+          setNotificationsOpen((open) => {
+            if (!open) {
+              setQuickSettingsOpen(false);
+              setLauncherOpen(false);
+            }
+            return !open;
+          })
+        }
+        notificationsOpen={notificationsOpen}
         onOpenApp={openApp}
         onContextMenu={(event) =>
           openContextMenu(event, [
@@ -500,6 +530,8 @@ export default function DesktopEnvironment() {
           ])
         }
       />
+
+      <NotificationPanel isOpen={notificationsOpen} config={config} />
 
       {/* Quick Settings Flyout */}
       <QuickSettings
@@ -526,7 +558,10 @@ export default function DesktopEnvironment() {
       <main
         className="relative flex-1 overflow-hidden"
         style={screenBrightness}
-        onClick={() => setQuickSettingsOpen(false)}
+        onClick={() => {
+          setQuickSettingsOpen(false);
+          setNotificationsOpen(false);
+        }}
         onContextMenu={(event) =>
           openContextMenu(event, [
             { kind: 'item', id: 'open-app:terminal', label: 'Open Terminal' },
