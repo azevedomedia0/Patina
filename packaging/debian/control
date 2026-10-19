@@ -11,6 +11,7 @@ Build-Depends:
  libgbm-dev,
  libinput-dev,
  libseat-dev,
+ libsystemd-dev,
  libudev-dev,
  libwayland-dev,
  libxkbcommon-dev,

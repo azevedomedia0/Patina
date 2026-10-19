@@ -66,6 +66,14 @@ planes. Needed when capturing the screen from a virtual machine.
 When set, the blur behind the panel and windows is not drawn. Use it on machines where
 rendering is slow.
 .TP
+.B PATINA_FULL_RECOMPOSE
+When set, the whole screen is repainted whenever anything changes, instead of only the changed
+areas. A fallback if a repaint ever looks wrong.
+.TP
+.B PATINA_VERIFY_RECOMPOSE
+When set, every frame is also composed in full and compared with the partial one, and
+differences are logged. For testing; it roughly doubles the rendering work.
+.TP
 .B RUST_LOG
 Log filter, for example
 .BR patina_compositor=debug .

@@ -22,20 +22,27 @@ esac
 
 if [ ! -d "$CHROOT/usr" ]; then
   sudo apt-get install -y -q debootstrap ubuntu-keyring debian-archive-keyring
+  # Debian 12's debootstrap predates Ubuntu 24.04; its script is the same as for older releases.
+  [ -e /usr/share/debootstrap/scripts/noble ] || sudo ln -s gutsy /usr/share/debootstrap/scripts/noble
   sudo debootstrap --variant=minbase --components="$COMPONENTS" \
     --include=ca-certificates,curl,rsync "$RELEASE" "$CHROOT" "$MIRROR"
 fi
 
-# The VM's disk image lives on the Mac and can only grow. So the toolchain and the crate cache are
-# shared with the VM instead of copied into every chroot, and the chroot is deleted afterwards
-# (KEEP=1 keeps it). Delete with --one-file-system, so a bind mount can never be followed.
+# The VM's disk image lives on the Mac and can only grow, so the chroot is deleted afterwards
+# (KEEP=1 keeps it). Nothing from the VM is bind-mounted into it: a bind mount of a directory on the
+# same disk shares its device id, so `rm --one-file-system` would happily delete through it (this
+# once emptied the VM's cargo and rustup directories). Only /proc is mounted, which is a different
+# filesystem and is unmounted before anything is deleted.
 cleanup() {
-  for m in root/.cargo/registry root/.rustup proc; do
-    mountpoint -q "$CHROOT/$m" && sudo umount "$CHROOT/$m"
-  done
-  if [ "${KEEP:-0}" != 1 ]; then
-    sudo rm -rf --one-file-system "$CHROOT"
+  if mountpoint -q "$CHROOT/proc"; then
+    sudo umount "$CHROOT/proc" || { echo "warning: cannot unmount $CHROOT/proc; not deleting" >&2; return 0; }
   fi
+  if [ "${KEEP:-0}" = 1 ]; then return 0; fi
+  if grep -q " $CHROOT" /proc/self/mountinfo; then
+    echo "warning: $CHROOT still has mounts; not deleting it" >&2
+    return 0
+  fi
+  sudo rm -rf --one-file-system "$CHROOT" || true
 }
 trap cleanup EXIT
 
@@ -45,10 +52,6 @@ sudo rsync -a --delete \
   "$SRC/" "$CHROOT/build/PatineDE/"
 sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
 mountpoint -q "$CHROOT/proc" || sudo mount -t proc proc "$CHROOT/proc"
-mkdir -p "$HOME/.cargo/registry" "$HOME/.rustup"
-sudo mkdir -p "$CHROOT/root/.cargo/registry" "$CHROOT/root/.rustup"
-mountpoint -q "$CHROOT/root/.cargo/registry" || sudo mount --bind "$HOME/.cargo/registry" "$CHROOT/root/.cargo/registry"
-mountpoint -q "$CHROOT/root/.rustup" || sudo mount --bind "$HOME/.rustup" "$CHROOT/root/.rustup"
 
 sudo chroot "$CHROOT" /bin/sh -c '
   export DEBIAN_FRONTEND=noninteractive HOME=/root

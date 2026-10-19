@@ -76,6 +76,13 @@ pub struct Patina {
     pub scene: Option<crate::scene::Scene>,
     /// Set when the scene cannot be created; frames are then drawn without blur.
     pub scene_unavailable: bool,
+    /// `PATINA_FULL_RECOMPOSE=1`: repaint the whole scene every time.
+    pub full_recompose: bool,
+    /// `PATINA_VERIFY_RECOMPOSE=1`: check each partial repaint against a full one.
+    pub verify_recompose: bool,
+    pub scene_check: Option<crate::scene::Scene>,
+    pub verified_frames: u32,
+    pub mismatched_frames: u32,
     pub wallpaper: Option<(
         (i32, i32),
         smithay::backend::renderer::element::memory::MemoryRenderBuffer,
@@ -164,6 +171,11 @@ impl Patina {
             scene: None,
             // PATINA_NO_BLUR=1 draws without blur, for slow machines and for testing.
             scene_unavailable: std::env::var_os("PATINA_NO_BLUR").is_some(),
+            full_recompose: std::env::var_os("PATINA_FULL_RECOMPOSE").is_some(),
+            verify_recompose: std::env::var_os("PATINA_VERIFY_RECOMPOSE").is_some(),
+            scene_check: None,
+            verified_frames: 0,
+            mismatched_frames: 0,
             wallpaper: None,
             clip_program: None,
             toplevel_info: crate::toplevel_info::ToplevelInfoState::new(&dh),

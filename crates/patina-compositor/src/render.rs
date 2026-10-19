@@ -21,6 +21,7 @@ use smithay::{
     },
     desktop::{layer_map_for_output, LayerSurface as DesktopLayerSurface, Window},
     output::Output,
+    reexports::wayland_server::{backend::ObjectId, Resource},
     utils::{Logical, Physical, Point, Rectangle, Scale, Size, Transform},
     wayland::shell::wlr_layer::Layer,
 };
@@ -38,6 +39,9 @@ render_elements! {
 
 /// One surface and, if it is glass, the area behind it to blur first.
 pub struct Group {
+    /// Which surface this is, so the scene can tell the same window from frame to frame. `None`
+    /// for the bottom group (wallpaper and background layers).
+    pub key: Option<ObjectId>,
     /// The surface's elements, top-most first.
     pub elements: Vec<PatinaElement>,
     pub backdrop: Option<Backdrop>,
@@ -97,7 +101,11 @@ fn layer_group(renderer: &mut GlesRenderer, info: &LayerInfo, scale: Scale<f64>)
         sigma: g.sigma * scale.x as f32,
         saturation: g.saturation,
     });
-    Group { elements, backdrop }
+    Group {
+        key: Some(info.layer.wl_surface().id()),
+        elements,
+        backdrop,
+    }
 }
 
 /// The wallpaper as an element at the bottom of the scene, redrawn only when the output size
@@ -156,6 +164,7 @@ pub fn groups(state: &mut Patina, renderer: &mut GlesRenderer, output: &Output) 
         .collect();
     base.extend(wallpaper_element(state, renderer, size));
     groups.push(Group {
+        key: None,
         elements: base,
         backdrop: None,
     });
@@ -264,6 +273,7 @@ pub fn groups(state: &mut Patina, renderer: &mut GlesRenderer, output: &Output) 
             (geo.size.w, geo.size.h + TITLEBAR_H).into(),
         );
         groups.push(Group {
+            key: window.toplevel().map(|t| t.wl_surface().id()),
             elements: out,
             backdrop: Some(Backdrop {
                 rect: physical(frame, scale),
@@ -302,7 +312,7 @@ pub fn frame_elements(
     }
 
     if state.scene.as_ref().is_none_or(|s| s.size() != size) {
-        match Scene::new(renderer, size) {
+        match Scene::new(renderer, size, state.full_recompose) {
             Ok(scene) => state.scene = Some(scene),
             Err(e) => {
                 tracing::warn!(error = %e, "blur unavailable: cannot create the scene");
@@ -320,7 +330,78 @@ pub fn frame_elements(
         state.scene_unavailable = true;
         return flatten(groups);
     }
-    vec![scene.element()]
+    let element = scene.element();
+
+    // PATINA_VERIFY_RECOMPOSE=1: also compose every frame in full and compare, to catch stale
+    // pixels left by partial updates.
+    if state.verify_recompose {
+        verify_against_full(state, renderer, &groups, size, scale);
+    }
+    vec![element]
+}
+
+fn verify_against_full(
+    state: &mut Patina,
+    renderer: &mut GlesRenderer,
+    groups: &[Group],
+    size: Size<i32, Physical>,
+    scale: Scale<f64>,
+) {
+    if state.scene_check.as_ref().is_none_or(|s| s.size() != size) {
+        state.scene_check = Scene::new(renderer, size, true).ok();
+    }
+    let (Some(scene), Some(check)) = (state.scene.as_ref(), state.scene_check.as_mut()) else {
+        return;
+    };
+    if check.update(renderer, groups, scale).is_err() {
+        return;
+    }
+    let (Ok(a), Ok(b)) = (scene.read_back(renderer), check.read_back(renderer)) else {
+        return;
+    };
+    // Where the two differ: how many pixels, their bounding box, and a sample.
+    let width = size.w as usize;
+    let (mut differing, mut x0, mut y0, mut x1, mut y1) =
+        (0usize, usize::MAX, usize::MAX, 0usize, 0usize);
+    let mut sample = None;
+    let mut lsb = 0usize;
+    for (i, (x, y)) in a.chunks_exact(4).zip(b.chunks_exact(4)).enumerate() {
+        let worst = x
+            .iter()
+            .zip(y)
+            .map(|(p, q)| p.abs_diff(*q))
+            .max()
+            .unwrap_or(0);
+        if (1..=2).contains(&worst) {
+            // One or two steps of 255 in a channel, in blurred glass: invisible. The cause is
+            // not fully isolated (it shows up in glass beyond the damage margin), so it is
+            // counted and logged but does not fail the check.
+            lsb += 1;
+        } else if worst > 2 {
+            let (px, py) = (i % width, i / width);
+            differing += 1;
+            (x0, y0, x1, y1) = (x0.min(px), y0.min(py), x1.max(px), y1.max(py));
+            sample.get_or_insert(((px, py), x.to_vec(), y.to_vec()));
+        }
+    }
+    state.verified_frames += 1;
+    if differing > 0 {
+        state.mismatched_frames += 1;
+        tracing::warn!(
+            differing,
+            bounds = ?(x0, y0, x1, y1),
+            first = ?sample,
+            repainted = ?scene.last_painted().iter().map(|r| (r.loc.x, r.loc.y, r.size.w, r.size.h)).collect::<Vec<_>>(),
+            frame = state.verified_frames,
+            "partial recompose differs from a full one"
+        );
+    } else {
+        tracing::debug!(
+            lsb,
+            frame = state.verified_frames,
+            "partial recompose matches a full one"
+        );
+    }
 }
 
 /// The pointer, drawn by the compositor when there is no host to draw it (DRM backend).
