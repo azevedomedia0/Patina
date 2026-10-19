@@ -3,7 +3,7 @@
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
-        KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent, PointerMotionEvent,
+        KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent, PointerMotionEvent, TouchEvent,
     },
     input::{
         keyboard::{FilterResult, Keysym},
@@ -29,6 +29,24 @@ fn workspace_for_key(xkb_keycode: u32) -> Option<usize> {
 }
 
 impl Patina {
+    /// Where a touch lands. A touchscreen covers one output: the built-in panel (eDP, LVDS,
+    /// DSI) if there is one, else the first output.
+    fn touch_position<E: AbsolutePositionEvent<I>, I: InputBackend>(
+        &self,
+        event: &E,
+    ) -> Option<Point<f64, Logical>> {
+        let outputs = self.outputs();
+        let output = outputs
+            .iter()
+            .find(|o| {
+                let n = o.name();
+                n.starts_with("eDP") || n.starts_with("LVDS") || n.starts_with("DSI")
+            })
+            .or_else(|| outputs.first())?;
+        let area = self.space.output_geometry(output)?;
+        Some(event.position_transformed(area.size) + area.loc.to_f64())
+    }
+
     /// The pointer moved to `pos`: continue a drag, or update hover and pointer focus.
     fn pointer_moved(&mut self, pos: Point<f64, Logical>, time: u32) {
         let Some(pointer) = self.seat.get_pointer() else {
@@ -212,6 +230,101 @@ impl Patina {
                     },
                 );
                 pointer.frame(self);
+            }
+            InputEvent::TouchDown { event } => {
+                let Some(pos) = self.touch_position(&event) else {
+                    return;
+                };
+                let serial = SERIAL_COUNTER.next_serial();
+                let Some(touch) = self.seat.get_touch() else {
+                    return;
+                };
+                match self.pick(pos) {
+                    // The frame is the compositor's: a touch there acts like the pointer.
+                    Pick::Frame(window, hit) => {
+                        self.focus_window(&window);
+                        match hit {
+                            Hit::Titlebar => {
+                                self.begin_move(&window, pos);
+                                self.touch_drag = Some(event.slot());
+                            }
+                            Hit::ResizeGrip => {
+                                self.begin_resize(&window, pos);
+                                self.touch_drag = Some(event.slot());
+                            }
+                            Hit::Control(Control::Close) => self.close(&window),
+                            Hit::Control(Control::Maximize) => self.toggle_maximize(&window),
+                            Hit::Control(Control::Minimize) => self.minimize(&window),
+                            Hit::Client => {}
+                        }
+                    }
+                    Pick::Surface(wl, origin, window) => {
+                        if let Some(window) = window {
+                            self.focus_window(&window);
+                        }
+                        touch.down(
+                            self,
+                            Some((wl, origin)),
+                            &smithay::input::touch::DownEvent {
+                                slot: event.slot(),
+                                location: pos,
+                                serial,
+                                time: event.time_msec(),
+                            },
+                        );
+                    }
+                    Pick::Nothing => {}
+                }
+            }
+            InputEvent::TouchMotion { event } => {
+                let Some(pos) = self.touch_position(&event) else {
+                    return;
+                };
+                if self.touch_drag == Some(event.slot()) {
+                    self.apply_drag(pos);
+                } else if let Some(touch) = self.seat.get_touch() {
+                    let focus = match self.pick(pos) {
+                        Pick::Surface(wl, origin, _) => Some((wl, origin)),
+                        _ => None,
+                    };
+                    touch.motion(
+                        self,
+                        focus,
+                        &smithay::input::touch::MotionEvent {
+                            slot: event.slot(),
+                            location: pos,
+                            time: event.time_msec(),
+                        },
+                    );
+                }
+            }
+            InputEvent::TouchUp { event } => {
+                if self.touch_drag == Some(event.slot()) {
+                    self.touch_drag = None;
+                    self.end_drag();
+                } else if let Some(touch) = self.seat.get_touch() {
+                    touch.up(
+                        self,
+                        &smithay::input::touch::UpEvent {
+                            slot: event.slot(),
+                            serial: SERIAL_COUNTER.next_serial(),
+                            time: event.time_msec(),
+                        },
+                    );
+                }
+            }
+            InputEvent::TouchFrame { .. } => {
+                if let Some(touch) = self.seat.get_touch() {
+                    touch.frame(self);
+                }
+            }
+            InputEvent::TouchCancel { .. } => {
+                if self.touch_drag.take().is_some() {
+                    self.end_drag();
+                }
+                if let Some(touch) = self.seat.get_touch() {
+                    touch.cancel(self);
+                }
             }
             InputEvent::PointerAxis { event } => {
                 let amount = |axis| {

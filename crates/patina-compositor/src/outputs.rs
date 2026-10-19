@@ -224,8 +224,9 @@ impl Patina {
         }
     }
 
-    /// Cleans up after `output` was unplugged: windows that were on it come to the first output,
-    /// layer surfaces of other clients are told to close, and its panel stops.
+    /// Cleans up after `output` was unplugged: windows that were mostly on it move to the first
+    /// output (remembering where they were, for when it comes back), layer surfaces of other
+    /// clients are told to close, and its panel stops.
     pub fn output_removed(&mut self, output: &Output) {
         let name = output.name();
         self.stop_panel(&name);
@@ -233,34 +234,53 @@ impl Patina {
         for layer in layers {
             layer.layer_surface().send_close();
         }
+        let area = self.space.output_geometry(output);
+        let leaving: Vec<Window> = self
+            .space
+            .elements()
+            .filter(|w| self.output_for_window(w).as_ref() == Some(output))
+            .cloned()
+            .collect();
         self.space.unmap_output(output);
 
-        // Windows with nothing left on screen go to the first output, below its panel.
         let Some(first) = self.space.outputs().next().cloned() else {
             return;
         };
         let zone = self.zone_of(&first);
-        let stranded: Vec<Window> = self
-            .space
-            .elements()
-            .filter(|w| {
-                self.frame_rect(w).is_some_and(|f| {
-                    let r = Rectangle::<i32, Logical>::new((f.x, f.y).into(), (f.w, f.h).into());
-                    !self
-                        .space
-                        .outputs()
-                        .filter_map(|o| self.space.output_geometry(o))
-                        .any(|g| g.overlaps(r))
-                })
-            })
-            .cloned()
-            .collect();
-        for (n, window) in stranded.into_iter().enumerate() {
+        for (n, window) in leaving.into_iter().enumerate() {
+            if let (Some(area), Some(rect)) = (area, self.client_rect(&window)) {
+                crate::wm::win_state(&window).borrow_mut().home =
+                    Some((name.clone(), rect.loc - area.loc));
+            }
             let at = (
                 zone.loc.x + 96 + 32 * n as i32,
                 zone.loc.y + TITLEBAR_H + 28 + 32 * n as i32,
             );
             self.space.map_element(window, at, false);
+        }
+        self.fit_windows_to_zone();
+        self.refresh_hover();
+        self.queue_redraw();
+    }
+
+    /// An output came (back): windows that were moved off it when it went return to where they
+    /// were on it.
+    pub fn output_returned(&mut self, output: &Output) {
+        let Some(area) = self.space.output_geometry(output) else {
+            return;
+        };
+        let name = output.name();
+        let returning: Vec<(Window, Point<i32, Logical>)> = self
+            .space
+            .elements()
+            .filter_map(|w| {
+                let home = crate::wm::win_state(w).borrow().home.clone()?;
+                (home.0 == name).then(|| (w.clone(), home.1))
+            })
+            .collect();
+        for (window, offset) in returning {
+            crate::wm::win_state(&window).borrow_mut().home = None;
+            self.space.map_element(window, area.loc + offset, false);
         }
         self.fit_windows_to_zone();
         self.refresh_hover();

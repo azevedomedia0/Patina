@@ -66,6 +66,12 @@ pub struct OutputRender {
 }
 
 impl OutputRender {
+    /// Forgets the composed frame, so the next one is composed in full.
+    pub fn invalidate(&mut self) {
+        self.scene = None;
+        self.scene_check = None;
+    }
+
     pub fn new(no_blur: bool) -> Self {
         Self {
             scene: None,

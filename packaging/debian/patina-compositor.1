@@ -38,6 +38,16 @@ order they were found, at its preferred resolution. Displays and GPUs can be plu
 unplugged while the session runs. Windows on a display that is unplugged move to the first
 display. Display-only adapters (USB and DisplayLink docks, for example) work, but their
 frames are copied through memory and drawn in software, which costs CPU time.
+.SH INPUT
+The keyboard layout is the system's: the one in
+.I /etc/default/keyboard
+or set with
+.BR localectl (1).
+The
+.B XKB_DEFAULT_LAYOUT
+family of variables overrides it. Keys repeat after 400 ms. A touchscreen works on the built-in
+display (or the first one): touches go to applications, and a touch on a window frame moves,
+resizes or presses its buttons.
 .SH MOUSE AND KEYBOARD
 .TP
 Drag the titlebar

@@ -14,6 +14,7 @@ mod cursor;
 mod drm;
 mod dumb;
 mod input;
+mod keyboard;
 mod outputs;
 mod render;
 mod scene;

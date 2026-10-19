@@ -53,6 +53,10 @@ pub struct WinState {
     pub shadows: Vec<(ShadowKey, Image, i32)>,
     /// The window has been given its place on screen (done once it knows its size).
     pub placed: bool,
+    /// The output a window was moved off when that output was unplugged, and where on it the
+    /// window was (relative to its corner). It goes back there when the output returns, unless
+    /// the user has moved it since.
+    pub home: Option<(String, Point<i32, Logical>)>,
 }
 
 /// Whether the initial configure has gone out. Until the client's first commit, configures
@@ -314,6 +318,8 @@ impl Patina {
 
     pub fn begin_move(&mut self, window: &Window, pos: Point<f64, Logical>) {
         tracing::debug!(?pos, "move begin");
+        // Moved by hand: it lives where the user puts it now.
+        win_state(window).borrow_mut().home = None;
         if win_state(window).borrow().maximized {
             return;
         }

@@ -25,4 +25,10 @@ ci/vm/qmp.py screendump out.png                       # what the virtual monitor
 ```
 Several displays: `SECOND_GPU=1 ci/vm/start.sh` boots with a second virtio GPU and display (`screendump out.png gpu1` captures it). `ci/vm/qmp.py plug d3 hp2 bochs-display` hot-plugs a display-only adapter into a running VM and `ci/vm/qmp.py unplug d3` removes it (`sudo modprobe bochs` in the guest first; virtio GPUs cannot be hot-plugged). Do not `screendump` a hot-plugged bochs display: QEMU 11.1 on macOS crashed doing that. The two PCIe root ports changed the firmware's view of the machine once; `/boot/efi/startup.nsh` in the guest boots the fallback loader if the boot entry is lost again.
 
+One GPU with two connectors: `OUTPUTS=2 ci/vm/start.sh`. The second starts disconnected; plug it in from the guest with `echo on | sudo tee /sys/class/drm/card0-Virtual-2/status` followed by `sudo udevadm trigger --action=change /sys/class/drm/card0` (forcing alone sends no hotplug event on this kernel), and `off` to unplug. `qmp.py screendump out.png gpu0 1` captures it.
+
+Touch: `TOUCH=1 ci/vm/start.sh` adds QEMU's virtio multitouch device; `qmp.py tap X Y` and `qmp.py swipe X1 Y1 X2 Y2` drive it.
+
+Suspend cannot be tested: nothing wakes the arm64 guest from s2idle (the RTC has no wake alarm, USB input does not wake it, QMP `system_wakeup` is refused), so a suspended VM must be reset.
+
 QEMU's `screendump` omits the hardware cursor plane. Start with `PATINA_NO_PLANES=1` to composite the cursor into the frame when you need it in a capture.

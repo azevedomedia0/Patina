@@ -23,6 +23,7 @@ use smithay::{
             DrmDevice, DrmDeviceFd, DrmEvent,
         },
         egl::{EGLContext, EGLDisplay},
+        input::InputEvent,
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         renderer::gles::{GlesRenderer, GlesTexProgram},
         session::{libseat::LibSeatSession, Event as SessionEvent, Session},
@@ -37,7 +38,7 @@ use smithay::{
             EventLoop, RegistrationToken,
         },
         drm::control::{connector, crtc, Device as ControlDevice, ModeTypeFlags},
-        input::Libinput,
+        input::{DeviceCapability, Libinput},
         rustix::fs::OFlags,
         wayland_server::backend::GlobalId,
     },
@@ -70,6 +71,7 @@ pub struct OutputSlot {
     global: GlobalId,
     connector: connector::Handle,
     crtc: crtc::Handle,
+    mode: smithay::reexports::drm::control::Mode,
     presenter: Presenter,
     /// A frame is queued and we are waiting for its vblank.
     frame_pending: bool,
@@ -111,7 +113,21 @@ pub fn init(event_loop: &mut EventLoop<Patina>, state: &mut Patina) -> Result<()
     handle
         .insert_source(
             LibinputInputBackend::new(libinput.clone()),
-            |event, _, state| state.process_input_event(event),
+            |event, _, state| {
+                // Keep the keyboards, to light their Caps Lock and Num Lock.
+                match &event {
+                    InputEvent::DeviceAdded { device }
+                        if device.has_capability(DeviceCapability::Keyboard) =>
+                    {
+                        state.keyboards.push(device.clone());
+                    }
+                    InputEvent::DeviceRemoved { device } => {
+                        state.keyboards.retain(|d| d != device);
+                    }
+                    _ => {}
+                }
+                state.process_input_event(event)
+            },
         )
         .map_err(|e| format!("libinput source: {e}"))?;
     let mut libinput_ctx = libinput;
@@ -299,19 +315,33 @@ fn scan_connectors(state: &mut Patina, drm: &mut DrmBackend, id: DevId) {
         }
     }
 
-    // Unplugged.
+    // Unplugged, or now asking for a different mode (another monitor on the same port, or the
+    // same one after an EDID change): the latter is set up again from scratch below.
     let mut i = 0;
     while i < gpu.outputs.len() {
-        if connected
-            .iter()
-            .any(|c| c.handle() == gpu.outputs[i].connector)
-        {
-            i += 1;
-        } else {
-            let slot = gpu.outputs.remove(i);
-            tracing::info!(output = %slot.output.name(), "display unplugged");
-            drop_output(state, slot);
+        let slot = &gpu.outputs[i];
+        match connected.iter().find(|c| c.handle() == slot.connector) {
+            Some(info) if preferred_mode(info) == Some(slot.mode) => i += 1,
+            found => {
+                let slot = gpu.outputs.remove(i);
+                if found.is_some() {
+                    tracing::info!(output = %slot.output.name(), "display mode changed");
+                } else {
+                    tracing::info!(output = %slot.output.name(), "display unplugged");
+                }
+                drop_output(state, slot);
+            }
         }
+    }
+
+    // What stays may have lost its picture (a resume from suspend can leave the screen blank on
+    // some drivers): draw everything again.
+    for slot in &mut gpu.outputs {
+        if let Presenter::Direct(c) = &mut slot.presenter {
+            c.reset_buffers();
+        }
+        slot.wanted = true;
+        slot.render.invalidate();
     }
 
     // Plugged in.
@@ -326,19 +356,36 @@ fn scan_connectors(state: &mut Patina, drm: &mut DrmBackend, id: DevId) {
     state.queue_redraw();
 }
 
+/// The mode a display asks for. One that asks for none (no EDID: some adapters, KVM switches,
+/// forced connectors) gets the largest mode up to 1920x1080, then the smallest there is,
+/// rather than the first in the list, which can be far beyond what the screen shows.
+fn preferred_mode(info: &connector::Info) -> Option<smithay::reexports::drm::control::Mode> {
+    let modes = info.modes();
+    if let Some(m) = modes
+        .iter()
+        .find(|m| m.mode_type().contains(ModeTypeFlags::PREFERRED))
+    {
+        return Some(*m);
+    }
+    let area = |m: &smithay::reexports::drm::control::Mode| {
+        let (w, h) = m.size();
+        (w as u32 * h as u32, m.vrefresh())
+    };
+    modes
+        .iter()
+        .filter(|m| m.size().0 <= 1920 && m.size().1 <= 1080)
+        .max_by_key(|m| area(m))
+        .or_else(|| modes.iter().min_by_key(|m| area(m)))
+        .copied()
+}
+
 fn add_output(
     state: &mut Patina,
     gpu: &mut Gpu,
     res: &smithay::reexports::drm::control::ResourceHandles,
     info: &connector::Info,
 ) -> Result<()> {
-    let mode = info
-        .modes()
-        .iter()
-        .find(|m| m.mode_type().contains(ModeTypeFlags::PREFERRED))
-        .or_else(|| info.modes().first())
-        .copied()
-        .ok_or("connector without modes")?;
+    let mode = preferred_mode(info).ok_or("connector without modes")?;
     let used: Vec<crtc::Handle> = gpu.outputs.iter().map(|s| s.crtc).collect();
     let crtc = info
         .encoders()
@@ -433,6 +480,7 @@ fn add_output(
         global,
         connector: info.handle(),
         crtc,
+        mode,
         presenter,
         frame_pending: false,
         wanted: true,
@@ -442,6 +490,7 @@ fn add_output(
         state.center_pointer();
     }
     state.spawn_panel(&output);
+    state.output_returned(&output);
     state.fit_windows_to_zone();
     Ok(())
 }

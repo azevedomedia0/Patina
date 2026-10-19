@@ -8,7 +8,11 @@
   qmp.py combo alt m     hold modifiers, tap the last key
   qmp.py status          show whether the VM is running or paused
   qmp.py cont            resume a paused VM (QEMU pauses it when the host disk fills)
-  qmp.py screendump FILE.png [DEVICE]  capture a display (default: the first GPU)
+  qmp.py tap X Y          touch the screen briefly (needs TOUCH=1 ci/vm/start.sh)
+  qmp.py swipe X1 Y1 X2 Y2  touch at (X1,Y1), slide to (X2,Y2), lift
+  qmp.py wakeup          wake a guest that suspended itself (system_wakeup)
+  qmp.py screendump FILE.png [DEVICE [HEAD]]  capture a display (default: the first GPU's
+                         first connector)
   qmp.py plug ID [PORT] [DRIVER]  hot-plug a second GPU with a display into a PCIe root port
                          (default hp1; start.sh creates hp1 and hp2). DRIVER defaults to
                          virtio-gpu-pci; bochs-display is a display-only adapter
@@ -72,12 +76,35 @@ def main(argv):
         events(f, [{"type": "btn", "data": {"button": "left", "down": False}}])
     elif cmd == "status":
         print(json.dumps(send(f, {"execute": "query-status"})["return"]))
+    elif cmd in ("tap", "swipe"):
+        # A touch is a "begin" for its slot, then its position as "data" events, then "end".
+        tid = int(time.time() * 10) % 60000 + 1  # a fresh id per touch, as on real hardware
+        def mt(kind, axis="x", value=0):
+            # QEMU lifts the finger when the tracking id is -1, as evdev does.
+            return {"type": "mtt", "data": {"type": kind, "slot": 0,
+                                            "tracking-id": -1 if kind == "end" else tid,
+                                            "axis": axis, "value": value}}
+        def at(x, y):
+            return [mt("data", "x", int(float(x) * 32767)), mt("data", "y", int(float(y) * 32767))]
+        pts = argv[2:]
+        events(f, [mt("begin")] + at(pts[0], pts[1]))
+        time.sleep(0.1)
+        if cmd == "swipe":
+            x1, y1, x2, y2 = (float(v) for v in pts[:4])
+            for i in range(1, 11):
+                events(f, [mt("update")] + at(x1 + (x2 - x1) * i / 10, y1 + (y2 - y1) * i / 10))
+                time.sleep(0.05)
+        events(f, [mt("end")])
+    elif cmd == "wakeup":
+        print(json.dumps(send(f, {"execute": "system_wakeup"})))
     elif cmd == "cont":
         print(json.dumps(send(f, {"execute": "cont"})))
     elif cmd == "screendump":
         args = {"filename": os.path.abspath(argv[2]), "format": "png"}
         if len(argv) > 3:
             args["device"] = argv[3]
+        if len(argv) > 4:
+            args["head"] = int(argv[4])
         r = send(f, {"execute": "screendump", "arguments": args})
         if "error" in r:
             sys.exit(r["error"]["desc"])

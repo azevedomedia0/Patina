@@ -96,6 +96,10 @@ pub struct Patina {
     pub drag: Option<crate::wm::Drag>,
     /// A press was consumed by a window frame; its release must be swallowed too.
     pub frame_press: bool,
+    /// The touch point moving or resizing a window by its frame, if any.
+    pub touch_drag: Option<smithay::backend::input::TouchSlot>,
+    /// Keyboards (libinput devices), for their Caps Lock and Num Lock lights.
+    pub keyboards: Vec<smithay::reexports::input::Device>,
     pub minimized: Vec<(Window, smithay::utils::Point<i32, smithay::utils::Logical>)>,
     pub last_titlebar_click: Option<(Instant, Window)>,
     pub display_handle: DisplayHandle,
@@ -136,9 +140,27 @@ impl Patina {
         let dh = display.handle();
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&dh, "patina-seat0");
-        seat.add_keyboard(XkbConfig::default(), 200, 25)
+        let xkb = crate::keyboard::Xkb::detect();
+        tracing::info!(?xkb, "keyboard layout");
+        if seat
+            .add_keyboard(
+                xkb.config(),
+                crate::keyboard::REPEAT_DELAY_MS,
+                crate::keyboard::REPEAT_RATE,
+            )
+            .is_err()
+        {
+            // An unknown layout name must not end the session: fall back to the default.
+            tracing::warn!(?xkb, "keyboard layout not usable; using the default");
+            seat.add_keyboard(
+                XkbConfig::default(),
+                crate::keyboard::REPEAT_DELAY_MS,
+                crate::keyboard::REPEAT_RATE,
+            )
             .expect("keyboard");
+        }
         seat.add_pointer();
+        seat.add_touch();
 
         let socket = ListeningSocketSource::new_auto().expect("wayland socket");
         let socket_name = socket.socket_name().to_os_string();
@@ -186,6 +208,8 @@ impl Patina {
             stashed: vec![Vec::new(); crate::workspaces::COUNT],
             drag: None,
             frame_press: false,
+            touch_drag: None,
+            keyboards: Vec::new(),
             minimized: Vec::new(),
             last_titlebar_click: None,
             loop_signal: event_loop.get_signal(),
@@ -418,6 +442,17 @@ impl SeatHandler for Patina {
     fn cursor_image(&mut self, _: &Seat<Self>, image: CursorImageStatus) {
         self.cursor_status = image;
         self.queue_redraw();
+    }
+
+    fn led_state_changed(&mut self, _: &Seat<Self>, leds: smithay::input::keyboard::LedState) {
+        use smithay::reexports::input::Led;
+        let mut lit = Led::empty();
+        lit.set(Led::CAPSLOCK, leds.caps == Some(true));
+        lit.set(Led::NUMLOCK, leds.num == Some(true));
+        lit.set(Led::SCROLLLOCK, leds.scroll == Some(true));
+        for device in &mut self.keyboards {
+            device.led_update(lit);
+        }
     }
 }
 
