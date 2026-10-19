@@ -73,6 +73,7 @@ pub struct Patina {
     pub rasterizer: patina_frame::Rasterizer,
     /// Shader that rounds window content corners; `None` if it failed to compile.
     pub clip_program: Option<smithay::backend::renderer::gles::GlesTexProgram>,
+    pub toplevel_info: crate::toplevel_info::ToplevelInfoState,
     pub drag: Option<crate::wm::Drag>,
     /// A press was consumed by a window frame; its release must be swallowed too.
     pub frame_press: bool,
@@ -149,6 +150,7 @@ impl Patina {
             frame_cursor: None,
             rasterizer: patina_frame::Rasterizer::new(),
             clip_program: None,
+            toplevel_info: crate::toplevel_info::ToplevelInfoState::new(&dh),
             drag: None,
             frame_press: false,
             minimized: Vec::new(),

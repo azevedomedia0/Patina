@@ -2742,6 +2742,8 @@ dependencies = [
  "patina-sysinfo",
  "patina-tokens",
  "tokio",
+ "wayland-client",
+ "wayland-protocols-wlr",
 ]
 
 [[package]]

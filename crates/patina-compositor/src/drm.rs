@@ -264,6 +264,7 @@ impl Patina {
         self.redraw_wanted = false;
 
         self.space.refresh();
+        self.refresh_toplevel_info();
         let mut elements = crate::render::elements(self, &mut drm.renderer, &output);
         // Cursor elements go in front: the list is top-most first.
         let cursor = crate::render::cursor_elements(self, &mut drm.renderer);

@@ -3,6 +3,7 @@
 //! A 36 px layer-shell panel drawn with iced, styled only from `patina-tokens`.
 
 mod motion;
+mod toplevels;
 
 use std::{
     path::Path,
@@ -103,6 +104,8 @@ enum Message {
     Clock,
     /// Time to look at the battery again.
     Battery,
+    /// The focused window changed; `None` when no window has focus.
+    ActiveTitle(Option<String>),
 }
 
 impl Default for Panel {
@@ -160,6 +163,7 @@ fn update(panel: &mut Panel, message: Message) -> Task<Message> {
         }
         Message::Clock => panel.clock = clock::now(),
         Message::Battery => panel.battery = battery::read(Path::new(battery::SYSFS)),
+        Message::ActiveTitle(title) => panel.active_title = title,
         Message::Workspace(_) | Message::Launcher => {}
         _ => unreachable!(),
     }
@@ -175,6 +179,20 @@ fn minute_ticks() -> impl Stream<Item = Message> {
     })
 }
 
+/// Focused-window changes from the compositor.
+fn active_title_updates() -> impl Stream<Item = Message> {
+    iced::stream::channel(8, async |mut output| {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        toplevels::spawn(tx);
+        while let Some(title) = rx.recv().await {
+            let _ = output.send(Message::ActiveTitle(title)).await;
+        }
+        // The watcher stopped (no protocol, or the compositor went away); keep the stream open
+        // so iced does not restart it in a loop.
+        std::future::pending::<()>().await;
+    })
+}
+
 fn subscription(panel: &Panel) -> Subscription<Message> {
     let animation = if panel.animating() {
         iced::time::every(Duration::from_millis(8)).map(Message::Frame)
@@ -184,6 +202,7 @@ fn subscription(panel: &Panel) -> Subscription<Message> {
     Subscription::batch([
         animation,
         Subscription::run(minute_ticks),
+        Subscription::run(active_title_updates),
         // Charge changes slowly; looking twice a minute is plenty and costs nothing when there
         // is no battery.
         iced::time::every(Duration::from_secs(30)).map(|_| Message::Battery),

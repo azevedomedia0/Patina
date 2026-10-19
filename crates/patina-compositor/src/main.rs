@@ -12,6 +12,7 @@ mod drm;
 mod input;
 mod render;
 mod state;
+mod toplevel_info;
 mod winit;
 mod wm;
 

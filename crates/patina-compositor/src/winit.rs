@@ -92,6 +92,7 @@ pub fn init(
                 let size = backend.window_size();
                 let damage = Rectangle::from_size(size);
                 state.space.refresh();
+                state.refresh_toplevel_info();
                 {
                     let (renderer, mut framebuffer) = backend.bind().unwrap();
                     let elements = crate::render::elements(state, renderer, &output);

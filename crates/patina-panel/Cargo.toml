@@ -12,7 +12,9 @@ patina-sysinfo = { path = "../patina-sysinfo" }
 iced = { version = "0.14", default-features = false, features = ["wgpu", "tiny-skia", "tokio", "svg", "wayland"] }
 iced_layershell = "0.19.1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-tokio = { version = "1", default-features = false, features = ["time"] }
+tokio = { version = "1", default-features = false, features = ["time", "sync"] }
+wayland-client = "0.31"
+wayland-protocols-wlr = { version = "0.3", default-features = false, features = ["client"] }
 
 [lints]
 workspace = true
