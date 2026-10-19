@@ -1,0 +1,16 @@
+[package]
+name = "patina-sysinfo"
+description = "System information for the Patina shell: clock and battery"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

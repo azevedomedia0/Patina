@@ -4,9 +4,13 @@
 
 mod motion;
 
-use std::time::{Duration, Instant};
+use std::{
+    path::Path,
+    time::{Duration, Instant},
+};
 
 use iced::font::{Family, Weight};
+use iced::futures::{SinkExt, Stream};
 use iced::widget::{button, column, container, row, stack, svg, text, Space};
 use iced::{
     alignment, Alignment, Background, Border, Color as IcedColor, Element, Font, Length, Radians,
@@ -16,6 +20,7 @@ use iced_layershell::application;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
+use patina_sysinfo::{battery, clock, Battery};
 use patina_tokens as tok;
 
 use motion::CubicBezier;
@@ -74,6 +79,14 @@ fn lerp(a: IcedColor, b: IcedColor, t: f32) -> IcedColor {
 }
 
 struct Panel {
+    /// Local time as the panel shows it, refreshed on the minute.
+    clock: String,
+    /// `None` on machines without a battery: the battery is then not shown at all.
+    battery: Option<Battery>,
+    /// Unread notifications. Nothing delivers notifications yet, so this stays zero.
+    unread: u32,
+    /// Title of the focused window, when there is one.
+    active_title: Option<String>,
     workspace: u8,
     previous: u8,
     started: Option<Instant>,
@@ -86,11 +99,19 @@ enum Message {
     Workspace(u8),
     Frame(Instant),
     Launcher,
+    /// The displayed minute changed.
+    Clock,
+    /// Time to look at the battery again.
+    Battery,
 }
 
 impl Default for Panel {
     fn default() -> Self {
         Self {
+            clock: clock::now(),
+            battery: battery::read(Path::new(battery::SYSFS)),
+            unread: 0,
+            active_title: None,
             workspace: 1,
             previous: 1,
             started: None,
@@ -137,18 +158,36 @@ fn update(panel: &mut Panel, message: Message) -> Task<Message> {
                 panel.started = None;
             }
         }
+        Message::Clock => panel.clock = clock::now(),
+        Message::Battery => panel.battery = battery::read(Path::new(battery::SYSFS)),
         Message::Workspace(_) | Message::Launcher => {}
         _ => unreachable!(),
     }
     Task::none()
 }
 
+/// One message at the start of every minute, so the clock redraws on the minute and the panel
+/// sleeps in between.
+fn minute_ticks() -> impl Stream<Item = Message> {
+    iced::stream::channel(1, async |mut output| loop {
+        tokio::time::sleep(clock::until_next_minute(&chrono::Local::now())).await;
+        let _ = output.send(Message::Clock).await;
+    })
+}
+
 fn subscription(panel: &Panel) -> Subscription<Message> {
-    if panel.animating() {
+    let animation = if panel.animating() {
         iced::time::every(Duration::from_millis(8)).map(Message::Frame)
     } else {
         Subscription::none()
-    }
+    };
+    Subscription::batch([
+        animation,
+        Subscription::run(minute_ticks),
+        // Charge changes slowly; looking twice a minute is plenty and costs nothing when there
+        // is no battery.
+        iced::time::every(Duration::from_secs(30)).map(|_| Message::Battery),
+    ])
 }
 
 fn workspace_button(panel: &Panel, n: u8) -> Element<'_, Message> {
@@ -207,39 +246,45 @@ fn view(panel: &Panel) -> Element<'_, Message> {
             });
 
     let workspaces = row((1..=4).map(|n| workspace_button(panel, n))).spacing(2);
-    let title = text("Terminal")
-        .size(tok::FS_SMALL)
-        .font(sans(Weight::Semibold))
-        .color(c(tok::TEXT_PRIMARY));
-
-    let left = row![launcher, workspaces, title]
+    let mut left = row![launcher, workspaces]
         .spacing(12)
         .align_y(Alignment::Center)
         .width(Length::Fill);
-    let clock = text("Sat 17 Oct \u{b7} 09:41")
+    if let Some(title) = &panel.active_title {
+        left = left.push(
+            text(title.as_str())
+                .size(tok::FS_SMALL)
+                .font(sans(Weight::Semibold))
+                .color(c(tok::TEXT_PRIMARY)),
+        );
+    }
+    let clock = text(panel.clock.as_str())
         .size(tok::FS_SMALL)
         .font(mono(Weight::Medium))
         .color(c(tok::TEXT_PRIMARY));
     let dim = c(tok::TEXT_SECONDARY);
-    let battery = row![
-        icon(icons::BATTERY_FULL, dim)
-            .rotation(Rotation::Solid(Radians(-std::f32::consts::FRAC_PI_2))),
-        text("87%")
-            .size(tok::FS_CAPTION)
-            .font(mono(Weight::Semibold))
-            .color(c(tok::TEXT_PRIMARY)),
-    ]
-    .spacing(4)
-    .align_y(Alignment::Center);
-    let status = row![
+    let mut status = row![
         icon(icons::WIFI, dim),
         icon(icons::BLUETOOTH, dim),
         icon(icons::SUN, dim),
         icon(icons::VOLUME_2, dim),
-        battery,
     ]
     .spacing(12)
     .align_y(Alignment::Center);
+    if let Some(battery) = panel.battery {
+        status = status.push(
+            row![
+                icon(icons::BATTERY_FULL, dim)
+                    .rotation(Rotation::Solid(Radians(-std::f32::consts::FRAC_PI_2))),
+                text(format!("{}%", battery.percent))
+                    .size(tok::FS_CAPTION)
+                    .font(mono(Weight::Semibold))
+                    .color(c(tok::TEXT_PRIMARY)),
+            ]
+            .spacing(4)
+            .align_y(Alignment::Center),
+        );
+    }
     let status = container(status).align_right(Length::Fill);
 
     // Unread notifications: bell with a red dot at its top-right corner.
@@ -259,7 +304,12 @@ fn view(panel: &Panel) -> Element<'_, Message> {
             .align_x(alignment::Horizontal::Right)
             .align_y(alignment::Vertical::Top),
     ];
-    let centre = row![bell, clock].spacing(8).align_y(Alignment::Center);
+    // As in the design component, the bell only appears when something is unread.
+    let mut centre = row![].spacing(8).align_y(Alignment::Center);
+    if panel.unread > 0 {
+        centre = centre.push(bell);
+    }
+    let centre = centre.push(clock);
 
     let bar = container(row![left, centre, status].align_y(Alignment::Center))
         .padding([0, 12])
