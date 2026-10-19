@@ -1,4 +1,9 @@
-//! Builds the render list for one output, top-most element first.
+//! Builds what is drawn on an output.
+//!
+//! Everything is gathered into groups, bottom-most first. Each group is a surface (a window with
+//! its titlebar and shadow, or a layer surface such as the panel) and, for glass surfaces, the
+//! area behind it to blur. The scene compositor draws the groups in order into an offscreen
+//! texture, which is what the output shows.
 
 use smithay::{
     backend::{
@@ -8,25 +13,34 @@ use smithay::{
                 memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
                 render_elements,
                 surface::WaylandSurfaceRenderElement,
+                texture::TextureRenderElement,
                 AsRenderElements, Kind,
             },
-            gles::GlesRenderer,
+            gles::{GlesRenderer, GlesTexture},
         },
     },
-    desktop::{layer_map_for_output, Window},
+    desktop::{layer_map_for_output, LayerSurface as DesktopLayerSurface, Window},
     output::Output,
-    utils::{Physical, Point, Rectangle, Scale, Size, Transform},
+    utils::{Logical, Physical, Point, Rectangle, Scale, Size, Transform},
     wayland::shell::wlr_layer::Layer,
 };
 
-use crate::{clip::ClippedSurface, state::Patina, wm::win_state};
-use patina_frame::{shadow, TITLEBAR_H};
+use crate::{blur::Backdrop, clip::ClippedSurface, scene::Scene, state::Patina, wm::win_state};
+use patina_frame::{glass, shadow, TITLEBAR_H};
 
 render_elements! {
     pub PatinaElement<=GlesRenderer>;
     Surface = WaylandSurfaceRenderElement<GlesRenderer>,
     Clipped = ClippedSurface,
     Image = MemoryRenderBufferRenderElement<GlesRenderer>,
+    Scene = TextureRenderElement<GlesTexture>,
+}
+
+/// One surface and, if it is glass, the area behind it to blur first.
+pub struct Group {
+    /// The surface's elements, top-most first.
+    pub elements: Vec<PatinaElement>,
+    pub backdrop: Option<Backdrop>,
 }
 
 /// Inactive windows are drawn slightly translucent (`opacity: .92` in the design).
@@ -43,51 +57,116 @@ fn upload(bgra: &[u8], width: i32, height: i32) -> MemoryRenderBuffer {
     )
 }
 
-pub fn elements(
+fn physical(r: Rectangle<i32, Logical>, scale: Scale<f64>) -> Rectangle<i32, Physical> {
+    Rectangle::new(
+        Point::from((r.loc.x as f64 * scale.x, r.loc.y as f64 * scale.y)).to_i32_round(),
+        Size::from((r.size.w as f64 * scale.x, r.size.h as f64 * scale.y)).to_i32_round(),
+    )
+}
+
+/// Layer surfaces that are glass, by namespace. Only the panel exists so far; the dock, launcher
+/// and quick settings will join it.
+fn layer_glass(namespace: &str) -> Option<glass::Glass> {
+    match namespace {
+        "patina-panel" => Some(glass::panel()),
+        _ => None,
+    }
+}
+
+struct LayerInfo {
+    layer: DesktopLayerSurface,
+    geometry: Rectangle<i32, Logical>,
+    kind: Layer,
+}
+
+fn layer_group(renderer: &mut GlesRenderer, info: &LayerInfo, scale: Scale<f64>) -> Group {
+    let elements = info
+        .layer
+        .render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
+            renderer,
+            info.geometry.loc.to_physical_precise_round(scale),
+            scale,
+            1.0,
+        )
+        .into_iter()
+        .map(PatinaElement::Surface)
+        .collect();
+    let backdrop = layer_glass(info.layer.namespace()).map(|g| Backdrop {
+        rect: physical(info.geometry, scale),
+        radius: 0.0,
+        sigma: g.sigma * scale.x as f32,
+        saturation: g.saturation,
+    });
+    Group { elements, backdrop }
+}
+
+/// The wallpaper as an element at the bottom of the scene, redrawn only when the output size
+/// changes.
+fn wallpaper_element(
     state: &mut Patina,
     renderer: &mut GlesRenderer,
-    output: &Output,
-) -> Vec<PatinaElement> {
-    let scale = Scale::from(output.current_scale().fractional_scale());
-    let mut out: Vec<PatinaElement> = Vec::new();
+    size: Size<i32, Physical>,
+) -> Option<PatinaElement> {
+    let key = (size.w, size.h);
+    if state.wallpaper.as_ref().is_none_or(|(k, _)| *k != key) {
+        let bitmap = patina_frame::wallpaper::render(size.w, size.h);
+        state.wallpaper = Some((key, upload(&bitmap.bgra, bitmap.width, bitmap.height)));
+    }
+    let (_, buffer) = state.wallpaper.as_ref()?;
+    MemoryRenderBufferRenderElement::from_buffer(
+        renderer,
+        Point::<f64, Physical>::from((0.0, 0.0)),
+        buffer,
+        None,
+        None,
+        None,
+        Kind::Unspecified,
+    )
+    .ok()
+    .map(PatinaElement::Image)
+}
 
-    // Layers, top-most first.
-    let layers: Vec<_> = {
+/// Everything on `output`, bottom-most group first.
+pub fn groups(state: &mut Patina, renderer: &mut GlesRenderer, output: &Output) -> Vec<Group> {
+    let scale = Scale::from(output.current_scale().fractional_scale());
+    let size = output.current_mode().map(|m| m.size).unwrap_or_default();
+    let mut groups: Vec<Group> = Vec::new();
+
+    // Layer surfaces, top-most first.
+    let layers: Vec<LayerInfo> = {
         let map = layer_map_for_output(output);
         map.layers()
             .rev()
-            .filter_map(|l| map.layer_geometry(l).map(|g| (l.clone(), g.loc, l.layer())))
+            .filter_map(|l| {
+                map.layer_geometry(l).map(|geometry| LayerInfo {
+                    layer: l.clone(),
+                    geometry,
+                    kind: l.layer(),
+                })
+            })
             .collect()
     };
-    let layer_elems = |renderer: &mut GlesRenderer, wanted: fn(Layer) -> bool| {
-        let mut v = Vec::new();
-        for (layer, loc, kind) in &layers {
-            if wanted(*kind) {
-                v.extend(
-                    layer
-                        .render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
-                            renderer,
-                            loc.to_physical_precise_round(scale),
-                            scale,
-                            1.0,
-                        )
-                        .into_iter()
-                        .map(PatinaElement::Surface),
-                );
-            }
-        }
-        v
-    };
-    out.extend(layer_elems(renderer, |l| {
-        matches!(l, Layer::Overlay | Layer::Top)
-    }));
+    let is_below = |l: Layer| matches!(l, Layer::Background | Layer::Bottom);
 
-    // Windows, top-most first: surfaces, then titlebar, then shadow underneath.
-    let windows: Vec<Window> = state.space.elements().rev().cloned().collect();
+    // The bottom group: background and bottom layers over the wallpaper.
+    let mut base: Vec<PatinaElement> = layers
+        .iter()
+        .filter(|l| is_below(l.kind))
+        .flat_map(|l| layer_group(renderer, l, scale).elements)
+        .collect();
+    base.extend(wallpaper_element(state, renderer, size));
+    groups.push(Group {
+        elements: base,
+        backdrop: None,
+    });
+
+    // Windows, bottom-most first. Each: surfaces, then titlebar, then shadow underneath.
+    let windows: Vec<Window> = state.space.elements().cloned().collect();
     for window in windows {
         let Some(geo) = state.client_rect(&window) else {
             continue;
         };
+        let mut out: Vec<PatinaElement> = Vec::new();
         let bar = state.title_bar_for(&window, geo.size.w);
         let alpha = if bar.active { 1.0 } else { INACTIVE_ALPHA };
         let maximized = bar.maximized;
@@ -95,16 +174,7 @@ pub fn elements(
         // Client surfaces, with the bottom corners rounded unless the window fills the screen.
         let origin =
             state.space.element_location(&window).unwrap_or_default() - window.geometry().loc;
-        let content = Rectangle::<i32, Physical>::new(
-            Point::from((geo.loc.x, geo.loc.y))
-                .to_f64()
-                .to_physical(scale)
-                .to_i32_round(),
-            Size::from((geo.size.w, geo.size.h))
-                .to_f64()
-                .to_physical(scale)
-                .to_i32_round(),
-        );
+        let content = physical(geo, scale);
         let radius = patina_frame::geometry::RADIUS * scale.x as f32;
         for el in window.render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
             renderer,
@@ -186,12 +256,71 @@ pub fn elements(
                 }
             }
         }
+
+        // The glass behind the whole window frame, titlebar and client area.
+        let g = glass::window();
+        let frame = Rectangle::<i32, Logical>::new(
+            (geo.loc.x, geo.loc.y - TITLEBAR_H).into(),
+            (geo.size.w, geo.size.h + TITLEBAR_H).into(),
+        );
+        groups.push(Group {
+            elements: out,
+            backdrop: Some(Backdrop {
+                rect: physical(frame, scale),
+                radius: if maximized { 0.0 } else { radius },
+                sigma: g.sigma * scale.x as f32,
+                saturation: g.saturation,
+            }),
+        });
     }
 
-    out.extend(layer_elems(renderer, |l| {
-        matches!(l, Layer::Bottom | Layer::Background)
-    }));
-    out
+    // Layers above windows (top, overlay), bottom-most first.
+    for info in layers.iter().rev().filter(|l| !is_below(l.kind)) {
+        groups.push(layer_group(renderer, info, scale));
+    }
+    groups
+}
+
+/// Top-most element first, without blur: the fallback when the scene cannot be composed.
+fn flatten(groups: Vec<Group>) -> Vec<PatinaElement> {
+    groups.into_iter().rev().flat_map(|g| g.elements).collect()
+}
+
+/// What to hand the output for this frame, top-most first (the pointer is added by the caller).
+pub fn frame_elements(
+    state: &mut Patina,
+    renderer: &mut GlesRenderer,
+    output: &Output,
+) -> Vec<PatinaElement> {
+    let scale = Scale::from(output.current_scale().fractional_scale());
+    let groups = groups(state, renderer, output);
+    let Some(size) = output.current_mode().map(|m| m.size) else {
+        return flatten(groups);
+    };
+    if state.scene_unavailable {
+        return flatten(groups);
+    }
+
+    if state.scene.as_ref().is_none_or(|s| s.size() != size) {
+        match Scene::new(renderer, size) {
+            Ok(scene) => state.scene = Some(scene),
+            Err(e) => {
+                tracing::warn!(error = %e, "blur unavailable: cannot create the scene");
+                state.scene_unavailable = true;
+                return flatten(groups);
+            }
+        }
+    }
+    let Some(scene) = state.scene.as_mut() else {
+        return flatten(groups);
+    };
+    if let Err(e) = scene.update(renderer, &groups, scale) {
+        tracing::warn!(error = %e, "blur unavailable: cannot compose the scene");
+        state.scene = None;
+        state.scene_unavailable = true;
+        return flatten(groups);
+    }
+    vec![scene.element()]
 }
 
 /// The pointer, drawn by the compositor when there is no host to draw it (DRM backend).

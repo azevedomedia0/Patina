@@ -55,6 +55,10 @@ Overrides the automatic choice of backend.
 When set, everything including the pointer is drawn into one frame instead of using hardware
 planes. Needed when capturing the screen from a virtual machine.
 .TP
+.B PATINA_NO_BLUR
+When set, the blur behind the panel and windows is not drawn. Use it on machines where
+rendering is slow.
+.TP
 .B RUST_LOG
 Log filter, for example
 .BR patina_compositor=debug .

@@ -6,11 +6,13 @@
 //! Usage: `patina-compositor [COMMAND...]`. Each argument is a shell command started
 //! once the compositor is listening, with `WAYLAND_DISPLAY` pointing at it.
 
+mod blur;
 mod clip;
 mod cursor;
 mod drm;
 mod input;
 mod render;
+mod scene;
 mod state;
 mod toplevel_info;
 mod winit;

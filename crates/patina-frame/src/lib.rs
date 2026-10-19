@@ -5,6 +5,7 @@
 //! `patina-tokens`. This crate has no Wayland dependency, so it builds and tests on any OS.
 
 pub mod geometry;
+pub mod glass;
 pub mod raster;
 pub mod shadow;
 pub mod wallpaper;

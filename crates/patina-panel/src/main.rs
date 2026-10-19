@@ -108,8 +108,8 @@ enum Message {
     Launcher,
     /// The displayed minute changed.
     Clock,
-    /// Time to look at the battery again.
-    Battery,
+    /// The battery reading changed (`None`: there is no battery).
+    Battery(Option<Battery>),
     /// The compositor link is up; this sends it commands.
     LinkReady(std::sync::mpsc::Sender<Command>),
     /// Something the compositor told us.
@@ -184,7 +184,7 @@ fn update(panel: &mut Panel, message: Message) -> Task<Message> {
             }
         }
         Message::Clock => panel.clock = clock::now(),
-        Message::Battery => panel.battery = battery::read(Path::new(battery::SYSFS)),
+        Message::Battery(reading) => panel.battery = reading,
         Message::Launcher => {}
         _ => unreachable!(),
     }
@@ -197,6 +197,22 @@ fn minute_ticks() -> impl Stream<Item = Message> {
     iced::stream::channel(1, async |mut output| loop {
         tokio::time::sleep(clock::until_next_minute(&chrono::Local::now())).await;
         let _ = output.send(Message::Clock).await;
+    })
+}
+
+/// The battery level, looked at twice a minute. Only a change is reported: iced redraws and
+/// recommits on every message, which would make the compositor recompose the screen for nothing.
+fn battery_changes() -> impl Stream<Item = Message> {
+    iced::stream::channel(1, async |mut output| {
+        let mut last = battery::read(Path::new(battery::SYSFS));
+        loop {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            let now = battery::read(Path::new(battery::SYSFS));
+            if now != last {
+                last = now;
+                let _ = output.send(Message::Battery(now)).await;
+            }
+        }
     })
 }
 
@@ -226,9 +242,7 @@ fn subscription(panel: &Panel) -> Subscription<Message> {
         animation,
         Subscription::run(minute_ticks),
         Subscription::run(compositor_updates),
-        // Charge changes slowly; looking twice a minute is plenty and costs nothing when there
-        // is no battery.
-        iced::time::every(Duration::from_secs(30)).map(|_| Message::Battery),
+        Subscription::run(battery_changes),
     ])
 }
 

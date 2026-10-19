@@ -95,7 +95,7 @@ pub fn init(
                 state.refresh_toplevel_info();
                 {
                     let (renderer, mut framebuffer) = backend.bind().unwrap();
-                    let elements = crate::render::elements(state, renderer, &output);
+                    let elements = crate::render::frame_elements(state, renderer, &output);
                     damage_tracker
                         .render_output(renderer, &mut framebuffer, 0, &elements, clear)
                         .unwrap();

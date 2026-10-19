@@ -72,6 +72,14 @@ pub struct Patina {
     pub frame_cursor: Option<CursorIcon>,
     pub rasterizer: patina_frame::Rasterizer,
     /// Shader that rounds window content corners; `None` if it failed to compile.
+    /// The composed frame, rebuilt only when something in it changes.
+    pub scene: Option<crate::scene::Scene>,
+    /// Set when the scene cannot be created; frames are then drawn without blur.
+    pub scene_unavailable: bool,
+    pub wallpaper: Option<(
+        (i32, i32),
+        smithay::backend::renderer::element::memory::MemoryRenderBuffer,
+    )>,
     pub clip_program: Option<smithay::backend::renderer::gles::GlesTexProgram>,
     pub toplevel_info: crate::toplevel_info::ToplevelInfoState,
     pub workspace_protocol: crate::workspaces::WorkspaceProtocol,
@@ -153,6 +161,10 @@ impl Patina {
             cursor_status: CursorImageStatus::default_named(),
             frame_cursor: None,
             rasterizer: patina_frame::Rasterizer::new(),
+            scene: None,
+            // PATINA_NO_BLUR=1 draws without blur, for slow machines and for testing.
+            scene_unavailable: std::env::var_os("PATINA_NO_BLUR").is_some(),
+            wallpaper: None,
             clip_program: None,
             toplevel_info: crate::toplevel_info::ToplevelInfoState::new(&dh),
             workspace_protocol: crate::workspaces::WorkspaceProtocol::new(&dh),
