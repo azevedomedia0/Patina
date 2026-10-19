@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: PatineDE contributors <patina@example.invalid>
 Rules-Requires-Root: no
 Standards-Version: 4.6.2
-Homepage: https://github.com/azevedomedia0/PatineDE
+Homepage: https://github.com/azevedomedia0/Patina
 Build-Depends:
  debhelper-compat (= 13),
  libdrm-dev,

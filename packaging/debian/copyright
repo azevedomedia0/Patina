@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: PatineDE
-Source: https://github.com/azevedomedia0/PatineDE
+Source: https://github.com/azevedomedia0/Patina
 Comment:
  The licence of the project's own code is GPL-3+, as stated in the original
  packaging (the PKGBUILD in the design handoff). No LICENSE file has been

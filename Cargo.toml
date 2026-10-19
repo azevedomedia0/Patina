@@ -6,7 +6,7 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
-repository = "https://github.com/azevedomedia0/PatineDE"
+repository = "https://github.com/azevedomedia0/Patina"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "warn"

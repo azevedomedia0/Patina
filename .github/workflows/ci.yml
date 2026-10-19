@@ -6,8 +6,8 @@ on:
 jobs:
   # Format, lint and test inside each target distro's container, so missing
   # system libraries and old toolchains show up here and not on a user's machine.
-  # Image names for Mint and the dnf/pacman dev-package names are unverified;
-  # only the Debian 12 aarch64 container has been run so far.
+  # ci/local-matrix.sh runs the same steps in the same containers without GitHub; see
+  # docs/CI.md for which entries have been run that way.
   distro:
     name: ${{ matrix.name }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: Debian 12,     image: "debian:12",                   arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
+          - { name: Debian 12,     image: "debian:12",                  arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
           - { name: Ubuntu 22.04,  image: "ubuntu:22.04",               arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
           - { name: Ubuntu 24.04,  image: "ubuntu:24.04",               arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
           - { name: Linux Mint 21, image: "linuxmintd/mint21.3-amd64",  arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
@@ -25,18 +25,15 @@ jobs:
           - { name: Debian 12,     image: "debian:12",                  arch: aarch64, runner: ubuntu-24.04-arm, pkg: apt }
           - { name: Fedora,        image: "fedora:latest",              arch: aarch64, runner: ubuntu-24.04-arm, pkg: dnf }
     steps:
-      - name: Base packages
-        run: |
-          case "${{ matrix.pkg }}" in
-            apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl git build-essential pkg-config ca-certificates libwayland-dev libxkbcommon-dev ;;
-            dnf)    dnf install -y curl git gcc gcc-c++ make pkgconf-pkg-config wayland-devel libxkbcommon-devel ;;
-            pacman) pacman -Syu --noconfirm curl git base-devel wayland libxkbcommon ;;
-          esac
+      # Checkout falls back to a plain download when the image has no git, which is fine.
       - uses: actions/checkout@v4
-      - name: Rust (rustup, pinned by rust-toolchain.toml)
+      - name: System packages
+        run: sh ci/deps.sh ${{ matrix.pkg }}
+      - name: Rust (rustup; the version is pinned by rust-toolchain.toml)
         run: |
-          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          "$HOME/.cargo/bin/rustup" toolchain install
       - run: cargo fmt --all --check
       - run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - run: cargo test --locked --workspace
