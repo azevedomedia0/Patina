@@ -195,27 +195,85 @@ pub fn elements(
 }
 
 /// The pointer, drawn by the compositor when there is no host to draw it (DRM backend).
-pub fn cursor_element(state: &mut Patina, renderer: &mut GlesRenderer) -> Option<PatinaElement> {
+/// Returned top-most first; usually one element, none when a client hides the cursor.
+pub fn cursor_elements(state: &mut Patina, renderer: &mut GlesRenderer) -> Vec<PatinaElement> {
+    use crate::wm::CursorSource;
+    use smithay::{
+        backend::renderer::element::surface::render_elements_from_surface_tree,
+        input::pointer::{CursorIcon, CursorImageSurfaceData},
+        wayland::compositor::with_states,
+    };
+
     if !state.software_cursor {
-        return None;
+        return Vec::new();
     }
-    let cursor = state.cursor.as_ref()?;
-    let pos = state.seat.get_pointer()?.current_location();
-    let output = state.output.as_ref()?;
-    let scale = Scale::from(output.current_scale().fractional_scale());
-    let at: Point<f64, Physical> = Point::from((
-        (pos.x - cursor.hotspot.x as f64) * scale.x,
-        (pos.y - cursor.hotspot.y as f64) * scale.y,
-    ));
-    MemoryRenderBufferRenderElement::from_buffer(
-        renderer,
-        at,
-        &cursor.buffer,
-        None,
-        None,
-        None,
-        Kind::Cursor,
-    )
-    .ok()
-    .map(PatinaElement::Image)
+    let Some(pos) = state.seat.get_pointer().map(|p| p.current_location()) else {
+        return Vec::new();
+    };
+    let scale = state
+        .output
+        .as_ref()
+        .map(|o| Scale::from(o.current_scale().fractional_scale()))
+        .unwrap_or(Scale::from(1.0));
+    let at =
+        |hotspot: smithay::utils::Point<i32, smithay::utils::Logical>| -> Point<f64, Physical> {
+            Point::from((
+                (pos.x - hotspot.x as f64) * scale.x,
+                (pos.y - hotspot.y as f64) * scale.y,
+            ))
+        };
+    let image = |renderer: &mut GlesRenderer,
+                 buffer: &MemoryRenderBuffer,
+                 hotspot: smithay::utils::Point<i32, smithay::utils::Logical>| {
+        MemoryRenderBufferRenderElement::from_buffer(
+            renderer,
+            at(hotspot),
+            buffer,
+            None,
+            None,
+            None,
+            Kind::Cursor,
+        )
+        .ok()
+        .map(PatinaElement::Image)
+        .into_iter()
+        .collect::<Vec<_>>()
+    };
+
+    match state.effective_cursor() {
+        CursorSource::Hidden => Vec::new(),
+        CursorSource::Surface(surface) => {
+            let hotspot = with_states(&surface, |states| {
+                states
+                    .data_map
+                    .get::<CursorImageSurfaceData>()
+                    .map(|d| d.lock().unwrap().hotspot)
+                    .unwrap_or_default()
+            });
+            render_elements_from_surface_tree::<_, WaylandSurfaceRenderElement<GlesRenderer>>(
+                renderer,
+                &surface,
+                at(hotspot).to_i32_round(),
+                scale,
+                1.0,
+                Kind::Cursor,
+            )
+            .into_iter()
+            .map(PatinaElement::Surface)
+            .collect()
+        }
+        CursorSource::Icon(icon) => {
+            // The design's arrow is the default pointer; everything else is the system theme's,
+            // falling back to the arrow if the theme lacks it.
+            if icon != CursorIcon::Default {
+                if let Some(named) = state.cursor_theme.get(icon) {
+                    return image(renderer, &named.buffer, named.hotspot);
+                }
+            }
+            match &state.cursor {
+                Some(arrow) => image(renderer, &arrow.buffer, arrow.hotspot),
+                None => Vec::new(),
+            }
+        }
+    }
 }

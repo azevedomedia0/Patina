@@ -31,6 +31,7 @@ Depends:
  libxkbcommon0,
  xkb-data,
 Recommends:
+ adwaita-icon-theme | xcursor-themes,
  bluez,
  foot,
  network-manager,

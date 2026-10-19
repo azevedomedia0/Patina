@@ -2685,6 +2685,7 @@ dependencies = [
  "tiny-skia",
  "tracing",
  "tracing-subscriber",
+ "xcursor",
 ]
 
 [[package]]

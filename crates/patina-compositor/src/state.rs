@@ -3,11 +3,13 @@
 use std::{ffi::OsString, os::unix::io::OwnedFd, sync::Arc, time::Instant};
 
 use smithay::{
-    delegate_compositor, delegate_data_device, delegate_layer_shell, delegate_output,
-    delegate_seat, delegate_shm, delegate_viewporter, delegate_xdg_decoration, delegate_xdg_shell,
+    delegate_compositor, delegate_cursor_shape, delegate_data_device, delegate_layer_shell,
+    delegate_output, delegate_seat, delegate_shm, delegate_viewporter, delegate_xdg_decoration,
+    delegate_xdg_shell,
     desktop::{
         layer_map_for_output, LayerSurface as DesktopLayerSurface, Space, Window, WindowSurfaceType,
     },
+    input::pointer::CursorIcon,
     input::{keyboard::XkbConfig, pointer::CursorImageStatus, Seat, SeatHandler, SeatState},
     output::Output,
     reexports::{
@@ -29,6 +31,7 @@ use smithay::{
             get_parent, is_sync_subsurface, with_states, CompositorClientState, CompositorHandler,
             CompositorState,
         },
+        cursor_shape::CursorShapeManagerState,
         output::{OutputHandler, OutputManagerState},
         selection::{
             data_device::{
@@ -61,6 +64,12 @@ pub struct Patina {
     /// Wakes the event loop to draw; registered by the active backend.
     pub redraw_ping: Option<smithay::reexports::calloop::ping::Ping>,
     pub cursor: Option<crate::cursor::Cursor>,
+    pub cursor_theme: crate::cursor::Theme,
+    /// What the client under the pointer last asked for. Smithay resets it on focus changes.
+    pub cursor_status: CursorImageStatus,
+    /// Set while the pointer is over a part of a window the compositor owns, such as the resize
+    /// grip; takes priority over whatever a client asked for.
+    pub frame_cursor: Option<CursorIcon>,
     pub rasterizer: patina_frame::Rasterizer,
     /// Shader that rounds window content corners; `None` if it failed to compile.
     pub clip_program: Option<smithay::backend::renderer::gles::GlesTexProgram>,
@@ -86,6 +95,9 @@ pub struct Patina {
     /// Held only to keep the wp_viewporter global alive (required by iced_layershell).
     #[allow(dead_code)]
     pub viewporter_state: ViewporterState,
+    /// Held only to keep the cursor-shape global alive.
+    #[allow(dead_code)]
+    pub cursor_shape_state: CursorShapeManagerState,
     /// Held only to keep the xdg-output global alive.
     #[allow(dead_code)]
     pub output_manager_state: OutputManagerState,
@@ -132,6 +144,9 @@ impl Patina {
             redraw_wanted: false,
             redraw_ping: None,
             cursor: crate::cursor::load(),
+            cursor_theme: crate::cursor::Theme::load(),
+            cursor_status: CursorImageStatus::default_named(),
+            frame_cursor: None,
             rasterizer: patina_frame::Rasterizer::new(),
             clip_program: None,
             drag: None,
@@ -148,6 +163,7 @@ impl Patina {
             decoration_state: XdgDecorationState::new::<Self>(&dh),
             shm_state: ShmState::new::<Self>(&dh, vec![]),
             viewporter_state: ViewporterState::new::<Self>(&dh),
+            cursor_shape_state: CursorShapeManagerState::new::<Self>(&dh),
             output_manager_state: OutputManagerState::new_with_xdg_output::<Self>(&dh),
             data_device_state: DataDeviceState::new::<Self>(&dh),
             seat_state,
@@ -338,8 +354,14 @@ impl SeatHandler for Patina {
         &mut self.seat_state
     }
     fn focus_changed(&mut self, _: &Seat<Self>, _: Option<&WlSurface>) {}
-    fn cursor_image(&mut self, _: &Seat<Self>, _: CursorImageStatus) {}
+    fn cursor_image(&mut self, _: &Seat<Self>, image: CursorImageStatus) {
+        self.cursor_status = image;
+        self.queue_redraw();
+    }
 }
+
+// Required by cursor-shape; we do not draw separate cursors for tablet tools.
+impl smithay::wayland::tablet_manager::TabletSeatHandler for Patina {}
 
 impl SelectionHandler for Patina {
     type SelectionUserData = ();
@@ -470,6 +492,7 @@ delegate_xdg_shell!(Patina);
 delegate_xdg_decoration!(Patina);
 delegate_layer_shell!(Patina);
 delegate_viewporter!(Patina);
+delegate_cursor_shape!(Patina);
 
 // Keeps the import used when xdg_toplevel states are set by later milestones.
 #[allow(dead_code)]

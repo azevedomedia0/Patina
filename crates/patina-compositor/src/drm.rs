@@ -265,9 +265,9 @@ impl Patina {
 
         self.space.refresh();
         let mut elements = crate::render::elements(self, &mut drm.renderer, &output);
-        if let Some(cursor) = crate::render::cursor_element(self, &mut drm.renderer) {
-            elements.insert(0, cursor);
-        }
+        // Cursor elements go in front: the list is top-most first.
+        let cursor = crate::render::cursor_elements(self, &mut drm.renderer);
+        elements.splice(0..0, cursor);
         let bg = patina_tokens::BG_DESKTOP;
         let clear = [
             bg.r as f32 / 255.0,

@@ -7,7 +7,7 @@ use smithay::{
     },
     input::{
         keyboard::{FilterResult, Keysym},
-        pointer::{AxisFrame, ButtonEvent, MotionEvent},
+        pointer::{AxisFrame, ButtonEvent, CursorIcon, MotionEvent},
     },
     utils::{Logical, Point, SERIAL_COUNTER},
 };
@@ -16,7 +16,7 @@ use patina_frame::{Control, Hit};
 
 use crate::{
     state::Patina,
-    wm::{Action, Pick},
+    wm::{Action, Drag, Pick},
 };
 
 impl Patina {
@@ -35,6 +35,10 @@ impl Patina {
         let serial = SERIAL_COUNTER.next_serial();
 
         if self.drag.is_some() {
+            self.frame_cursor = Some(match self.drag {
+                Some(Drag::Resize { .. }) => CursorIcon::NwseResize,
+                _ => CursorIcon::Default,
+            });
             self.apply_drag(pos);
             pointer.motion(
                 self,
@@ -51,6 +55,12 @@ impl Patina {
 
         let pick = self.pick(pos);
         self.update_hover(&pick);
+        // Over a client the client decides; elsewhere the compositor does.
+        self.frame_cursor = match &pick {
+            Pick::Surface(..) => None,
+            Pick::Frame(_, Hit::ResizeGrip) => Some(CursorIcon::NwseResize),
+            Pick::Frame(..) | Pick::Nothing => Some(CursorIcon::Default),
+        };
         let focus = match pick {
             Pick::Surface(wl, origin, _) => Some((wl, origin)),
             _ => None,

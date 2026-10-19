@@ -6,11 +6,12 @@ use patina_frame::{hit_test, Control, Hit, Rect, TitleBar, TITLEBAR_H};
 use smithay::{
     backend::renderer::element::memory::MemoryRenderBuffer,
     desktop::{layer_map_for_output, Window, WindowSurfaceType},
+    input::pointer::{CursorIcon, CursorImageStatus},
     reexports::{
         wayland_protocols::xdg::shell::server::xdg_toplevel,
         wayland_server::protocol::wl_surface::WlSurface,
     },
-    utils::{Logical, Point, Rectangle, Size, SERIAL_COUNTER},
+    utils::{IsAlive, Logical, Point, Rectangle, Size, SERIAL_COUNTER},
     wayland::{
         compositor::with_states,
         shell::{
@@ -78,6 +79,15 @@ pub enum Pick {
     /// Part of a window's frame, handled by the compositor.
     Frame(Window, Hit),
     Nothing,
+}
+
+/// What to draw as the pointer.
+pub enum CursorSource {
+    Hidden,
+    /// A named cursor: the design's arrow for `Default`, the system theme for the rest.
+    Icon(CursorIcon),
+    /// A surface supplied by the client under the pointer.
+    Surface(WlSurface),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -150,6 +160,22 @@ impl Patina {
             }
         }
         layer_hit(&[Layer::Bottom, Layer::Background]).unwrap_or(Pick::Nothing)
+    }
+
+    /// The cursor to show now: compositor-owned areas first, otherwise what the client under
+    /// the pointer asked for.
+    pub fn effective_cursor(&self) -> CursorSource {
+        if let Some(icon) = self.frame_cursor {
+            return CursorSource::Icon(icon);
+        }
+        match &self.cursor_status {
+            CursorImageStatus::Hidden => CursorSource::Hidden,
+            CursorImageStatus::Named(icon) => CursorSource::Icon(*icon),
+            CursorImageStatus::Surface(surface) if surface.alive() => {
+                CursorSource::Surface(surface.clone())
+            }
+            CursorImageStatus::Surface(_) => CursorSource::Icon(CursorIcon::Default),
+        }
     }
 
     pub fn update_hover(&mut self, pick: &Pick) {

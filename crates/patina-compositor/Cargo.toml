@@ -10,6 +10,7 @@ publish = false
 patina-tokens = { path = "../patina-tokens" }
 patina-frame = { path = "../patina-frame" }
 tiny-skia = "0.11"
+xcursor = "0.3"
 smithay = { version = "0.7", default-features = false, features = [
     "backend_winit",
     "backend_drm",
