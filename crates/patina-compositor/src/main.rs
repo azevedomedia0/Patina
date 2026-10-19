@@ -15,6 +15,7 @@ mod state;
 mod toplevel_info;
 mod winit;
 mod wm;
+mod workspaces;
 
 use std::process::Command;
 

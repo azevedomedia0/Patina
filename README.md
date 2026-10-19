@@ -28,7 +28,9 @@ The build needs network access: it installs the Rust toolchain pinned in
 `packaging/RUST_VERSION` (the Rust in Debian 12 and Ubuntu 22.04 is too old) and downloads the
 crates in `Cargo.lock`. Logs are in `~/.local/state/patina/session.log`.
 
-This is a pre-release: compositor and top panel only, and the panel shows placeholder data.
+This is a pre-release: compositor and top panel only. The panel's clock, battery, focused-window
+title and workspace buttons are live; the launcher button, status icons and notification bell are
+not wired up yet.
 
 ## Develop
 ```sh

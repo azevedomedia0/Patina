@@ -2,8 +2,8 @@
 //!
 //! A 36 px layer-shell panel drawn with iced, styled only from `patina-tokens`.
 
+mod compositor_link;
 mod motion;
-mod toplevels;
 
 use std::{
     path::Path,
@@ -24,6 +24,7 @@ use iced_layershell::to_layer_message;
 use patina_sysinfo::{battery, clock, Battery};
 use patina_tokens as tok;
 
+use compositor_link::{Command, Update};
 use motion::CubicBezier;
 
 const SANS: &[u8] =
@@ -88,6 +89,11 @@ struct Panel {
     unread: u32,
     /// Title of the focused window, when there is one.
     active_title: Option<String>,
+    /// Number of workspaces, once the compositor has told us. The buttons are not shown before
+    /// that, because without workspaces they would do nothing.
+    workspace_count: usize,
+    /// Sends requests to the compositor.
+    link: Option<std::sync::mpsc::Sender<Command>>,
     workspace: u8,
     previous: u8,
     started: Option<Instant>,
@@ -104,8 +110,10 @@ enum Message {
     Clock,
     /// Time to look at the battery again.
     Battery,
-    /// The focused window changed; `None` when no window has focus.
-    ActiveTitle(Option<String>),
+    /// The compositor link is up; this sends it commands.
+    LinkReady(std::sync::mpsc::Sender<Command>),
+    /// Something the compositor told us.
+    Compositor(Update),
 }
 
 impl Default for Panel {
@@ -115,6 +123,8 @@ impl Default for Panel {
             battery: battery::read(Path::new(battery::SYSFS)),
             unread: 0,
             active_title: None,
+            workspace_count: 0,
+            link: None,
             workspace: 1,
             previous: 1,
             started: None,
@@ -149,11 +159,23 @@ fn namespace() -> String {
 
 fn update(panel: &mut Panel, message: Message) -> Task<Message> {
     match message {
-        Message::Workspace(n) if n != panel.workspace => {
-            panel.previous = panel.workspace;
-            panel.workspace = n;
-            panel.now = Instant::now();
-            panel.started = Some(panel.now);
+        // Pressing a button asks the compositor; the highlight moves when it says it switched.
+        Message::Workspace(n) => {
+            if let Some(link) = &panel.link {
+                let _ = link.send(Command::ActivateWorkspace(usize::from(n) - 1));
+            }
+        }
+        Message::LinkReady(link) => panel.link = Some(link),
+        Message::Compositor(Update::ActiveTitle(title)) => panel.active_title = title,
+        Message::Compositor(Update::Workspaces { count, active }) => {
+            panel.workspace_count = count;
+            let n = active as u8 + 1;
+            if n != panel.workspace {
+                panel.previous = panel.workspace;
+                panel.workspace = n;
+                panel.now = Instant::now();
+                panel.started = Some(panel.now);
+            }
         }
         Message::Frame(now) => {
             panel.now = now;
@@ -163,8 +185,7 @@ fn update(panel: &mut Panel, message: Message) -> Task<Message> {
         }
         Message::Clock => panel.clock = clock::now(),
         Message::Battery => panel.battery = battery::read(Path::new(battery::SYSFS)),
-        Message::ActiveTitle(title) => panel.active_title = title,
-        Message::Workspace(_) | Message::Launcher => {}
+        Message::Launcher => {}
         _ => unreachable!(),
     }
     Task::none()
@@ -179,16 +200,18 @@ fn minute_ticks() -> impl Stream<Item = Message> {
     })
 }
 
-/// Focused-window changes from the compositor.
-fn active_title_updates() -> impl Stream<Item = Message> {
+/// Everything the compositor tells us (window titles, workspaces), plus the handle for asking
+/// it to do things.
+fn compositor_updates() -> impl Stream<Item = Message> {
     iced::stream::channel(8, async |mut output| {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        toplevels::spawn(tx);
-        while let Some(title) = rx.recv().await {
-            let _ = output.send(Message::ActiveTitle(title)).await;
+        let commands = compositor_link::spawn(tx);
+        let _ = output.send(Message::LinkReady(commands)).await;
+        while let Some(update) = rx.recv().await {
+            let _ = output.send(Message::Compositor(update)).await;
         }
-        // The watcher stopped (no protocol, or the compositor went away); keep the stream open
-        // so iced does not restart it in a loop.
+        // The link stopped (no protocol, or the compositor went away); keep the stream open so
+        // iced does not restart it in a loop.
         std::future::pending::<()>().await;
     })
 }
@@ -202,7 +225,7 @@ fn subscription(panel: &Panel) -> Subscription<Message> {
     Subscription::batch([
         animation,
         Subscription::run(minute_ticks),
-        Subscription::run(active_title_updates),
+        Subscription::run(compositor_updates),
         // Charge changes slowly; looking twice a minute is plenty and costs nothing when there
         // is no battery.
         iced::time::every(Duration::from_secs(30)).map(|_| Message::Battery),
@@ -264,11 +287,15 @@ fn view(panel: &Panel) -> Element<'_, Message> {
                 ..button::Style::default()
             });
 
-    let workspaces = row((1..=4).map(|n| workspace_button(panel, n))).spacing(2);
-    let mut left = row![launcher, workspaces]
+    let mut left = row![launcher]
         .spacing(12)
         .align_y(Alignment::Center)
         .width(Length::Fill);
+    // No workspaces from the compositor means nothing for the buttons to switch, so no buttons.
+    if panel.workspace_count > 0 {
+        let buttons = (1..=panel.workspace_count as u8).map(|n| workspace_button(panel, n));
+        left = left.push(row(buttons).spacing(2));
+    }
     if let Some(title) = &panel.active_title {
         left = left.push(
             text(title.as_str())

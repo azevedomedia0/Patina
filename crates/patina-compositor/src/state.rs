@@ -74,6 +74,10 @@ pub struct Patina {
     /// Shader that rounds window content corners; `None` if it failed to compile.
     pub clip_program: Option<smithay::backend::renderer::gles::GlesTexProgram>,
     pub toplevel_info: crate::toplevel_info::ToplevelInfoState,
+    pub workspace_protocol: crate::workspaces::WorkspaceProtocol,
+    pub active_workspace: usize,
+    /// Windows of the workspaces that are not active, with where they were, bottom to top.
+    pub stashed: Vec<Vec<(Window, smithay::utils::Point<i32, smithay::utils::Logical>)>>,
     pub drag: Option<crate::wm::Drag>,
     /// A press was consumed by a window frame; its release must be swallowed too.
     pub frame_press: bool,
@@ -151,6 +155,9 @@ impl Patina {
             rasterizer: patina_frame::Rasterizer::new(),
             clip_program: None,
             toplevel_info: crate::toplevel_info::ToplevelInfoState::new(&dh),
+            workspace_protocol: crate::workspaces::WorkspaceProtocol::new(&dh),
+            active_workspace: 0,
+            stashed: vec![Vec::new(); crate::workspaces::COUNT],
             drag: None,
             frame_press: false,
             minimized: Vec::new(),
@@ -410,6 +417,7 @@ impl XdgShellHandler for Patina {
     fn reposition_request(&mut self, _: PopupSurface, _: PositionerState, _: u32) {}
 
     fn toplevel_destroyed(&mut self, surface: ToplevelSurface) {
+        self.forget_window(surface.wl_surface());
         // Focus falls back to the top-most remaining window. The destroyed one may still be
         // mapped at this point, so skip it.
         let top = self

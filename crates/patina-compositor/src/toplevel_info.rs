@@ -240,12 +240,17 @@ impl Patina {
         self.space
             .elements()
             .chain(self.minimized.iter().map(|(w, _)| w))
+            .chain(self.stashed.iter().flatten().map(|(w, _)| w))
             .find(|w| w.toplevel().is_some_and(|t| t.wl_surface() == surface))
             .cloned()
     }
 
     /// Brings a window to the front and focuses it, restoring it first if it was minimised.
     pub fn activate_window(&mut self, window: &Window) {
+        // A window on another workspace brings its workspace along.
+        if let Some(ws) = self.window_workspace(window) {
+            self.switch_workspace(ws);
+        }
         if let Some(i) = self.minimized.iter().position(|(w, _)| w == window) {
             let (w, loc) = self.minimized.remove(i);
             self.space.map_element(w, loc, true);
@@ -274,7 +279,8 @@ impl Patina {
             .space
             .elements()
             .map(|w| (w, false))
-            .chain(self.minimized.iter().map(|(w, _)| (w, true)));
+            .chain(self.minimized.iter().map(|(w, _)| (w, true)))
+            .chain(self.stashed.iter().flatten().map(|(w, _)| (w, false)));
         for (window, minimized) in windows {
             let Some(toplevel) = window.toplevel() else {
                 continue;

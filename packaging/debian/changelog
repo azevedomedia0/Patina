@@ -1,6 +1,8 @@
 patina-desktop (0.1.0) unstable; urgency=medium
 
   * First packaging of the compositor and top panel.
+  * The panel shows the real time, battery (when present), focused window title and
+    workspaces; the compositor has four workspaces.
   * Cursors other than the default arrow (text, resize and so on) come from the system
     XCursor theme, so a cursor theme is recommended.
   * Builds with a pinned rustup toolchain (packaging/RUST_VERSION) because the
