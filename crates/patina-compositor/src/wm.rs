@@ -36,6 +36,9 @@ pub struct WinState {
     pub hover: Option<Control>,
     /// Cached titlebar texture and the description it was drawn from.
     pub bar: Option<(TitleBar, MemoryRenderBuffer)>,
+    /// Cached shadow texture: (frame width, frame height, active) it was drawn for, the
+    /// texture, and its padding around the window.
+    pub shadow: Option<((i32, i32, bool), MemoryRenderBuffer, i32)>,
 }
 
 /// Whether the initial configure has gone out. Until the client's first commit, configures

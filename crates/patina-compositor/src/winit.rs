@@ -21,6 +21,14 @@ pub fn init(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (mut backend, winit_source) = winit::init::<GlesRenderer>()?;
 
+    state.clip_program = match crate::clip::compile(backend.renderer()) {
+        Ok(program) => Some(program),
+        Err(e) => {
+            tracing::warn!(error = %e, "corner clipping disabled");
+            None
+        }
+    };
+
     let mode = Mode {
         size: backend.window_size(),
         refresh: 60_000,

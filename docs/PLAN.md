@@ -31,7 +31,8 @@ Milestone 1 (nested compositor), working in the QEMU VM (`docs/spike/window-fram
 - xdg-shell windows with compositor-drawn 38 px titlebars (xdg-decoration forces server-side), layer-shell, viewporter.
 - Move by titlebar, resize by the bottom-right grip, maximise (control or double-click titlebar), minimise (Alt+M restores until the dock exists), close, click-to-raise and focus, hover on controls, inactive windows dimmed to 92%.
 - Titlebar drawing and hit-testing live in `patina-frame` (no Wayland dependency, tested on macOS).
-Known gaps in M1: client corners are not clipped to the 20 px radius, no window shadow, no blur behind panel or windows, no popups or menus, windows are not re-clamped when the panel appears late, no HiDPI, no animations, windows are placed by a simple cascade, and the DRM/KMS backend (Milestone 2) is not started.
+Also: window content is clipped to the 20 px bottom corners by a GLES shader (`clip.frag`), and each window has the design's shadow and 1 px outline (`patina-frame::shadow`, `docs/spike/window-shadow-corners.png`).
+Known gaps in M1: no blur behind panel or windows, no popups or menus, windows are not re-clamped when the panel appears late, no HiDPI, no animations, windows are placed by a simple cascade, and the DRM/KMS backend (Milestone 2) is not started.
 Decision made without sign-off: the compositor draws every titlebar, including for our own apps (consistent look, and blur only works compositor-side). Revisit if you want apps to draw their own.
 Open: pin Rust version, verify Mint image names, Fedora spec, GPU testing.
 

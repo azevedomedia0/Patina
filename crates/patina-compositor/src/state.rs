@@ -52,6 +52,8 @@ use smithay::{
 pub struct Patina {
     pub start_time: Instant,
     pub rasterizer: patina_frame::Rasterizer,
+    /// Shader that rounds window content corners; `None` if it failed to compile.
+    pub clip_program: Option<smithay::backend::renderer::gles::GlesTexProgram>,
     pub drag: Option<crate::wm::Drag>,
     /// A press was consumed by a window frame; its release must be swallowed too.
     pub frame_press: bool,
@@ -115,6 +117,7 @@ impl Patina {
         Self {
             start_time: Instant::now(),
             rasterizer: patina_frame::Rasterizer::new(),
+            clip_program: None,
             drag: None,
             frame_press: false,
             minimized: Vec::new(),

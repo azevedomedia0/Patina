@@ -11,36 +11,47 @@ use smithay::{
                 AsRenderElements, Kind,
             },
             gles::GlesRenderer,
-            ImportAll, ImportMem,
         },
     },
     desktop::{layer_map_for_output, Window},
     output::Output,
-    utils::{Physical, Point, Scale, Transform},
+    utils::{Physical, Point, Rectangle, Scale, Size, Transform},
     wayland::shell::wlr_layer::Layer,
 };
 
-use crate::{state::Patina, wm::win_state};
-use patina_frame::TITLEBAR_H;
+use crate::{clip::ClippedSurface, state::Patina, wm::win_state};
+use patina_frame::{shadow, TITLEBAR_H};
 
 render_elements! {
-    pub PatinaElement<R> where R: ImportAll + ImportMem;
-    Surface = WaylandSurfaceRenderElement<R>,
-    Bar = MemoryRenderBufferRenderElement<R>,
+    pub PatinaElement<=GlesRenderer>;
+    Surface = WaylandSurfaceRenderElement<GlesRenderer>,
+    Clipped = ClippedSurface,
+    Image = MemoryRenderBufferRenderElement<GlesRenderer>,
 }
 
 /// Inactive windows are drawn slightly translucent (`opacity: .92` in the design).
 const INACTIVE_ALPHA: f32 = 0.92;
 
+fn upload(bgra: &[u8], width: i32, height: i32) -> MemoryRenderBuffer {
+    MemoryRenderBuffer::from_slice(
+        bgra,
+        Fourcc::Argb8888,
+        (width, height),
+        1,
+        Transform::Normal,
+        None,
+    )
+}
+
 pub fn elements(
     state: &mut Patina,
     renderer: &mut GlesRenderer,
     output: &Output,
-) -> Vec<PatinaElement<GlesRenderer>> {
+) -> Vec<PatinaElement> {
     let scale = Scale::from(output.current_scale().fractional_scale());
-    let mut out: Vec<PatinaElement<GlesRenderer>> = Vec::new();
+    let mut out: Vec<PatinaElement> = Vec::new();
 
-    // Layers above windows (overlay, top), top-most first.
+    // Layers, top-most first.
     let layers: Vec<_> = {
         let map = layer_map_for_output(output);
         map.layers()
@@ -71,7 +82,7 @@ pub fn elements(
         matches!(l, Layer::Overlay | Layer::Top)
     }));
 
-    // Windows, top-most first, each with its titlebar.
+    // Windows, top-most first: surfaces, then titlebar, then shadow underneath.
     let windows: Vec<Window> = state.space.elements().rev().cloned().collect();
     for window in windows {
         let Some(geo) = state.client_rect(&window) else {
@@ -79,41 +90,53 @@ pub fn elements(
         };
         let bar = state.title_bar_for(&window, geo.size.w);
         let alpha = if bar.active { 1.0 } else { INACTIVE_ALPHA };
+        let maximized = bar.maximized;
 
+        // Client surfaces, with the bottom corners rounded unless the window fills the screen.
         let origin =
             state.space.element_location(&window).unwrap_or_default() - window.geometry().loc;
-        out.extend(
-            window
-                .render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
-                    renderer,
-                    origin.to_physical_precise_round(scale),
-                    scale,
-                    alpha,
-                )
-                .into_iter()
-                .map(PatinaElement::Surface),
+        let content = Rectangle::<i32, Physical>::new(
+            Point::from((geo.loc.x, geo.loc.y))
+                .to_f64()
+                .to_physical(scale)
+                .to_i32_round(),
+            Size::from((geo.size.w, geo.size.h))
+                .to_f64()
+                .to_physical(scale)
+                .to_i32_round(),
         );
+        let radius = patina_frame::geometry::RADIUS * scale.x as f32;
+        for el in window.render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
+            renderer,
+            origin.to_physical_precise_round(scale),
+            scale,
+            alpha,
+        ) {
+            match (&state.clip_program, maximized) {
+                (Some(program), false) => out.push(PatinaElement::Clipped(ClippedSurface::new(
+                    el,
+                    program.clone(),
+                    content,
+                    radius,
+                    scale,
+                ))),
+                _ => out.push(PatinaElement::Surface(el)),
+            }
+        }
 
+        // Titlebar texture, redrawn only when what it shows changes.
         let cell = win_state(&window);
-        let stale = cell
+        if cell
             .borrow()
             .bar
             .as_ref()
-            .is_none_or(|(key, _)| *key != bar);
-        if stale {
+            .is_none_or(|(key, _)| *key != bar)
+        {
             let bitmap = state.rasterizer.draw(&bar);
-            let buffer = MemoryRenderBuffer::from_slice(
-                &bitmap.bgra,
-                Fourcc::Argb8888,
-                (bitmap.width, bitmap.height),
-                1,
-                Transform::Normal,
-                None,
-            );
-            cell.borrow_mut().bar = Some((bar, buffer));
+            let buffer = upload(&bitmap.bgra, bitmap.width, bitmap.height);
+            cell.borrow_mut().bar = Some((bar.clone(), buffer));
         }
-        let st = cell.borrow();
-        if let Some((_, buffer)) = st.bar.as_ref() {
+        if let Some((_, buffer)) = cell.borrow().bar.as_ref() {
             let at: Point<f64, Physical> = Point::from((
                 geo.loc.x as f64 * scale.x,
                 (geo.loc.y - TITLEBAR_H) as f64 * scale.y,
@@ -127,7 +150,40 @@ pub fn elements(
                 None,
                 Kind::Unspecified,
             ) {
-                out.push(PatinaElement::Bar(el));
+                out.push(PatinaElement::Image(el));
+            }
+        }
+
+        // Shadow and outline, redrawn when the frame size or activity changes.
+        if !maximized {
+            let (fw, fh) = (geo.size.w, geo.size.h + TITLEBAR_H);
+            let key = (fw, fh, bar.active);
+            if cell
+                .borrow()
+                .shadow
+                .as_ref()
+                .is_none_or(|(k, _, _)| *k != key)
+            {
+                let s = shadow::render(fw, fh, bar.active);
+                let buffer = upload(&s.bitmap.bgra, s.bitmap.width, s.bitmap.height);
+                cell.borrow_mut().shadow = Some((key, buffer, s.pad));
+            }
+            if let Some((_, buffer, pad)) = cell.borrow().shadow.as_ref() {
+                let at: Point<f64, Physical> = Point::from((
+                    (geo.loc.x - pad) as f64 * scale.x,
+                    (geo.loc.y - TITLEBAR_H - pad) as f64 * scale.y,
+                ));
+                if let Ok(el) = MemoryRenderBufferRenderElement::from_buffer(
+                    renderer,
+                    at,
+                    buffer,
+                    Some(alpha),
+                    None,
+                    None,
+                    Kind::Unspecified,
+                ) {
+                    out.push(PatinaElement::Image(el));
+                }
             }
         }
     }

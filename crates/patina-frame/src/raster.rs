@@ -75,20 +75,6 @@ impl Rasterizer {
                 None,
             );
         }
-        if let Some(edge) = top_rounded(0.5, 0.5, w as f32 - 1.0, h as f32 - 0.5, radius, false) {
-            let stroke = Stroke {
-                width: 1.0,
-                ..Stroke::default()
-            };
-            pm.stroke_path(
-                &edge,
-                &paint(Color::from_rgba8(255, 255, 255, 15)),
-                &stroke,
-                Transform::identity(),
-                None,
-            );
-        }
-
         // Controls.
         for c in [Control::Minimize, Control::Maximize, Control::Close] {
             let r = control_rect(w, c);
