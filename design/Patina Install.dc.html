@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/colors.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/typography.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/theme-light.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/base.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/styles.css">
+<script src="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/_ds_bundle.js"></script>
+<style>html,body{margin:0}a{color:var(--accent-text)}a:hover{color:var(--tide-200)}</style>
+</helmet>
+<div style="min-height:100vh;background:var(--wallpaper);font-family:var(--font-sans);color:var(--text-primary);display:flex;justify-content:center;padding:48px 20px;box-sizing:border-box">
+<div style="width:100%;max-width:720px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:32px;font-weight:700;letter-spacing:-.01em">Install Patina</span><span style="font-size:13px;color:var(--text-secondary)">Packages for Debian, Linux Mint and Arch Linux. x86_64 and aarch64.</span></div>
+<div style="display:flex;gap:2px;padding:2px;border-radius:999px;background:var(--field-bg);align-self:flex-start">
+<sc-for list="{{ distros }}" as="d" hint-placeholder-count="3"><button onClick="{{ d.pick }}" style="height:30px;padding:0 18px;border:0;border-radius:999px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;background:{{ d.bg }};color:{{ d.fg }}">{{ d.name }}</button></sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:var(--radius-xl);background:var(--surface-window);backdrop-filter:var(--blur-glass);-webkit-backdrop-filter:var(--blur-glass);box-shadow:var(--shadow-popover)">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)">Supported</span>
+<span style="font-size:15px;font-weight:600">{{ versions }}</span>
+<span style="font-size:12px;color:var(--text-secondary)">{{ note }}</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)">Build and install</span>
+<sc-for list="{{ steps }}" as="st" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius-lg);background:var(--inset)">
+<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);width:16px">{{ st.n }}</span>
+<span style="flex:1;min-width:0;font-family:var(--font-mono);font-size:12px;word-break:break-all">{{ st.cmd }}</span>
+<button onClick="{{ st.copy }}" aria-label="Copy command" title="Copy" style="flex:none;height:26px;padding:0 12px;border:0;border-radius:999px;background:var(--surface-card);color:var(--text-secondary);font-family:var(--font-sans);font-size:11px;font-weight:600;cursor:pointer" style-hover="color:var(--text-primary)">{{ st.label }}</button>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:var(--radius-lg);background:var(--inset)">
+<span style="font-size:13px;font-weight:600">After installing</span>
+<span style="font-size:12px;color:var(--text-secondary)">Log out and choose Patina from the session menu on your login screen. Packaging files are in the packaging folder.</span>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { d: 'Debian', copied: -1 };
+  D = {
+    Debian: ['Debian 12 (Bookworm) and newer', 'Uses packaging/debian. Needs Rust 1.75 or newer, so on Bookworm enable backports or install rustup first.', ['sudo apt install build-essential debhelper devscripts cargo pkg-config libwayland-dev libxkbcommon-dev libinput-dev libgbm-dev libseat-dev libudev-dev libegl1-mesa-dev', 'git clone https://github.com/azevedomedia0/Patina && cd Patina', 'ln -s packaging/debian debian && dpkg-buildpackage -us -uc -b', 'sudo apt install ../patina-desktop_0.4.0-1_*.deb']],
+    'Linux Mint': ['Linux Mint 21 and newer, LMDE 6', 'Mint is built on Ubuntu and Debian, so the same .deb package applies. Mint stays on Cinnamon until you pick the Patina session at login.', ['sudo apt install build-essential debhelper devscripts cargo pkg-config libwayland-dev libxkbcommon-dev libinput-dev libgbm-dev libseat-dev libudev-dev libegl1-mesa-dev', 'git clone https://github.com/azevedomedia0/Patina && cd Patina', 'ln -s packaging/debian debian && dpkg-buildpackage -us -uc -b', 'sudo apt install ../patina-desktop_0.4.0-1_*.deb']],
+    'Arch Linux': ['Arch Linux and derivatives', 'Uses packaging/arch/PKGBUILD. Fonts and runtime services come in as dependencies.', ['sudo pacman -S --needed base-devel git', 'git clone https://github.com/azevedomedia0/Patina && cd Patina/packaging/arch', 'makepkg -si', 'sudo systemctl enable --now seatd NetworkManager bluetooth']]
+  };
+  renderVals() {
+    const s = this.state, [versions, note, cmds] = this.D[s.d];
+    return {
+      distros: Object.keys(this.D).map(n => ({ name: n, bg: n === s.d ? 'var(--surface-active)' : 'transparent', fg: n === s.d ? 'var(--accent-text)' : 'var(--text-secondary)', pick: () => this.setState({ d: n, copied: -1 }) })),
+      versions, note,
+      steps: cmds.map((cmd, i) => ({ n: i + 1, cmd, label: s.copied === i ? 'Copied' : 'Copy', copy: () => { navigator.clipboard && navigator.clipboard.writeText(cmd).catch(() => {}); this.setState({ copied: i }); } }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+:root{
+--ink-950:#0d1016;--ink-900:#12161e;--ink-850:#1a1f29;--ink-800:#222834;--ink-700:#2e3544;--ink-600:#434c5e;--ink-500:#6b7588;--ink-400:#98a1b3;--ink-300:#c4c4c4;--ink-200:#e0e0e0;--ink-100:#f1f3f6;--ink-50:#fafbfc;
+--tide-600:#2563c4;--tide-500:#2f7de1;--tide-400:#5f9ee8;--tide-300:#8db9f4;--tide-200:#a8cbfb;--tide-100:#c8dcfa;--tide-50:#e6effd;
+--cloud:#ffffff;
+--success:#3ecf8e;--warning:#f0b429;--danger:#ef5b5b;
+--bg-desktop:var(--ink-950);--surface-window:rgba(26,31,41,.78);--surface-panel:rgba(18,22,30,.72);--surface-card:var(--ink-800);--surface-raised:var(--ink-700);--surface-hover:rgba(255,255,255,.06);--surface-active:rgba(47,125,225,.2);
+--border-subtle:rgba(255,255,255,.07);--border-default:rgba(255,255,255,.12);--border-strong:rgba(255,255,255,.2);
+--text-primary:#f1f3f6;--text-secondary:var(--ink-400);--text-muted:var(--ink-500);--text-on-accent:#fff;--accent:var(--tide-500);--accent-hover:var(--tide-400);--accent-press:var(--tide-600);--accent-text:var(--tide-300);--focus-ring:rgba(95,158,232,.55);
+--field-bg:rgba(0,0,0,.28);--inset:rgba(0,0,0,.22);--track:var(--ink-600);--folder:var(--tide-400);--wallpaper:radial-gradient(ellipse at 75% 15%,#2f5fa8 0%,transparent 55%),radial-gradient(ellipse at 15% 90%,#1d3a66 0%,transparent 50%),var(--ink-950);/* @kind other */
+}

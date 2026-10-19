@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Patina
+Comment=Patina Desktop on IronTide OS
+Exec=patina-session
+TryExec=patina-session
+Type=Application
+DesktopNames=Patina

@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --release --locked
+
+override_dh_auto_install:
+	for b in patina-compositor patina-panel patina-launcher; do \
+	  install -Dm755 target/release/$$b debian/patina-desktop/usr/bin/$$b; \
+	done
+	install -Dm755 packaging/common/patina-session debian/patina-desktop/usr/bin/patina-session
+	install -Dm644 packaging/common/patina.desktop debian/patina-desktop/usr/share/wayland-sessions/patina.desktop
+
+override_dh_auto_test:

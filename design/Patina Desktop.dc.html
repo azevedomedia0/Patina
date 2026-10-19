@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/colors.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/typography.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/theme-light.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/base.css">
+<link rel="stylesheet" href="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/styles.css">
+<script src="_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/_ds_bundle.js"></script>
+<style>html,body{margin:0;height:100%;overflow:hidden}a{color:var(--accent-text)}a:hover{color:var(--tide-200)}*:not([style*="resize"]){cursor:url(uploads/cursor.png) 8 6,auto!important;cursor:image-set(url(uploads/cursor.png) 2.5x) 4 3,auto!important}</style>
+</helmet>
+<div style="position:relative;height:100vh;overflow:hidden;display:flex;flex-direction:column;background:var(--wallpaper);font-family:var(--font-sans);color:var(--text-primary)">
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.TopPanel" launcher="icon" workspace="{{ ws }}" onWorkspace="{{ setWs }}" onLauncher="{{ toggleLauncher }}" unread="{{ badgeCount }}" clock="{{ clockText }}" activeTitle="{{ actTitle }}" activeIcon="{{ actIcon }}" hint-size="100%,36px"></x-import>
+<div onMouseMove="{{ eyeMove }}" onClick="{{ closeMenu }}" onContextMenu="{{ ctxDesktop }}" style="flex:1;position:relative">
+<div onMouseEnter="{{ dockIn }}" onMouseLeave="{{ dockOut }}" onContextMenu="{{ ctxDock }}" style="position:absolute;left:{{ dockLeft }};right:{{ dockRight }};top:50%;transform:translateY(-50%) translateX({{ dockShift }}px);transition:transform .18s cubic-bezier(.2,.8,.2,1);z-index:5">
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Dock" apps="{{ dockApps }}" activeId="{{ activeApp }}" onSelect="{{ dockSelect }}" hint-size="60px,180px"></x-import>
+</div>
+
+<sc-if value="{{ sysShow }}" hint-placeholder-val="{{ true }}">
+<div onMouseDown="{{ raiseSys }}" onContextMenu="{{ stop }}" style="position:absolute;left:{{ sx }}px;top:{{ sy }}px;width:{{ sw }}px;height:{{ sh }}px;z-index:{{ zSys }};border-radius:var(--radius-xl);background:color-mix(in srgb,var(--ink-900) 60%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.WindowFrame" title="{{ tSys }}" icon="assets/monitor.png" width="{{ sw }}" height="{{ sh }}" onClose="{{ closeSys }}" active="{{ sysActive }}" hint-size="820px,470px"><div style="flex:1;display:flex;min-width:0;min-height:0;direction:{{ dir }}">
+<div style="width:176px;flex:none;padding:4px 6px;display:flex;flex-direction:column;gap:2px;white-space:nowrap;overflow-y:auto;min-height:0"><sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.SidebarItem" icon="{{ t.icon }}" label="{{ t.label }}" active="{{ t.active }}" onClick="{{ t.go }}" hint-size="100%,32px"></x-import></sc-for></div>
+<sc-if value="{{ isMonitor }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;margin:0 6px 6px;padding:8px;border-radius:14px;background:var(--inset);overflow:hidden;min-width:0">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px;font-weight:700">Raspberry Pi 4</span>
+<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)">aarch64 · 64-bit · V3D driver</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px">
+<span style="font-size:12px;color:var(--text-secondary)">Low-spec mode</span>
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Switch" checked="{{ lowSpec }}" onChange="{{ setLowSpec }}" hint-size="36px,20px"></x-import>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+<div style="padding:8px 10px;border-radius:10px;background:var(--surface-card);display:flex;flex-direction:column;gap:8px">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)">Memory</span>
+<div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:var(--font-mono);font-size:20px;font-weight:600">{{ ram }}</span><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)">/ 1024 MiB</span></div>
+<div style="height:4px;border-radius:999px;background:var(--track);overflow:hidden"><div style="height:100%;width:{{ ramPct }}%;background:var(--success);border-radius:999px"></div></div>
+</div>
+<div style="padding:8px 10px;border-radius:10px;background:var(--surface-card);display:flex;flex-direction:column;gap:8px">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)">CPU · 4 cores</span>
+<span style="font-family:var(--font-mono);font-size:20px;font-weight:600">{{ cpuAvg }}%</span>
+<div style="display:flex;gap:4px;align-items:flex-end;height:20px">
+<sc-for list="{{ cores }}" as="c" hint-placeholder-count="4"><div style="flex:1;height:{{ c }}%;min-height:3px;border-radius:3px;background:var(--accent-hover)"></div></sc-for>
+</div>
+</div>
+<div style="padding:8px 10px;border-radius:10px;background:var(--surface-card);display:flex;flex-direction:column;gap:8px">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)">Frame time</span>
+<div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:var(--font-mono);font-size:20px;font-weight:600">{{ frame }}</span><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)">ms / 16.6</span></div>
+<div style="height:4px;border-radius:999px;background:var(--track);overflow:hidden"><div style="height:100%;width:{{ framePct }}%;background:var(--accent);border-radius:999px"></div></div>
+</div>
+</div>
+<div style="padding:8px 10px;border-radius:10px;background:var(--surface-card);display:flex;flex-direction:column;gap:8px">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)">Idle memory by desktop</span>
+<sc-for list="{{ compare }}" as="d" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:10px;font-size:12px">
+<span style="color:{{ d.color }};font-weight:{{ d.weight }}">{{ d.name }}</span>
+<div style="height:4px;border-radius:999px;background:var(--track);overflow:hidden"><div style="height:100%;width:{{ d.pct }}%;background:{{ d.bar }};border-radius:999px"></div></div>
+<span style="font-family:var(--font-mono);font-size:11px;text-align:right;color:var(--text-secondary)">{{ d.mib }} MiB</span>
+</div>
+</sc-for>
+</div>
+<div style="flex:1;min-height:0;padding:4px 10px;border-radius:10px;background:var(--surface-card);display:flex;flex-direction:column;overflow:hidden">
+<div style="display:grid;grid-template-columns:60px 1fr 70px 80px 80px;padding:4px 0 6px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-subtle)"><span>PID</span><span>Process</span><span style="text-align:right">CPU</span><span style="text-align:right">Memory</span><span style="text-align:right">State</span></div>
+<sc-for list="{{ procs }}" as="p" hint-placeholder-count="5">
+<div style="display:grid;grid-template-columns:60px 1fr 70px 80px 80px;align-items:center;height:22px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)"><span>{{ p.pid }}</span><span style="color:var(--text-primary);font-weight:600">{{ p.name }}</span><span style="text-align:right">{{ p.cpu }}%</span><span style="text-align:right">{{ p.mem }} MB</span><span style="text-align:right;color:{{ p.stateColor }}">{{ p.state }}</span></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;margin:0 6px 6px 0;padding:8px;border-radius:12px;background:var(--inset);overflow:hidden;min-width:0">
+<span style="font-size:15px;font-weight:700;padding:4px 4px 0">{{ pageTitle }}</span>
+<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:0 2px 2px">
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:0 4px">{{ g.label }}</span>
+<div style="display:flex;flex-direction:column;border-radius:10px;background:var(--surface-card);overflow:hidden">
+<sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:48px;padding:6px 12px;border-top:{{ r.border }}">
+<div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;font-weight:600">{{ r.title }}</span><span style="font-size:11px;color:var(--text-secondary)">{{ r.desc }}</span></div>
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:none">
+<sc-if value="{{ r.isSwitch }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Switch" checked="{{ r.checked }}" onChange="{{ r.set }}" hint-size="36px,20px"></x-import></sc-if>
+<sc-if value="{{ r.hasSlider }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;opacity:{{ r.sDim }}"><div style="width:110px"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Slider" value="{{ r.sValue }}" min="40" max="100" onChange="{{ r.sSet }}" hint-size="100%,4px"></x-import></div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);width:36px;text-align:right">{{ r.sText }}</span></div></sc-if>
+<sc-if value="{{ r.isSlider }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);width:44px;text-align:right">{{ r.text }}</span><div style="width:150px"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Slider" value="{{ r.value }}" min="{{ r.min }}" max="{{ r.max }}" onChange="{{ r.set }}" hint-size="100%,4px"></x-import></div></sc-if>
+<sc-if value="{{ r.isSeg }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:2px;padding:2px;border-radius:999px;background:var(--field-bg)"><sc-for list="{{ r.segs }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.pick }}" style="height:24px;padding:0 12px;border:0;border-radius:999px;cursor:pointer;font:600 12px var(--font-sans);background:{{ o.bg }};color:{{ o.fg }}">{{ o.label }}</button></sc-for></div></sc-if>
+<sc-if value="{{ r.isColor }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:8px"><sc-for list="{{ r.swatches }}" as="w" hint-placeholder-count="5"><button onClick="{{ w.pick }}" aria-label="{{ w.c }}" style="width:20px;height:20px;padding:0;border:0;border-radius:50%;cursor:pointer;background:{{ w.c }};box-shadow:{{ w.ring }}"></button></sc-for><div style="position:relative;width:24px;height:24px;flex:none;border-radius:50%;background:conic-gradient(#ef5b5b,#f0b429,#3ecf8e,#2fb5d9,#2f7de1,#8b5cf6,#e0507a,#ef5b5b);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)"><input type="color" value="{{ r.cur }}" onChange="{{ r.custom }}" aria-label="Custom colour" title="Custom colour" style="position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;opacity:0;cursor:pointer"></div></div></sc-if>
+<sc-if value="{{ r.isInfo }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)">{{ r.text }}</span></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div></x-import>
+<div onPointerDown="{{ sysD.down }}" onPointerMove="{{ sysD.move }}" onPointerUp="{{ sysD.up }}" onDoubleClick="{{ sysD.dbl }}" style="position:absolute;left:0;top:0;right:96px;height:38px;z-index:6;cursor:grab;touch-action:none"></div>
+<button onClick="{{ sysC.min }}" aria-label="Minimise" style="position:absolute;right:64px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<button onClick="{{ sysC.max }}" aria-label="Maximise" style="position:absolute;right:36px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<div onPointerDown="{{ sys.down }}" onPointerMove="{{ sys.move }}" onPointerUp="{{ sys.up }}" style="position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;z-index:5;touch-action:none"></div>
+</div>
+
+</sc-if>
+<sc-if value="{{ filesShow }}" hint-placeholder-val="{{ true }}">
+<div onMouseDown="{{ raiseFiles }}" onContextMenu="{{ stop }}" style="position:absolute;left:{{ fx }}px;top:{{ fy }}px;width:{{ fw }}px;height:{{ fh }}px;z-index:{{ zFiles }};border-radius:var(--radius-xl);background:color-mix(in srgb,var(--ink-900) 60%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.WindowFrame" title="File Bin" icon="assets/files.png" width="{{ fw }}" height="{{ fh }}" onClose="{{ closeFiles }}" active="{{ filesActive }}" hint-size="540px,300px"><div style="flex:1;display:flex;min-width:0;min-height:0;direction:{{ dir }}">
+<div style="width:140px;flex:none;padding:4px 6px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;min-height:0">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px">{{ hPlaces }}</span>
+<sc-for list="{{ places }}" as="p" hint-placeholder-count="4"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.SidebarItem" icon="{{ p.icon }}" label="{{ p.label }}" active="{{ p.active }}" onClick="{{ p.go }}" hint-size="100%,32px"></x-import></sc-for>
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:12px 10px 4px">{{ hDevices }}</span>
+<sc-if value="{{ hasStorage }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:2px"><div style="flex:1;min-width:0"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.SidebarItem" icon="hard-drive" label="Storage" hint-size="100%,32px"></x-import></div><button onClick="{{ eject }}" aria-label="Eject" title="Eject" style="flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="eject" size="15" hint-size="15px,15px"></x-import></button></div></sc-if>
+<sc-if value="{{ noStorage }}" hint-placeholder-val="{{ false }}"><span style="padding:6px 10px;font-size:12px;color:var(--text-muted)">No devices</span></sc-if>
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:12px 10px 4px">{{ hNet }}</span>
+<sc-for list="{{ netPlaces }}" as="p" hint-placeholder-count="2"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.SidebarItem" icon="{{ p.icon }}" label="{{ p.label }}" active="{{ p.active }}" onClick="{{ p.go }}" hint-size="100%,32px"></x-import></sc-for>
+<div style="margin-top:auto;flex:none;padding:8px 10px;display:{{ storageBar }};flex-direction:column;gap:6px"><div style="height:4px;border-radius:999px;background:var(--track);overflow:hidden"><div style="width:42%;height:100%;background:var(--accent);border-radius:999px"></div></div><span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">13.4 GB of 32 GB used</span></div>
+</div>
+<div style="flex:1;margin:0 6px 6px 0;border-radius:12px;background:var(--inset);display:flex;flex-direction:column;min-width:0;overflow:hidden">
+<div style="display:flex;align-items:center;gap:8px;padding:8px">
+<button onClick="{{ goUp }}" aria-label="Up" style="width:28px;height:28px;border:0;border-radius:50%;background:var(--field-bg);color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="arrow-up" size="15" hint-size="15px,15px"></x-import></button>
+<div style="flex:1;min-width:0;height:28px;display:flex;align-items:center;padding:0 12px;border-radius:999px;background:var(--field-bg);font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden">{{ pathText }}</div>
+<div style="width:120px;height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;border-radius:999px;background:var(--field-bg);color:var(--text-muted)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="search" size="14" hint-size="14px,14px"></x-import><input value="{{ q }}" onChange="{{ setQ }}" placeholder="Search" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text-primary);font:500 12px var(--font-sans)"></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 70px 56px;gap:8px;padding:4px 18px 6px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)"><span>Name</span><span>Modified</span><span style="text-align:right">Size</span></div>
+<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:0 8px">
+<sc-for list="{{ files }}" as="f" hint-placeholder-count="5">
+<div onClick="{{ f.select }}" onDoubleClick="{{ f.open }}" onContextMenu="{{ f.ctx }}" style="display:grid;grid-template-columns:1fr 70px 56px;gap:8px;align-items:center;height:32px;padding:0 10px;border-radius:10px;cursor:default;background:{{ f.bg }}" style-hover="background:var(--surface-hover)">
+<div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="display:inline-flex;color:{{ f.color }}"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ f.icon }}" size="17" hint-size="17px,17px"></x-import></span><span style="font-size:13px;font-weight:{{ f.weight }};color:{{ f.nameColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.name }}</span></div>
+<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">{{ f.mod }}</span>
+<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-align:right">{{ f.size }}</span>
+</div>
+</sc-for>
+<sc-if value="{{ noFiles }}" hint-placeholder-val="{{ false }}"><span style="padding:32px;text-align:center;font-size:13px;color:var(--text-muted)">Nothing here</span></sc-if>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 18px;border-top:1px solid var(--border-subtle);font-size:11px;color:var(--text-muted)"><span>{{ statusLeft }}</span><span style="font-family:var(--font-mono)">{{ statusRight }}</span></div>
+</div>
+<sc-if value="{{ true }}" hint-placeholder-val="{{ true }}">
+<div onPointerDown="{{ pvGrip.down }}" onPointerMove="{{ pvGrip.move }}" onPointerUp="{{ pvGrip.up }}" aria-label="Resize panel" style="width:8px;flex:none;margin:0 -2px 6px 0;cursor:ew-resize;touch-action:none;display:flex;align-items:center;justify-content:center;z-index:2"><div style="width:2px;height:28px;border-radius:2px;background:var(--border-subtle)"></div></div>
+<div style="width:{{ pvW }}px;flex:none;margin:0 6px 6px 0;padding:10px;border-radius:12px;background:var(--inset);display:flex;flex-direction:column;gap:10px;overflow-y:auto">
+<div style="height:116px;flex:none;border-radius:10px;background:var(--surface-card);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">
+<sc-if value="{{ pv.isText }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;padding:8px 10px;width:100%;box-sizing:border-box;align-self:flex-start;font-family:var(--font-mono);font-size:10px;line-height:1.5;color:var(--text-secondary);white-space:pre-wrap;overflow:hidden">{{ pv.text }}</pre></sc-if>
+<sc-if value="{{ pv.isIcon }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:{{ pv.color }}"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ pv.icon }}" size="36" hint-size="36px,36px"></x-import><span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);display:{{ pv.cap }}">{{ pv.capText }}</span></div></sc-if>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:13px;font-weight:600;word-break:break-all">{{ pv.name }}</span><span style="font-size:11px;color:var(--text-secondary)">{{ pv.kind }}</span></div>
+<div style="display:flex;flex-direction:column;border-top:1px solid var(--border-subtle)">
+<sc-for list="{{ pv.rows }}" as="d" hint-placeholder-count="4">
+<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-subtle);font-size:11px"><span style="color:var(--text-muted)">{{ d.k }}</span><span style="font-family:var(--font-mono);color:var(--text-secondary);text-align:right;min-width:0;word-break:break-all">{{ d.v }}</span></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div></x-import>
+<div onPointerDown="{{ filD.down }}" onPointerMove="{{ filD.move }}" onPointerUp="{{ filD.up }}" onDoubleClick="{{ filD.dbl }}" style="position:absolute;left:0;top:0;right:96px;height:38px;z-index:6;cursor:grab;touch-action:none"></div>
+<button onClick="{{ filC.min }}" aria-label="Minimise" style="position:absolute;right:64px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<button onClick="{{ filC.max }}" aria-label="Maximise" style="position:absolute;right:36px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<div onPointerDown="{{ fil.down }}" onPointerMove="{{ fil.move }}" onPointerUp="{{ fil.up }}" style="position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;z-index:5;touch-action:none"></div>
+</div>
+
+</sc-if>
+<sc-if value="{{ termShow }}" hint-placeholder-val="{{ false }}">
+<div onMouseDown="{{ raiseTerm }}" onContextMenu="{{ stop }}" style="position:absolute;left:{{ tx }}px;top:{{ ty }}px;width:{{ tw }}px;height:{{ th }}px;z-index:{{ zTerm }};border-radius:var(--radius-xl);background:color-mix(in srgb,var(--ink-900) 60%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.WindowFrame" title="{{ termTitle }}" icon="assets/terminal.png" width="{{ tw }}" height="{{ th }}" onClose="{{ closeTerm }}" active="{{ termActive }}" hint-size="640px,380px">
+<div style="flex:1;margin:0 6px 6px;min-width:0;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:2px;min-width:0">
+<div style="flex:1;display:flex;gap:4px;min-width:0;overflow:hidden">
+<sc-for list="{{ tTabs }}" as="tb" hint-placeholder-count="1"><div onClick="{{ tb.go }}" style="display:flex;align-items:center;gap:4px;height:28px;padding:0 4px 0 12px;border-radius:999px;max-width:170px;min-width:0;cursor:pointer;background:{{ tb.bg }};color:{{ tb.fg }};font-family:var(--font-mono);font-size:11px" style-hover="background:var(--surface-hover)"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ tb.title }}</span><button onClick="{{ tb.close }}" aria-label="Close tab" style="flex:none;width:20px;height:20px;border:0;border-radius:50%;background:transparent;color:inherit;display:{{ tb.closeDisp }};place-items:center;cursor:pointer" style-hover="background:var(--surface-hover)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="x" size="12" hint-size="12px,12px"></x-import></button></div></sc-for>
+</div>
+<button onClick="{{ newTab }}" aria-label="New tab" title="New tab" style="flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="plus" size="15" hint-size="15px,15px"></x-import></button><button onClick="{{ zoomOut }}" aria-label="Zoom out" title="Zoom out" style="flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="zoom-out" size="15" hint-size="15px,15px"></x-import></button><button onClick="{{ zoomIn }}" aria-label="Zoom in" title="Zoom in" style="flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="zoom-in" size="15" hint-size="15px,15px"></x-import></button><button onClick="{{ nextProf }}" aria-label="Next colour profile" title="Next colour profile" style="flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="palette" size="15" hint-size="15px,15px"></x-import></button>
+</div>
+<div ref="{{ setScroll }}" onClick="{{ focusInp }}" onContextMenu="{{ ctxTerm }}" style="flex:1;min-height:0;overflow-y:auto;border-radius:12px;padding:8px 10px;background:{{ tbg }};color:{{ tfg }};font-family:'JetBrains Mono',var(--font-mono);font-size:{{ tfs }}px;line-height:1.45;cursor:text">
+<sc-for list="{{ tLines }}" as="l" hint-placeholder-count="2"><div style="white-space:pre-wrap;word-break:break-all;min-height:1.45em"><sc-for list="{{ l.segs }}" as="g" hint-placeholder-count="1"><span style="color:{{ g.c }}">{{ g.t }}</span></sc-for></div></sc-for>
+<div style="display:flex;white-space:pre"><sc-for list="{{ tPrompt }}" as="g" hint-placeholder-count="3"><span style="color:{{ g.c }}">{{ g.t }}</span></sc-for><input ref="{{ setInpRef }}" value="{{ tInp }}" onChange="{{ setTInp }}" onKeyDown="{{ tKey }}" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Terminal input" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:inherit;font:inherit;padding:0;margin:0"></div>
+</div>
+</div>
+</x-import>
+<div onPointerDown="{{ termD.down }}" onPointerMove="{{ termD.move }}" onPointerUp="{{ termD.up }}" onDoubleClick="{{ termD.dbl }}" style="position:absolute;left:0;top:0;right:96px;height:38px;z-index:6;cursor:grab;touch-action:none"></div>
+<button onClick="{{ termC.min }}" aria-label="Minimise" style="position:absolute;right:64px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<button onClick="{{ termC.max }}" aria-label="Maximise" style="position:absolute;right:36px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<div onPointerDown="{{ term.down }}" onPointerMove="{{ term.move }}" onPointerUp="{{ term.up }}" style="position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;z-index:5;touch-action:none"></div>
+</div>
+</sc-if>
+<sc-if value="{{ xeShow }}" hint-placeholder-val="{{ false }}">
+<div onMouseDown="{{ raiseXe }}" onContextMenu="{{ stop }}" style="position:absolute;left:{{ xx }}px;top:{{ xy }}px;width:{{ xw }}px;height:{{ xh }}px;z-index:{{ zXe }};border-radius:var(--radius-xl);background:color-mix(in srgb,var(--ink-900) 60%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.WindowFrame" title="XEyes (X11)" icon="assets/xeyes.png" width="{{ xw }}" height="{{ xh }}" onClose="{{ closeXe }}" active="{{ xeActive }}" hint-size="300px,230px">
+<div style="flex:1;margin:0 6px 6px;min-width:0;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:var(--inset);color:var(--text-primary);font-family:var(--font-sans)">
+<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:10px">
+<div ref="{{ setE1 }}" style="width:84px;height:116px;border-radius:50%;background:var(--surface-raised);box-shadow:inset 0 0 0 2px var(--border-subtle);display:flex;align-items:center;justify-content:center;box-sizing:border-box"><div ref="{{ setP1 }}" style="width:28px;height:28px;border-radius:50%;background:var(--accent)"></div></div><div ref="{{ setE2 }}" style="width:84px;height:116px;border-radius:50%;background:var(--surface-raised);box-shadow:inset 0 0 0 2px var(--border-subtle);display:flex;align-items:center;justify-content:center;box-sizing:border-box"><div ref="{{ setP2 }}" style="width:28px;height:28px;border-radius:50%;background:var(--accent)"></div></div>
+</div>
+<div style="display:flex;gap:6px;justify-content:center"><button onClick="{{ xeShot }}" style="height:28px;padding:0 14px;border:0;border-radius:999px;background:var(--surface-card);color:var(--text-primary);font-family:var(--font-sans);font-size:12px;font-weight:600;cursor:pointer" style-hover="background:var(--surface-hover)">Capture screen</button><button onClick="{{ xeKeys }}" style="height:28px;padding:0 14px;border:0;border-radius:999px;background:var(--surface-card);color:var(--text-primary);font-family:var(--font-sans);font-size:12px;font-weight:600;cursor:pointer" style-hover="background:var(--surface-hover)">Grab keyboard</button></div>
+<span style="font-family:var(--font-mono);font-size:10px;text-align:center;min-height:13px;color:var(--text-muted)">{{ xeMsg }}</span>
+</div>
+</x-import>
+<div onPointerDown="{{ xeD.down }}" onPointerMove="{{ xeD.move }}" onPointerUp="{{ xeD.up }}" onDoubleClick="{{ xeD.dbl }}" style="position:absolute;left:0;top:0;right:96px;height:38px;z-index:6;cursor:grab;touch-action:none"></div>
+<button onClick="{{ xeC.min }}" aria-label="Minimise" style="position:absolute;right:64px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<button onClick="{{ xeC.max }}" aria-label="Maximise" style="position:absolute;right:36px;top:6px;width:26px;height:26px;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:6" style-hover="background:var(--surface-hover)"></button>
+<div onPointerDown="{{ xe.down }}" onPointerMove="{{ xe.move }}" onPointerUp="{{ xe.up }}" style="position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;z-index:5;touch-action:none"></div>
+</div>
+</sc-if>
+<sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ stop }}" onContextMenu="{{ stop }}" style="position:absolute;left:50%;margin-left:-170px;top:8px;z-index:100;width:340px;direction:{{ dir }};max-height:420px;padding:12px;border-radius:var(--radius-xl);background:var(--surface-window);backdrop-filter:var(--blur-glass);-webkit-backdrop-filter:var(--blur-glass);box-shadow:var(--shadow-popover);display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px"><span style="font-size:13px;font-weight:700">Notifications</span>
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Button" variant="ghost" size="sm" onClick="{{ clearNotifs }}" hint-size="auto,24px">Clear all</x-import></div>
+<div style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0">
+<sc-for list="{{ notifs }}" as="n" hint-placeholder-count="3">
+<div style="display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:var(--radius-lg);background:var(--surface-card)">
+<img src="{{ n.icon }}" alt="" style="width:32px;height:32px;border-radius:22%;flex:none">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<div style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:{{ n.dot }};flex:none"></span><span style="font-size:13px;font-weight:600">{{ n.title }}</span></div>
+<span style="font-size:12px;color:var(--text-secondary);text-wrap:pretty">{{ n.body }}</span>
+<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);padding-top:2px">{{ n.app }} · {{ n.time }}</span>
+</div>
+<button onClick="{{ n.dismiss }}" aria-label="Dismiss" style="flex:none;width:24px;height:24px;border:0;border-radius:50%;background:transparent;color:var(--text-muted);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="x" size="14" hint-size="14px,14px"></x-import></button>
+</div>
+</sc-for>
+<sc-if value="{{ noNotifs }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 0;color:var(--text-muted);font-size:13px"><span style="display:inline-flex"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="bell-off" size="20" hint-size="20px,20px"></x-import></span><span>No new notifications</span></div></sc-if>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px 0;border-top:1px solid var(--border-subtle)"><span style="font-size:12px;color:var(--text-secondary)">Do not disturb</span>
+<x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Switch" checked="{{ dnd }}" onChange="{{ setDnd }}" hint-size="36px,20px"></x-import></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ qsOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ stop }}" style="position:absolute;right:10px;top:8px;z-index:100;width:320px;direction:{{ dir }};padding:12px;border-radius:var(--radius-xl);background:var(--surface-window);backdrop-filter:var(--blur-glass);-webkit-backdrop-filter:var(--blur-glass);box-shadow:var(--shadow-popover);display:flex;flex-direction:column;gap:12px">
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+<sc-for list="{{ qsTiles }}" as="t" hint-placeholder-count="6">
+<div style="display:flex;align-items:stretch;height:52px;border-radius:var(--radius-lg);overflow:hidden;background:{{ t.bg }};color:{{ t.fg }}">
+<button onClick="{{ t.toggle }}" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 12px;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left;font-family:var(--font-sans)" style-hover="background:var(--surface-hover)"><span style="display:inline-flex;flex:none"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ t.icon }}" size="18" hint-size="18px,18px"></x-import></span><span style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;font-weight:600;white-space:nowrap">{{ t.label }}</span><span style="font-size:11px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.sub }}</span></span></button>
+<button onClick="{{ t.arrow }}" aria-label="Show devices" style="flex:none;width:30px;border:0;border-left:1px solid var(--border-subtle);background:transparent;color:inherit;display:{{ t.arrowDisp }};place-items:center;cursor:pointer" style-hover="background:var(--surface-hover)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ t.arrowIcon }}" size="14" hint-size="14px,14px"></x-import></button>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ subOpen }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:2px;padding:8px;border-radius:var(--radius-lg);background:var(--inset)">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 6px 6px"><span style="font-size:12px;font-weight:700">{{ subTitle }}</span><button onClick="{{ subSettings }}" style="border:0;background:transparent;color:var(--accent-text);font-family:var(--font-sans);font-size:11px;font-weight:600;cursor:pointer;padding:2px 6px;border-radius:999px" style-hover="background:var(--surface-hover)">Settings</button></div>
+<sc-if value="{{ subEmpty }}" hint-placeholder-val="{{ false }}"><span style="padding:8px 6px 10px;font-size:12px;color:var(--text-muted)">{{ subEmptyText }}</span></sc-if>
+<sc-for list="{{ subItems }}" as="it" hint-placeholder-count="3"><button onClick="{{ it.pick }}" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 8px;border:0;border-radius:var(--radius-md);background:{{ it.bg }};color:{{ it.fg }};cursor:pointer;text-align:left;font-family:var(--font-sans)" style-hover="filter:brightness(1.15)"><span style="display:inline-flex;flex:none"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ it.icon }}" size="16" hint-size="16px,16px"></x-import></span><span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.label }}</span><span style="font-size:10px;opacity:.7">{{ it.sub }}</span></span><span style="display:{{ it.checkDisp }};flex:none"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="check" size="14" hint-size="14px,14px"></x-import></span><span style="display:{{ it.lockDisp }};flex:none;color:var(--text-muted)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="lock" size="12" hint-size="12px,12px"></x-import></span></button></sc-for>
+</div></sc-if>
+<div style="display:flex;flex-direction:column;gap:10px;padding:10px 6px;border-radius:var(--radius-lg);background:var(--inset)">
+<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><span style="display:inline-flex;color:var(--text-secondary);width:18px"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="volume-2" size="16" hint-size="16px,16px"></x-import></span><div style="flex:1"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Slider" value="{{ vol }}" onChange="{{ setVol }}" hint-size="100%,4px"></x-import></div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);width:32px;text-align:right">{{ volLabel }}</span></div>
+<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><span style="display:inline-flex;color:var(--text-secondary);width:18px"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="sun" size="16" hint-size="16px,16px"></x-import></span><div style="flex:1"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Slider" value="{{ bright }}" onChange="{{ setBright }}" hint-size="100%,4px"></x-import></div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);width:32px;text-align:right">{{ brightLabel }}</span></div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px">
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary)"><span style="display:inline-flex;color:var(--success)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="battery-full" size="16" hint-size="16px,16px"></x-import></span><span style="font-family:var(--font-mono)">87%</span><span>· 5 h 20 min</span></div>
+<div style="display:flex;gap:4px">
+<button onClick="{{ openSettings }}" aria-label="Settings" title="Settings" style="width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="settings" size="16" hint-size="16px,16px"></x-import></button>
+<button onClick="{{ lockScreen }}" aria-label="Lock screen" title="Lock screen" style="width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="lock" size="16" hint-size="16px,16px"></x-import></button>
+<button onClick="{{ logOff }}" aria-label="Log off" title="Log off" style="width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="log-out" size="16" hint-size="16px,16px"></x-import></button>
+<button onClick="{{ restart }}" aria-label="Restart" title="Restart" style="width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="rotate-cw" size="16" hint-size="16px,16px"></x-import></button>
+<button onClick="{{ powerOff }}" aria-label="Power" title="Power" style="width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="power" size="16" hint-size="16px,16px"></x-import></button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ launcherOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:100px;top:10px;z-index:99;width:400px;padding:10px;border-radius:var(--radius-xl);background:var(--surface-window);backdrop-filter:var(--blur-glass);box-shadow:var(--shadow-popover);display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;background:var(--field-bg);color:var(--text-muted);font-size:13px">Search apps</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px">
+<sc-for list="{{ dockApps }}" as="a" hint-placeholder-count="3">
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 6px 8px;border-radius:var(--radius-lg);font-size:12px;font-weight:600;text-align:center" style-hover="background:var(--surface-hover)"><img src="{{ a.icon }}" style="width:56px;height:56px;border-radius:22%"><span>{{ a.label }}</span></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ stop }}" onContextMenu="{{ stop }}" style="position:fixed;left:{{ menuX }}px;top:{{ menuY }}px;z-index:200;width:200px;padding:4px;border-radius:var(--radius-lg);background:var(--surface-window);backdrop-filter:var(--blur-glass);-webkit-backdrop-filter:var(--blur-glass);box-shadow:var(--shadow-popover);border:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ menuItems }}" as="m" hint-placeholder-count="4">
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="height:1px;margin:4px 6px;background:var(--border-subtle);display:{{ m.sep }}"></div>
+<button onClick="{{ m.run }}" style="display:flex;align-items:center;gap:10px;width:100%;height:28px;padding:0 8px;border:0;border-radius:var(--radius-md);background:transparent;color:{{ m.color }};font:500 13px var(--font-sans);text-align:left;cursor:pointer" style-hover="background:var(--surface-hover)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ m.icon }}" size="15" hint-size="15px,15px"></x-import><span style="flex:1">{{ m.label }}</span><span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">{{ m.key }}</span></button>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+<button onClick="{{ toggleNotif }}" aria-label="Notifications" style="position:absolute;left:50%;margin-left:-68px;top:6px;z-index:101;width:126px;height:24px;border:0;border-radius:999px;background:transparent;cursor:pointer"></button>
+<button onClick="{{ toggleQs }}" style="position:absolute;right:12px;top:6px;z-index:101;width:120px;height:24px;border:0;border-radius:999px;background:transparent;cursor:pointer" aria-label="Quick settings"></button>
+<div style="position:absolute;inset:0;z-index:300;pointer-events:none;background:#000;opacity:{{ dimAmt }}"></div>
+<sc-if value="{{ srcMulti }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cycleSrc }}" title="{{ srcName }} (Ctrl+Space)" aria-label="Input source" style="position:absolute;right:136px;top:6px;z-index:101;min-width:36px;height:24px;padding:0 8px;border:0;border-radius:999px;background:var(--surface-card);color:var(--text-primary);font-family:var(--font-sans);font-size:12px;font-weight:700;cursor:pointer" style-hover="background:var(--surface-hover)">{{ srcCode }}</button></sc-if>
+<sc-if value="{{ indOpen }}" hint-placeholder-val="{{ false }}"><div title="{{ indText }}" style="position:absolute;right:184px;top:6px;z-index:101;height:24px;padding:0 10px 0 8px;border-radius:999px;background:#e8963a;color:#1a1f29;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;font-family:var(--font-sans)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ indIcon }}" size="13" hint-size="13px,13px"></x-import><span>{{ indText }}</span></div></sc-if>
+<sc-if value="{{ promptOpen }}" hint-placeholder-val="{{ false }}"><div onContextMenu="{{ stop }}" style="position:absolute;inset:0;z-index:450;background:rgba(0,0,0,.45);display:grid;place-items:center;font-family:var(--font-sans);color:var(--text-primary)">
+<div style="width:380px;padding:20px;direction:{{ dir }};border-radius:var(--radius-xl);background:var(--surface-window);backdrop-filter:var(--blur-glass);-webkit-backdrop-filter:var(--blur-glass);box-shadow:var(--shadow-popover);display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;gap:14px;align-items:flex-start"><span style="flex:none;width:40px;height:40px;border-radius:50%;background:var(--surface-active);color:var(--accent-text);display:grid;place-items:center"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="{{ pIcon }}" size="20" hint-size="20px,20px"></x-import></span><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:15px;font-weight:700">{{ pTitle }}</span><span style="font-size:12px;color:var(--text-secondary)">{{ pBody }}</span></div></div>
+<div style="display:flex;gap:8px;justify-content:flex-end"><button onClick="{{ pNo }}" style="height:34px;padding:0 16px;border:0;border-radius:999px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;background:var(--surface-card);color:var(--text-primary)" style-hover="filter:brightness(1.12)">Don't allow</button><button onClick="{{ pOnce }}" style="height:34px;padding:0 16px;border:0;border-radius:999px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;background:var(--surface-raised);color:var(--text-primary)" style-hover="filter:brightness(1.12)">Allow once</button><button onClick="{{ pAlways }}" style="height:34px;padding:0 16px;border:0;border-radius:999px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff" style-hover="filter:brightness(1.12)">Always allow</button></div>
+<span style="font-size:10px;color:var(--text-muted)">You can change this later in Settings, Privacy.</span>
+</div></div></sc-if>
+<sc-if value="{{ sessLogin }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeSwitch }}" onContextMenu="{{ stop }}" style="position:absolute;inset:0;z-index:500;direction:{{ dir }};background:var(--wallpaper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:var(--font-sans);color:var(--text-primary)">
+<div style="position:absolute;top:56px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px"><span style="font-size:128px;font-weight:600;letter-spacing:-.03em;line-height:1">{{ loginTime }}</span><span style="font-size:22px;color:var(--text-secondary)">{{ loginDate }}</span></div>
+<div style="width:84px;height:84px;border-radius:50%;background:{{ luBg }};display:grid;place-items:center;font-size:28px;font-weight:700;color:#fff">{{ luInit }}</div>
+<span style="font-size:15px;font-weight:700;margin-bottom:12px">{{ luName }}</span>
+<div style="display:flex;align-items:center;gap:8px"><input type="password" value="{{ pw }}" onChange="{{ setPw }}" onKeyDown="{{ pwKey }}" placeholder="{{ luPh }}" autoFocus="{{ true }}" aria-label="Password" style="width:240px;height:36px;padding:0 16px;border:0;outline:0;border-radius:999px;background:var(--field-bg);color:var(--text-primary);font-family:var(--font-sans);font-size:13px"><button onClick="{{ signIn }}" aria-label="Sign in" title="Sign in" style="flex:none;width:36px;height:36px;border:0;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer" style-hover="background:var(--accent-hover)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="arrow-right" size="18" hint-size="18px,18px"></x-import></button></div>
+<span style="height:16px;font-size:12px;color:var(--danger)">{{ loginErr }}</span>
+<div onClick="{{ stop }}" style="position:absolute;left:20px;bottom:20px;display:flex;flex-direction:column;align-items:flex-start;gap:8px">
+<sc-if value="{{ switchOpen }}" hint-placeholder-val="{{ false }}"><div style="width:220px;padding:6px;border-radius:var(--radius-xl);background:var(--surface-window);backdrop-filter:var(--blur-glass);-webkit-backdrop-filter:var(--blur-glass);box-shadow:var(--shadow-popover);display:flex;flex-direction:column;gap:2px">
+<span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding:6px 8px 4px">Switch user</span>
+<sc-for list="{{ luList }}" as="u" hint-placeholder-count="2"><button onClick="{{ u.pick }}" style="display:flex;align-items:center;gap:10px;height:44px;padding:0 8px;border:0;border-radius:var(--radius-md);background:{{ u.bg }};color:{{ u.fg }};cursor:pointer;text-align:left;font-family:var(--font-sans)" style-hover="filter:brightness(1.15)"><span style="flex:none;width:30px;height:30px;border-radius:50%;background:{{ u.avatar }};display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff">{{ u.init }}</span><span style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600">{{ u.name }}</span><span style="font-size:10px;opacity:.7">{{ u.sub }}</span></span></button></sc-for>
+</div></sc-if>
+<button onClick="{{ toggleSwitch }}" aria-label="Switch user" title="Switch user" style="width:36px;height:36px;border:0;border-radius:50%;background:var(--surface-card);color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="users" size="16" hint-size="16px,16px"></x-import></button>
+</div>
+<button onClick="{{ powerOff }}" aria-label="Shut down" title="Shut down" style="position:absolute;right:20px;bottom:20px;width:36px;height:36px;border:0;border-radius:50%;background:var(--surface-card);color:var(--text-secondary);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--surface-hover);color:var(--text-primary)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="power" size="16" hint-size="16px,16px"></x-import></button>
+</div></sc-if>
+<sc-if value="{{ sessDark }}" hint-placeholder-val="{{ false }}"><div onContextMenu="{{ stop }}" style="position:absolute;inset:0;z-index:600;background:#05070b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:var(--font-sans);color:#c8dcfa">
+<sc-if value="{{ sessMsg }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:#8a93a3">{{ sessMsgText }}</span></sc-if>
+<sc-if value="{{ sessBoot }}" hint-placeholder-val="{{ false }}"><span style="font-size:22px;font-weight:700;letter-spacing:.08em">IronTide OS</span><div style="width:180px;height:3px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden"><div style="height:100%;width:{{ bootW }}%;background:var(--tide-400);border-radius:999px;transition:width 2.2s linear"></div></div></sc-if>
+<sc-if value="{{ sessOff }}" hint-placeholder-val="{{ false }}"><button onClick="{{ powerOn }}" aria-label="Power on" title="Power on" style="width:56px;height:56px;border:1px solid rgba(255,255,255,.12);border-radius:50%;background:transparent;color:#8a93a3;display:grid;place-items:center;cursor:pointer" style-hover="color:#c8dcfa;border-color:rgba(255,255,255,.3)"><x-import component-from-global-scope="PatinaDesktopDesignSystem_ad7af6.Icon" name="power" size="22" hint-size="22px,22px"></x-import></button></sc-if>
+</div></sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { ws: 1, launcherOpen: false, qsOpen: false, lowSpec: false, tiling: false, vol: 75, t: 0, menu: null, page: 'monitor', top: 'term', scale: 100, pvW: 200, luIdx: 0, switchOpen: false, xeOpen: false, xeMin: false, xePrev: null, xx: 360, xy: 90, xw: 300, xh: 250, xwl: true, xscale: 'Native', xeMsg: '', pTermMic: 'Ask', pTermScr: 'Ask', pTermCam: 'Ask', pTermLoc: 'Ask', pXeScr: 'Ask', pXeKey: 'Ask', permInd: true, permUse: {}, prompt: null, lang: 'English', textDir: 'Auto', srcDe: false, srcAr: true, srcHe: true, srcJa: true, curSrc: 'en', sess: 'desktop', sessGo: false, pw: '', loginErr: '', qsSub: null, cast: false, vpnSel: 'Home WireGuard', castDev: 'Living room TV', wifiNet: 'Tidepool-5G', btDev: { 'Aura Buds': true, 'Keychron K2': false, 'Pixel 8': false }, termOpen: true, termMin: false, termPrev: null, tx: 130, ty: 48, tw: 640, th: 380, termTabs: [{ id: 1, cwd: '~', lines: [[['Patina Terminal 0.4 · type "help" for commands', 'm']]], hist: [], hi: -1, inp: '' }], termActive: 1, termNext: 2, termZoom: 13, termProf: 0, night: false, mute: false, dim: true, refresh: '60 Hz', output: 'Speakers', micVol: 60, alerts: true, anim: true, wifi: true, vpn: false, themeMode: 'Dark', textSize: 'Default', glass: true, reduceMotion: false, layout: 'US', repeatDelay: 400, superKey: true, sleepAfter: '15 min', acct: 'Administrator', autoLogin: false, u2: true, dockPos: 'Left', dockSize: 48, dockHide: false, dockHover: false, clock12: '24 h', showDate: true, badge: true, ejected: false, notifOpen: false, notifList: [['files', 'Copy complete', '3 items copied to Downloads.', 'File Bin', '2 min ago', 1], ['sys', 'Update available', 'IronTide OS 0.4.1 is ready to install.', 'System', '1 h ago', 1], ['sys', 'Low-spec mode', 'Turned on automatically to save power.', 'System', 'Yesterday', 0]], bluetooth: true, dnd: false, bright: 100, autoBright: false, glassOpacity: 78, shellColor: '#1a1f29', accentColor: '#2f7de1', wallColor: '#2f5fa8', sysOpen: true, filesOpen: true, sysMin: false, filesMin: false, sx: 84, sy: 10, sysPrev: null, filesPrev: null, fdir: 'home', fsel: null, q: '', sw: 820, sh: 470, fw: 700, fh: 340, fx: 520, fy: 180 };
+  rs(wk, hk, minW, minH, lk, tk, left, top) {
+    return {
+      down: e => { e.preventDefault(); e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); this.drag = { x: e.clientX, y: e.clientY, w: this.state[wk], h: this.state[hk] }; },
+      move: e => { const d = this.drag; if (!d) return; const l = lk ? this.state[lk] : left, t = tk ? this.state[tk] : top; this.setState({ [wk]: Math.max(minW, Math.min(window.innerWidth - l - 4, d.w + e.clientX - d.x)), [hk]: Math.max(minH, Math.min(window.innerHeight - 36 - t - 4, d.h + e.clientY - d.y)) }); },
+      up: () => { this.drag = null; }
+    };
+  }
+  FS = {
+    home: [['Documents', 'dir', 'Oct 14', ''], ['Downloads', 'dir', 'Oct 16', ''], ['Pictures', 'dir', 'Oct 9', ''], ['.config', 'dir', 'Oct 13', ''], ['src', 'dir', 'Oct 13', ''], ['Cargo.toml', 'file', 'Oct 13', '542 B'], ['build-arm.sh', 'file', 'Oct 13', '820 B'], ['README.md', 'file', 'Oct 13', '1.2 KB']],
+    documents: [['Notes', 'dir', 'Oct 12', ''], ['Roadmap.md', 'file', 'Oct 14', '3.4 KB'], ['Design-brief.pdf', 'file', 'Oct 10', '842 KB']],
+    downloads: [['patina-0.4.iso', 'file', 'Oct 16', '1.1 GB'], ['fonts.zip', 'file', 'Oct 15', '6.8 MB'], ['wallpaper.png', 'file', 'Oct 11', '4.2 MB']],
+    pictures: [['Wallpapers', 'dir', 'Oct 9', ''], ['Screenshots', 'dir', 'Oct 16', ''], ['tide.png', 'file', 'Oct 7', '2.6 MB']],
+    music: [['Ambient', 'dir', 'Oct 14', ''], ['tide-theme.flac', 'file', 'Oct 9', '28 MB'], ['night-drive.mp3', 'file', 'Oct 5', '6.4 MB']],
+    videos: [['Screencasts', 'dir', 'Oct 16', ''], ['patina-demo.mp4', 'file', 'Oct 13', '184 MB'], ['boot-anim.webm', 'file', 'Oct 7', '3.2 MB']],
+    network: [['home-nas', 'dir', 'Online', ''], ['pi-server', 'dir', 'Online', ''], ['media-pc', 'dir', 'Offline', '']],
+    nas: [['Backups', 'dir', 'Oct 15', ''], ['Media', 'dir', 'Oct 11', ''], ['shared.txt', 'file', 'Oct 6', '312 B']],
+    trash: [['old-notes.md', 'file', 'Oct 15', '2.1 KB'], ['draft.png', 'file', 'Oct 12', '1.4 MB'], ['backup.zip', 'file', 'Oct 8', '24 MB']]
+  };
+  PLACES = [['home', 'house', 'Home'], ['documents', 'file-text', 'Documents'], ['downloads', 'download', 'Downloads'], ['pictures', 'image', 'Pictures'], ['music', 'music', 'Music'], ['videos', 'video', 'Videos'], ['trash', 'trash-2', 'Trash Bin']];
+  NET = [['network', 'network', 'patina-pc'], ['nas', 'server', 'Home NAS']];
+  PAGES = {
+    display: ['Display', [['Brightness', [['bright', 'Screen brightness', 'Adjust the display backlight', 'sl', 10, 100, '%'], ['autoBright', 'Automatic brightness', 'Adapt to ambient light', 'sw']]], ['Screen', [['scale', 'Scale', 'Size of text and controls', 'sl', 100, 200, '%'], ['refresh', 'Refresh rate', 'Higher is smoother, lower saves power', 'seg', ['30 Hz', '60 Hz']], ['res', 'Resolution', 'Native', 'info', '1920 × 1080']]], ['Comfort', [['night', 'Night light', 'Warmer colours after sunset', 'sw'], ['dim', 'Dim when idle', 'Lower brightness after a minute', 'sw']]], ['Windows', [['tiling', 'Tiling', 'Arrange windows automatically', 'sw'], ['anim', 'Animations', 'Fades and small translates', 'sw']]]]],
+    sound: ['Sound', [['Output', [['output', 'Output device', 'Where sound plays', 'seg', ['Speakers', 'Headphones']], ['vol', 'Volume', '', 'sl', 0, 100, '%'], ['mute', 'Mute', 'Silence all output', 'sw']]], ['Input', [['micVol', 'Microphone', 'Input level', 'sl', 0, 100, '%']]], ['Alerts', [['alerts', 'Alert sounds', 'Play sounds for notifications', 'sw']]]]],
+    network: ['Network', [['Wi-Fi', [['wifi', 'Wi-Fi', 'Connected', 'sw'], ['ssid', 'Network', 'Signal strong', 'info', 'Tidepool-5G'], ['ip', 'IP address', '', 'info', '192.168.1.24']]], ['Privacy', [['vpn', 'VPN', 'Route traffic through a tunnel', 'sw']]]]],
+    appearance: ['Appearance', [['Colour', [['accentColor', 'Accent colour', 'Buttons, selection and highlights', 'col', ['#2f7de1', '#8b5cf6', '#e0507a', '#e8963a', '#2fb59a']], ['shellColor', 'Shell colour', 'Panel, dock, windows and menus', 'col', ['#1a1f29', '#12151c', '#241c2e', '#1b2b2b', '#2b2a33']], ['wallColor', 'Wallpaper glow', 'Tint of the desktop background', 'col', ['#2f5fa8', '#4a3a8a', '#7a3a55', '#2f6f5f', '#3a3f4d']]]], ['Theme', [['themeMode', 'Mode', 'Dark is the default', 'seg', ['Dark', 'Light']], ['glass', 'Translucent windows', 'Blur behind panels and windows', 'sw', 'glassOpacity']]], ['Text', [['textSize', 'Text size', 'Interface font size', 'seg', ['Small', 'Default', 'Large']], ['font', 'Interface font', '', 'info', 'Plus Jakarta Sans']]], ['Motion', [['reduceMotion', 'Reduce motion', 'Skip transitions', 'sw']]]]],
+    keyboard: ['Keyboard', [['Input', [['layout', 'Layout', 'Active keyboard layout', 'seg', ['US', 'UK', 'DE']], ['repeatDelay', 'Repeat delay', 'Time before a key repeats', 'sl', 150, 800, ' ms']]], ['Shortcuts', [['superKey', 'Super opens launcher', '', 'sw'], ['k1', 'Open terminal', '', 'info', 'Super + Enter'], ['k2', 'Toggle tiling', '', 'info', 'Super + T'], ['k3', 'Switch workspace', '', 'info', 'Super + 1–4']]]]],
+    power: ['Power', [['Performance', [['lowSpec', 'Low-spec mode', 'Software rendering fallback', 'sw'], ['sleepAfter', 'Sleep after', 'When idle', 'seg', ['5 min', '15 min', '30 min', 'Never']]]], ['Battery', [['bat', 'Charge', 'Estimated 5 h 20 min left', 'info', '87%']]]]],
+    language: ['Language & region', [['Language', [['lang', 'Interface language', 'Menus, dock and labels', 'seg', ['English', 'Deutsch', 'العربية', 'עברית']], ['textDir', 'Text direction', 'Auto mirrors layouts for right-to-left languages', 'seg', ['Auto', 'LTR', 'RTL']]]], ['Input sources', [['srcDe', 'Deutsch', 'QWERTZ keyboard', 'sw'], ['srcAr', 'العربية', 'Arabic keyboard', 'sw'], ['srcHe', 'עברית', 'Hebrew keyboard', 'sw'], ['srcJa', '日本語', 'Romaji to hiragana', 'sw'], ['srcKey', 'Switch source', 'Or click the indicator in the top panel', 'info', 'Ctrl+Space']]]]],
+    privacy: ['Privacy', [['Terminal', [['pTermMic', 'Microphone', 'Record audio', 'seg', ['Ask', 'Allow', 'Deny']], ['pTermScr', 'Screen capture', 'Take screenshots and record the screen', 'seg', ['Ask', 'Allow', 'Deny']], ['pTermCam', 'Camera', 'Use the webcam', 'seg', ['Ask', 'Allow', 'Deny']], ['pTermLoc', 'Location', 'Know where this device is', 'seg', ['Ask', 'Allow', 'Deny']]]], ['XEyes (X11)', [['pXeScr', 'Screen capture', 'X11 apps can normally see the whole screen', 'seg', ['Ask', 'Allow', 'Deny']], ['pXeKey', 'Keyboard monitoring', 'Watch keys typed in other apps', 'seg', ['Ask', 'Allow', 'Deny']]]], ['Indicators', [['permInd', 'Show indicator when in use', 'Amber badge in the top panel while an app records or captures', 'sw']]]]],
+    x11: ['X11 apps', [['XWayland', [['xwl', 'Run X11 apps', 'Starts XWayland when an X11 app opens', 'sw'], ['xscale', 'Scaling', 'How X11 apps handle display scale', 'seg', ['Native', 'Scaled']]]], ['Status', [['xd', 'Display', '', 'info', ':0'], ['xs', 'Server', '', 'info', 'Xwayland 23.2.6'], ['xp', 'Isolation', 'X11 apps cannot read other windows without asking', 'info', 'On']]]]],
+    dock: ['Dock & panel', [['Dock', [['dockPos', 'Position', 'Edge of the screen', 'seg', ['Left', 'Right']], ['dockSize', 'Icon size', 'Size of dock icons', 'sl', 32, 64, ' px'], ['dockHide', 'Auto-hide', 'Slide away until you point at the edge', 'sw']]], ['Top panel', [['clock12', 'Clock format', '', 'seg', ['24 h', '12 h']], ['showDate', 'Show date', 'Display the date beside the time', 'sw'], ['badge', 'Notification badge', 'Show a dot for unread notifications', 'sw']]]]],
+    users: ['Users', [['Your account', [['un', 'Name', 'Shown on the login screen', 'info', 'Patina User'], ['uid', 'Username', '', 'info', 'patina'], ['acct', 'Account type', 'Administrators can change system settings', 'seg', ['Standard', 'Administrator']], ['autoLogin', 'Automatic login', 'Skip the password at startup', 'sw'], ['pw', 'Password', 'Changed 3 weeks ago', 'info', '••••••••']]], ['Other users', [['u2', 'Guest', 'Temporary session, files are deleted on logout', 'sw'], ['u3', 'guest', 'Standard', 'info', 'Not signed in']]]]],
+    about: ['About', [['Device', [['dn', 'Device name', '', 'info', 'patina-pi'], ['os', 'System', '', 'info', 'IronTide OS'], ['de', 'Desktop', '', 'info', 'Patina 0.4']]], ['Hardware', [['hw', 'Model', '', 'info', 'Raspberry Pi 4'], ['arch', 'Architecture', '', 'info', 'aarch64'], ['mem', 'Memory', '', 'info', '1 GiB']]]]]
+  };
+  TX = { 'Cargo.toml': '[workspace]\nmembers = ["compositor", "panel", "terminal"]\n\n[profile.release]\nlto = "fat"', 'build-arm.sh': '#!/bin/bash\ncargo build --release \\\n  --target aarch64-unknown-linux-gnu', 'README.md': '# Patina\nA small, fast desktop for IronTide OS.', 'Roadmap.md': '# Roadmap\n- Compositor\n- Shell\n- Core apps', 'shared.txt': 'Shared notes' };
+  PROF = [['Patina', { bg: 'rgba(0,0,0,.34)', fg: 'var(--text-primary)', u: 'var(--success)', p: 'var(--tide-300)', d: 'var(--tide-300)', e: 'var(--danger)', m: 'var(--text-muted)' }], ['Solarized', { bg: '#002b36', fg: '#93a1a1', u: '#859900', p: '#268bd2', d: '#268bd2', e: '#dc322f', m: '#586e75' }], ['Light', { bg: '#f6f7f9', fg: '#1a1f29', u: '#1f8a4c', p: '#2563c9', d: '#2563c9', e: '#c0392b', m: '#6b7280' }], ['Phosphor', { bg: '#050b05', fg: '#7dff8a', u: '#7dff8a', p: '#b6ffbd', d: '#b6ffbd', e: '#ff6b6b', m: '#3a8f45' }]];
+  CMDS = ['help', 'ls', 'cd', 'pwd', 'cat', 'echo', 'clear', 'whoami', 'hostname', 'uname', 'date', 'uptime', 'free', 'ps', 'neofetch', 'history', 'mkdir', 'touch', 'arecord', 'screenshot', 'fswebcam', 'whereami', 'xeyes', 'exit'];
+  tExtra = {};
+  LU = [['Patina User', 'PU', 'Administrator'], ['Guest', 'G', 'Temporary session']];
+  PERM = { mic: ['Microphone', 'mic', 'use your microphone'], cam: ['Camera', 'camera', 'use your camera'], scr: ['Screen capture', 'monitor', 'capture your screen'], loc: ['Location', 'map-pin', 'know your location'], key: ['Keyboard monitoring', 'keyboard', 'monitor keyboard input'] };
+  PK = { term: { mic: 'pTermMic', scr: 'pTermScr', cam: 'pTermCam', loc: 'pTermLoc' }, xe: { scr: 'pXeScr', key: 'pXeKey' } };
+  APPN = { term: 'Terminal', xe: 'XEyes (X11)' };
+  use(perm) { this.setState(s => ({ permUse: Object.assign({}, s.permUse, { [perm]: (s.permUse[perm] || 0) + 1 }) })); setTimeout(() => this.setState(s => ({ permUse: Object.assign({}, s.permUse, { [perm]: Math.max(0, (s.permUse[perm] || 1) - 1) }) })), 5000); }
+  request(app, perm, cb) {
+    const key = this.PK[app][perm], v = this.state[key];
+    if (v === 'Allow') { this.use(perm); cb(true); } else if (v === 'Deny') cb(false);
+    else { this.pcb = cb; this.setState({ prompt: { app, perm, key } }); }
+  }
+  answer(ch) { const p = this.state.prompt; if (!p) return; const cb = this.pcb; this.pcb = null; this.setState(Object.assign({ prompt: null }, ch === 'always' ? { [p.key]: 'Allow' } : {})); if (ch !== 'no') this.use(p.perm); cb && cb(ch !== 'no'); }
+  eyeMove = e => { [[this.e1, this.p1], [this.e2, this.p2]].forEach(([el, p]) => { if (!el || !p) return; const r = el.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), rx = r.width / 2 - 20, ry = r.height / 2 - 20, nx = dx / rx, ny = dy / ry, m = Math.hypot(nx, ny), k = m > 1 ? 1 / m : 1; p.style.transform = 'translate(' + nx * k * rx + 'px,' + ny * k * ry + 'px)'; }); };
+  setE1 = el => { this.e1 = el; }; setE2 = el => { this.e2 = el; }; setP1 = el => { this.p1 = el; }; setP2 = el => { this.p2 = el; };
+  permVals() {
+    const s = this.state, P = this.PERM, pr = s.prompt, act = Object.keys(s.permUse).filter(k => s.permUse[k] > 0);
+    return {
+      xeShow: s.xeOpen && !s.xeMin && s.xwl, xeActive: s.top === 'xe', raiseXe: () => s.top !== 'xe' && this.setState({ top: 'xe' }),
+      closeXe: () => this.setState({ xeOpen: false, xeMin: false, top: this.nextTop('xe') }),
+      xeC: { min: () => this.setState({ xeMin: true, top: this.nextTop('xe') }), max: () => this.toggleMax('xe') },
+      xeD: this.dragger('xe', 'xx', 'xy', 'xw', 'xePrev'), xe: this.rs('xw', 'xh', 240, 200, 'xx', 'xy'), xx: s.xx, xy: s.xy, xw: s.xw, xh: s.xh, xeMsg: s.xeMsg,
+      xeShot: () => this.request('xe', 'scr', ok => this.setState({ xeMsg: ok ? 'Screen captured (1920x1080)' : 'XGetImage: BadAccess, blocked by Patina' })),
+      xeKeys: () => this.request('xe', 'key', ok => this.setState({ xeMsg: ok ? 'Keyboard grab active' : 'XGrabKeyboard: blocked by Patina' })),
+      promptOpen: !!pr, pIcon: pr ? P[pr.perm][1] : 'shield', pTitle: pr ? this.APPN[pr.app] + ' wants to ' + P[pr.perm][2] : '',
+      pBody: pr ? (pr.app === 'xe' ? 'This is an X11 app. X11 lets apps watch the whole screen, so Patina asks first.' : 'It can only do this while it is running. You can turn it off at any time.') : '',
+      pNo: () => this.answer('no'), pOnce: () => this.answer('once'), pAlways: () => this.answer('always'),
+      indOpen: s.permInd && act.length > 0, indIcon: act.length ? P[act[0]][1] : 'mic', indText: act.length ? P[act[0]][0] + ' in use' + (act.length > 1 ? ' +' + (act.length - 1) : '') : ''
+    };
+  }
+  lock() { this.setState({ sess: 'locked', menu: null, qsOpen: false, launcherOpen: false, notifOpen: false, qsSub: null, switchOpen: false, pw: '', loginErr: '' }); }
+  TR = {
+    English: { loc: 'en-GB', sys: 'System', term: 'Terminal', pw: 'Password', pwErr: 'Enter your password', tab: { monitor: 'Processes', display: 'Display', sound: 'Sound', network: 'Network', appearance: 'Appearance', keyboard: 'Keyboard', dock: 'Dock & panel', privacy: 'Privacy', x11: 'X11 apps', language: 'Language & region', power: 'Power', users: 'Users', about: 'About' }, t: { wifi: 'Wi-Fi', bluetooth: 'Bluetooth', vpn: 'VPN', cast: 'Cast' }, place: { home: 'Home', documents: 'Documents', downloads: 'Downloads', pictures: 'Pictures', music: 'Music', videos: 'Videos', trash: 'Trash Bin' }, h: { places: 'Places', devices: 'Devices', network: 'Network' } },
+    Deutsch: { loc: 'de-DE', sys: 'System', term: 'Terminal', pw: 'Passwort', pwErr: 'Passwort eingeben', tab: { monitor: 'Prozesse', display: 'Anzeige', sound: 'Ton', network: 'Netzwerk', appearance: 'Erscheinungsbild', keyboard: 'Tastatur', dock: 'Dock & Leiste', privacy: 'Datenschutz', x11: 'X11-Apps', language: 'Sprache & Region', power: 'Energie', users: 'Benutzer', about: 'Info' }, t: { wifi: 'WLAN', bluetooth: 'Bluetooth', vpn: 'VPN', cast: 'Übertragen' }, place: { home: 'Persönlicher Ordner', documents: 'Dokumente', downloads: 'Downloads', pictures: 'Bilder', music: 'Musik', videos: 'Videos', trash: 'Papierkorb' }, h: { places: 'Orte', devices: 'Geräte', network: 'Netzwerk' } },
+    'العربية': { loc: 'ar-EG', sys: 'النظام', term: 'الطرفية', pw: 'كلمة المرور', pwErr: 'أدخل كلمة المرور', tab: { monitor: 'العمليات', display: 'العرض', sound: 'الصوت', network: 'الشبكة', appearance: 'المظهر', keyboard: 'لوحة المفاتيح', dock: 'المرساة واللوحة', privacy: 'الخصوصية', x11: 'تطبيقات X11', language: 'اللغة والمنطقة', power: 'الطاقة', users: 'المستخدمون', about: 'حول' }, t: { wifi: 'واي فاي', bluetooth: 'بلوتوث', vpn: 'VPN', cast: 'بث' }, place: { home: 'الرئيسية', documents: 'المستندات', downloads: 'التنزيلات', pictures: 'الصور', music: 'الموسيقى', videos: 'الفيديو', trash: 'سلة المهملات' }, h: { places: 'الأماكن', devices: 'الأجهزة', network: 'الشبكة' } },
+    'עברית': { loc: 'he-IL', sys: 'מערכת', term: 'מסוף', pw: 'סיסמה', pwErr: 'הזן סיסמה', tab: { monitor: 'תהליכים', display: 'תצוגה', sound: 'שמע', network: 'רשת', appearance: 'מראה', keyboard: 'מקלדת', dock: 'מעגן ולוח', privacy: 'פרטיות', x11: 'יישומי X11', language: 'שפה ואזור', power: 'צריכת חשמל', users: 'משתמשים', about: 'אודות' }, t: { wifi: 'Wi-Fi', bluetooth: 'Bluetooth', vpn: 'VPN', cast: 'שידור' }, place: { home: 'בית', documents: 'מסמכים', downloads: 'הורדות', pictures: 'תמונות', music: 'מוזיקה', videos: 'וידאו', trash: 'סל מחזור' }, h: { places: 'מקומות', devices: 'התקנים', network: 'רשת' } }
+  };
+  SRC = { en: ['EN', 'US English'], de: ['DE', 'Deutsch'], ar: ['ع', 'العربية'], he: ['א', 'עברית'], ja: ['あ', '日本語'] };
+  KEYMAP = (() => { const z = (a, b) => { const o = {}; [...a].forEach((k, i) => { o[k] = b[i]; }); return o; }; return { de: Object.assign(z('yz', ['z', 'y']), { ';': 'ö', "'": 'ä', '[': 'ü', '-': 'ß' }), ar: z('qwertyuiopasdfghjklzxcvbnm', ['ض', 'ص', 'ث', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ئ', 'ء', 'ؤ', 'ر', 'لا', 'ى', 'ة']), he: z('qwertyuiopasdfghjklzxcvbnm', ['/', "'", 'ק', 'ר', 'א', 'ט', 'ו', 'ן', 'ם', 'פ', 'ש', 'ד', 'ג', 'כ', 'ע', 'י', 'ח', 'ל', 'ך', 'ז', 'ס', 'ב', 'ה', 'נ', 'מ', 'צ']) }; })();
+  KANA = (() => { const V = 'aiueo', o = { a: 'あ', i: 'い', u: 'う', e: 'え', o: 'お', ya: 'や', yu: 'ゆ', yo: 'よ', wa: 'わ', wo: 'を', shi: 'し', chi: 'ち', tsu: 'つ', fu: 'ふ', ji: 'じ', sha: 'しゃ', shu: 'しゅ', sho: 'しょ', cha: 'ちゃ', chu: 'ちゅ', cho: 'ちょ', ja: 'じゃ', ju: 'じゅ', jo: 'じょ' }, rows = { k: 'かきくけこ', g: 'がぎぐげご', s: 'さしすせそ', z: 'ざじずぜぞ', t: 'たちつてと', d: 'だぢづでど', n: 'なにぬねの', h: 'はひふへほ', b: 'ばびぶべぼ', p: 'ぱぴぷぺぽ', m: 'まみむめも', r: 'らりるれろ' }; Object.keys(rows).forEach(c => [...rows[c]].forEach((k, i) => { o[c + V[i]] = k; })); return o; })();
+  kana(b) { const T = this.KANA; let out = ''; for (let g = 0; b && g < 8; g++) { if (T[b]) { out += T[b]; b = ''; break; } if (b === 'nn') { out += 'ん'; b = ''; break; } if (b.length > 1 && b[0] === b[1] && /[kstpcgzdbfhjmrwy]/.test(b[0])) { out += 'っ'; b = b.slice(1); continue; } if (b[0] === 'n' && b.length > 1 && !/[aiueoyn]/.test(b[1])) { out += 'ん'; b = b.slice(1); continue; } if (Object.keys(T).some(k => k.startsWith(b))) break; out += b[0]; b = b.slice(1); } return [out, b]; }
+  isRtl() { const s = this.state; return s.textDir === 'RTL' || (s.textDir === 'Auto' && (s.lang === 'العربية' || s.lang === 'עברית')); }
+  srcList(s) { return ['en', 'de', 'ar', 'he', 'ja'].filter(k => k === 'en' || s['src' + k[0].toUpperCase() + k[1]]); }
+  curSrc() { const s = this.state, l = this.srcList(s); return l.includes(s.curSrc) ? s.curSrc : 'en'; }
+  cycleSrc() { this.setState(s => { const l = this.srcList(s), i = l.indexOf(l.includes(s.curSrc) ? s.curSrc : 'en'); return { curSrc: l[(i + 1) % l.length], termTabs: s.termTabs.map(t => Object.assign({}, t, { pre: '' })) }; }); }
+  tType(tab, k) {
+    const src = this.curSrc();
+    if (src === 'ja') {
+      if (/[a-z]/i.test(k)) { const r = this.kana((tab.pre || '') + k.toLowerCase()); this.tUpd(tab.id, t => ({ inp: t.inp + r[0], pre: r[1] })); return; }
+      const add = { '-': 'ー', ',': '、', '.': '。' }[k] || k; this.tUpd(tab.id, t => ({ inp: t.inp + add, pre: '' })); return;
+    }
+    const M = this.KEYMAP[src] || {}, lk = k.toLowerCase(); let add = k;
+    if (M[lk] !== undefined) add = src === 'de' && k !== lk ? M[lk].toUpperCase() : M[lk];
+    this.tUpd(tab.id, t => ({ inp: t.inp + add }));
+  }
+  later(fn, ms) { clearTimeout(this.tm); this.tm = setTimeout(fn, ms); }
+  boot() { this.setState({ sess: 'boot', sessGo: false }); setTimeout(() => this.setState({ sessGo: true }), 80); this.later(() => this.setState({ sess: 'login', pw: '', loginErr: '' }), 2500); }
+  endSession(sess) { this.setState({ sess, menu: null, qsOpen: false, launcherOpen: false, notifOpen: false, qsSub: null, sysOpen: false, filesOpen: false, termOpen: false, termMin: false, sysMin: false, filesMin: false, termTabs: [this.tabNew(1)], termActive: 1, termNext: 2, pw: '', loginErr: '' }); }
+  signIn() { const s = this.state; if (!s.pw && s.luIdx === 0) { this.setState({ loginErr: this.TR[s.lang].pwErr }); return; } if (s.sess === 'locked') { this.setState({ sess: 'desktop', pw: '', loginErr: '', switchOpen: false }); return; } this.setState({ sess: 'desktop', pw: '', loginErr: '', filesOpen: true, filesMin: false, top: 'files' }); }
+  tabNew(id, cwd) { return { id, cwd: cwd || '~', lines: [[['Patina Terminal 0.4 · type "help" for commands', 'm']]], hist: [], hi: -1, inp: '' }; }
+  vis(k) { const s = this.state; return { files: s.filesOpen && !s.filesMin, sys: s.sysOpen && !s.sysMin, term: s.termOpen && !s.termMin, xe: s.xeOpen && !s.xeMin && s.xwl }[k]; }
+  nextTop(k) { return ['files', 'sys', 'term', 'xe'].find(x => x !== k && this.vis(x)) || k; }
+  tAct() { const s = this.state; return s.termTabs.find(t => t.id === s.termActive) || s.termTabs[0]; }
+  tUpd(id, f) { this.setState(s => ({ termTabs: s.termTabs.map(t => t.id === id ? Object.assign({}, t, typeof f === 'function' ? f(t) : f) : t) })); }
+  tList(cwd) { const key = cwd === '~' ? 'home' : cwd.split('/').pop().toLowerCase(); return (this.FS[key] || []).map(([n, ty, m, sz]) => ({ n, dir: ty === 'dir', m, sz })).concat(this.tExtra[cwd] || []); }
+  tResolve(cwd, arg) {
+    if (!arg || arg === '~') return '~';
+    let cur = cwd, parts = arg.split('/').filter(Boolean);
+    if (arg[0] === '~' || arg.startsWith('/home/patina')) { cur = '~'; parts = parts.filter(p => p !== '~' && p !== 'home' && p !== 'patina'); } else if (arg[0] === '/') return null;
+    for (const p of parts) {
+      if (p === '.') continue;
+      if (p === '..') { cur = cur === '~' ? '~' : cur.split('/').slice(0, -1).join('/') || '~'; continue; }
+      if (!this.tList(cur).find(x => x.n === p && x.dir)) return null;
+      cur = cur + '/' + p;
+    }
+    return cur;
+  }
+  tPrompt(tab) { return [['patina@patina-pi', 'u'], [':', 'f'], [tab.cwd, 'p'], ['$ ', 'f']]; }
+  tExec(tab, line) {
+    const a = line.trim().split(/\s+/), c = a[0], args = a.slice(1), o = [], r = { out: o };
+    const t = (x, k) => [[x, k || 'f']], er = x => t(x, 'e');
+    const flags = args.filter(x => x[0] === '-').join(''), rest = args.filter(x => x[0] !== '-');
+    switch (c) {
+      case 'help': o.push(t('Built-in commands', 'm'), t(this.CMDS.join('  ')), t('Tab completes names, \u2191 \u2193 browse history, Ctrl+L clears.', 'm')); break;
+      case 'ls': {
+        const dir = rest[0] ? this.tResolve(tab.cwd, rest[0]) : tab.cwd;
+        if (dir === null) { o.push(er("ls: cannot access '" + rest[0] + "': No such file or directory")); break; }
+        let L = this.tList(dir); if (!flags.includes('a')) L = L.filter(x => x.n[0] !== '.');
+        L = L.slice().sort((x, y) => x.n.toLowerCase().localeCompare(y.n.toLowerCase()));
+        if (flags.includes('l')) { o.push(t('total ' + L.length, 'm')); L.forEach(x => o.push([[(x.dir ? 'drwxr-xr-x' : '-rw-r--r--') + ' 1 patina patina ' + (x.sz || '4.0 KB').padStart(8) + ' ' + (x.m || 'Oct 13').padEnd(6) + ' ', 'm'], [x.n, x.dir ? 'd' : 'f']])); }
+        else if (L.length) { const g = []; L.forEach(x => { g.push([x.n, x.dir ? 'd' : 'f'], ['  ', 'f']); }); o.push(g); }
+        break;
+      }
+      case 'cd': { const d = this.tResolve(tab.cwd, rest[0]); if (d === null) o.push(er('bash: cd: ' + rest[0] + ': No such file or directory')); else r.cwd = d; break; }
+      case 'pwd': o.push(t(tab.cwd === '~' ? '/home/patina' : '/home/patina/' + tab.cwd.slice(2))); break;
+      case 'cat': { if (!rest[0]) break; const e = this.tList(tab.cwd).find(x => x.n === rest[0]); if (!e) o.push(er('cat: ' + rest[0] + ': No such file or directory')); else if (e.dir) o.push(er('cat: ' + rest[0] + ': Is a directory')); else (this.TX[e.n] || '(binary file)').split('\n').forEach(l => o.push(t(l || ' '))); break; }
+      case 'echo': o.push(t(args.join(' ') || ' ')); break;
+      case 'clear': r.clear = true; break;
+      case 'exit': r.exit = true; break;
+      case 'whoami': o.push(t('patina')); break;
+      case 'hostname': o.push(t('patina-pi')); break;
+      case 'uname': o.push(t(flags.includes('a') ? 'Linux patina-pi 6.6.31-patina #1 SMP aarch64 GNU/Linux' : 'Linux')); break;
+      case 'date': o.push(t(new Date().toString())); break;
+      case 'uptime': o.push(t(' ' + new Date().toLocaleTimeString('en-GB') + ' up 2:14,  1 user,  load average: 0.12, 0.09, 0.05')); break;
+      case 'free': o.push(t('               total        used        free      shared  buff/cache   available'), t('Mem:            1024          35         812           4         177         941'), t('Swap:              0           0           0')); break;
+      case 'ps': o.push(t('    PID TTY          TIME CMD', 'm'), t('   1042 ?        00:00:02 patina-compositor'), t('   1048 ?        00:00:00 patina-panel'), t('   1089 ?        00:00:00 pipewire'), t('   1120 ?        00:00:00 dbus-daemon'), t('   2210 pts/0    00:00:00 bash')); break;
+      case 'neofetch': case 'patinafetch': [['patina@patina-pi', ''], ['OS', 'IronTide OS aarch64'], ['Host', 'Raspberry Pi 4'], ['Kernel', '6.6.31-patina'], ['Shell', 'bash 5.2'], ['DE', 'Patina 0.4'], ['Terminal', 'Patina Terminal'], ['CPU', 'Cortex-A72 (4)'], ['Memory', '35 MiB / 1024 MiB']].forEach(([k, v]) => o.push(v ? [[k + ': ', 'p'], [v, 'f']] : t(k, 'u'))); break;
+      case 'history': tab.hist.forEach((h, i) => o.push(t(String(i + 1).padStart(4) + '  ' + h))); break;
+      case 'mkdir': case 'touch': rest.forEach(n => { if (this.tList(tab.cwd).find(x => x.n === n)) { if (c === 'mkdir') o.push(er("mkdir: cannot create directory '" + n + "': File exists")); } else (this.tExtra[tab.cwd] = this.tExtra[tab.cwd] || []).push({ n, dir: c === 'mkdir', m: 'Oct 18', sz: c === 'mkdir' ? '' : '0 B' }); }); break;
+      case 'arecord': r.perm = ['term', 'mic', [t("Recording WAVE 'patina.wav' : Signed 16 bit Little Endian, Rate 48000 Hz, Mono"), t('Recording stopped after 5 s', 'm')], [er('arecord: main:831: audio open error: Permission denied')]]; break;
+      case 'screenshot': r.perm = ['term', 'scr', [t('Saved ~/Pictures/Screenshots/screen-1920x1080.png', 'm')], [er('screenshot: compositor refused screen capture')]]; break;
+      case 'fswebcam': r.perm = ['term', 'cam', [t('Captured frame from /dev/video0 (1280x720)', 'm')], [er('fswebcam: Error opening /dev/video0: Permission denied')]]; break;
+      case 'whereami': r.perm = ['term', 'loc', [t('Lat 52.3676  Lon 4.9041  (accuracy 120 m)')], [er('whereami: location access denied')]]; break;
+      case 'xeyes': if (!this.state.xwl) o.push(er("Error: Can't open display: ")); else { o.push(t('[1] 2412', 'm')); this.setState({ xeOpen: true, xeMin: false, top: 'xe' }); } break;
+      case 'sudo': o.push(er('patina is not in the sudoers file.')); break;
+      default: o.push(er('bash: ' + c + ': command not found'));
+    }
+    return r;
+  }
+  tSubmit() {
+    const tab = this.tAct(), line = tab.inp; let lines = tab.lines.concat([this.tPrompt(tab).concat([[line, 'f']])]); const patch = { inp: '', hi: -1, pre: '' }; let pend = null;
+    if (line.trim()) {
+      patch.hist = tab.hist.concat(line); const r = this.tExec(Object.assign({}, tab, { hist: patch.hist }), line);
+      if (r.exit) { this.tClose(tab.id); return; }
+      pend = r.perm; lines = r.clear ? [] : lines.concat(r.out); if (r.cwd) patch.cwd = r.cwd;
+    }
+    patch.lines = lines.slice(-400); this.tUpd(tab.id, patch);
+    if (pend) this.request(pend[0], pend[1], ok => this.tUpd(tab.id, t => ({ lines: t.lines.concat(ok ? pend[2] : pend[3]) })));
+  }
+  tComplete(tab) {
+    const m = tab.inp.match(/^(.*?)(\S*)$/), pre = m[1], w = m[2], first = !pre.trim();
+    const pool = first ? this.CMDS : this.tList(tab.cwd).map(x => x.n + (x.dir ? '/' : '')), c = pool.filter(x => x.startsWith(w));
+    if (!c.length) return;
+    if (c.length === 1) { this.tUpd(tab.id, { inp: pre + c[0] + (first ? ' ' : '') }); return; }
+    let p = c[0]; c.forEach(x => { while (!x.startsWith(p)) p = p.slice(0, -1); });
+    this.tUpd(tab.id, t => ({ inp: pre + p, lines: t.lines.concat([this.tPrompt(t).concat([[t.inp, 'f']]), [[c.join('  '), 'f']]]) }));
+  }
+  tKey(e) {
+    const tab = this.tAct(), k = e.key, kl = k.toLowerCase(), ctl = e.ctrlKey || e.metaKey;
+    if (k === 'Backspace' && tab.pre) { e.preventDefault(); this.tUpd(tab.id, { pre: tab.pre.slice(0, -1) }); return; }
+    if (this.curSrc() !== 'en' && !ctl && !e.altKey && k.length === 1) { e.preventDefault(); this.tType(tab, k); return; }
+    if (k === 'Enter') { e.preventDefault(); this.tSubmit(); }
+    else if (k === 'ArrowUp' || k === 'ArrowDown') { e.preventDefault(); const h = tab.hist; if (!h.length) return; let i = tab.hi < 0 ? h.length : tab.hi; i = k === 'ArrowUp' ? Math.max(0, i - 1) : i + 1; if (i >= h.length) this.tUpd(tab.id, { hi: -1, inp: '' }); else this.tUpd(tab.id, { hi: i, inp: h[i] }); }
+    else if (k === 'Tab') { e.preventDefault(); this.tComplete(tab); }
+    else if (ctl && !e.shiftKey && kl === 'l') { e.preventDefault(); this.tUpd(tab.id, { lines: [] }); }
+    else if (ctl && !e.shiftKey && kl === 'c' && !window.getSelection().toString()) { e.preventDefault(); this.tUpd(tab.id, t => ({ lines: t.lines.concat([this.tPrompt(t).concat([[t.inp + '^C', 'f']])]), inp: '', hi: -1 })); }
+    else if (ctl && e.shiftKey && kl === 't') { e.preventDefault(); this.tNew(); }
+    else if (ctl && e.shiftKey && kl === 'w') { e.preventDefault(); this.tClose(tab.id); }
+    else if (ctl && (k === '+' || k === '=')) { e.preventDefault(); this.tZoom(1); }
+    else if (ctl && k === '-') { e.preventDefault(); this.tZoom(-1); }
+  }
+  tNew() { this.setState(s => ({ termTabs: s.termTabs.concat(this.tabNew(s.termNext, this.tAct().cwd)), termActive: s.termNext, termNext: s.termNext + 1 })); }
+  tClose(id) {
+    this.setState(s => {
+      const i = s.termTabs.findIndex(t => t.id === id), tabs = s.termTabs.filter(t => t.id !== id);
+      if (!tabs.length) return { termOpen: false, termMin: false, termTabs: [this.tabNew(s.termNext)], termActive: s.termNext, termNext: s.termNext + 1, top: this.nextTop('term') };
+      return { termTabs: tabs, termActive: s.termActive === id ? tabs[Math.max(0, i - 1)].id : s.termActive };
+    });
+  }
+  tZoom(d) { this.setState(s => ({ termZoom: Math.max(10, Math.min(22, s.termZoom + d)) })); }
+  tCopy() { const x = window.getSelection().toString(); if (x && navigator.clipboard) navigator.clipboard.writeText(x).catch(() => {}); }
+  tPaste() { const id = this.tAct().id; navigator.clipboard && navigator.clipboard.readText().then(x => this.tUpd(id, t => ({ inp: t.inp + x.replace(/\n/g, ' ') }))).catch(() => {}); }
+  termMenu(label) {
+    const id = this.tAct().id, f = { 'Copy': () => this.tCopy(), 'Paste': () => this.tPaste(), 'New tab': () => this.tNew(), 'Clear': () => this.tUpd(id, { lines: [] }), 'Zoom in': () => this.tZoom(1), 'Zoom out': () => this.tZoom(-1), 'Next colour profile': () => this.setState(s => ({ termProf: (s.termProf + 1) % 4 })) }[label];
+    if (!f) return false; this.setState({ menu: null }); f(); setTimeout(() => this.tInp && this.tInp.focus(), 50); return true;
+  }
+  setScroll = el => { this.tScroll = el; };
+  setInpRef = el => { this.tInp = el; };
+  componentDidUpdate() {
+    const s = this.state, p = this.tPrev; this.tPrev = { tabs: s.termTabs, act: s.termActive, n: s.termTabs.length };
+    if (p && p.tabs === s.termTabs && p.act === s.termActive) return;
+    if (this.tScroll) this.tScroll.scrollTop = this.tScroll.scrollHeight;
+    if (p && (p.act !== s.termActive || p.n !== s.termTabs.length)) this.tInp && this.tInp.focus();
+  }
+  termVals() {
+    const s = this.state, tab = this.tAct(), P = this.PROF[s.termProf][1], col = k => k === 'f' ? P.fg : P[k] || P.fg, sg = l => l.map(([t, k]) => ({ t, c: col(k) }));
+    return {
+      termShow: s.termOpen && !s.termMin, termTitle: 'patina@patina-pi: ' + tab.cwd, termActive: s.top === 'term',
+      raiseTerm: () => s.top !== 'term' && this.setState({ top: 'term' }),
+      closeTerm: () => this.setState({ termOpen: false, termMin: false, termTabs: [this.tabNew(1)], termActive: 1, termNext: 2, top: this.nextTop('term') }),
+      termC: { min: () => this.setState({ termMin: true, top: this.nextTop('term') }), max: () => this.toggleMax('term') },
+      termD: this.dragger('term', 'tx', 'ty', 'tw', 'termPrev'), term: this.rs('tw', 'th', 420, 240, 'tx', 'ty'),
+      tx: s.tx, ty: s.ty, tw: s.tw, th: s.th,
+      tTabs: s.termTabs.map(t => ({ title: 'patina: ' + t.cwd, bg: t.id === tab.id ? 'var(--surface-active)' : 'transparent', fg: t.id === tab.id ? 'var(--accent-text)' : 'var(--text-secondary)', go: () => this.setState({ termActive: t.id }), close: e => { e.stopPropagation(); this.tClose(t.id); }, closeDisp: s.termTabs.length > 1 ? 'grid' : 'none' })),
+      tbg: P.bg, tfg: P.fg, tfs: s.termZoom, tLines: tab.lines.map(l => ({ segs: sg(l) })), tPrompt: sg(this.tPrompt(tab)), tInp: tab.inp + (tab.pre || ''),
+      setTInp: e => this.tUpd(tab.id, { inp: e.target.value, pre: '' }), tKey: e => this.tKey(e),
+      focusInp: () => { if (!window.getSelection().toString() && this.tInp) this.tInp.focus(); },
+      ctxTerm: e => this.open(e, 'term'), newTab: () => this.tNew(), zoomIn: () => this.tZoom(1), zoomOut: () => this.tZoom(-1), nextProf: () => this.setState(x => ({ termProf: (x.termProf + 1) % 4 }))
+    };
+  }
+  dragger(w, xk, yk, wk, pk) {
+    const dbl = () => this.toggleMax(w);
+    return {
+      dbl,
+      down: e => { if (this.state[pk]) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); e.currentTarget.style.cursor = 'grabbing'; this.mv = { x: e.clientX, y: e.clientY, ox: this.state[xk], oy: this.state[yk] }; this.setState({ top: w }); },
+      move: e => { const d = this.mv; if (!d) return; this.setState({ [xk]: Math.max(80 - this.state[wk], Math.min(window.innerWidth - 80, d.ox + e.clientX - d.x)), [yk]: Math.max(0, Math.min(window.innerHeight - 36 - 40, d.oy + e.clientY - d.y)) }); },
+      up: e => { this.mv = null; e.currentTarget.style.cursor = 'grab'; }
+    };
+  }
+  toggleMax(w) {
+    const s = this.state, k = { sys: ['sx', 'sy', 'sw', 'sh', 'sysPrev'], files: ['fx', 'fy', 'fw', 'fh', 'filesPrev'], term: ['tx', 'ty', 'tw', 'th', 'termPrev'], xe: ['xx', 'xy', 'xw', 'xh', 'xePrev'] }[w];
+    if (s[k[4]]) this.setState({ [k[0]]: s[k[4]][0], [k[1]]: s[k[4]][1], [k[2]]: s[k[4]][2], [k[3]]: s[k[4]][3], [k[4]]: null });
+    else this.setState({ [k[4]]: [s[k[0]], s[k[1]], s[k[2]], s[k[3]]], [k[0]]: 92, [k[1]]: 0, [k[2]]: window.innerWidth - 96, [k[3]]: window.innerHeight - 36 - 4, top: w });
+  }
+  mix(hex, to, t) { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map((x, i) => Math.round(x + (to - x) * t)); return 'rgb(' + c.join(',') + ')'; }
+  applyColors(s) {
+    const st = document.documentElement.style, sh = s.shellColor, rgb = c => c.slice(4, -1);
+    const wa = s.glass ? s.glassOpacity / 100 : 1;
+    st.setProperty('--surface-window', 'rgba(' + rgb(this.mix(sh, 0, 0)) + ',' + wa + ')'); st.setProperty('--surface-panel', 'rgba(' + rgb(this.mix(sh, 0, .3)) + ',' + Math.min(1, wa - .06 + (s.glass ? 0 : .06)) + ')'); st.setProperty('--surface-card', this.mix(sh, 255, .08)); st.setProperty('--surface-raised', this.mix(sh, 255, .14)); st.setProperty('--ink-900', this.mix(sh, 0, .3));
+    const a = s.accentColor, w = s.wallColor, n = parseInt(a.slice(1), 16);
+    st.setProperty('--accent', a); st.setProperty('--accent-hover', this.mix(a, 255, .2)); st.setProperty('--accent-press', this.mix(a, 0, .2)); st.setProperty('--accent-text', this.mix(a, 255, .45)); st.setProperty('--folder', this.mix(a, 255, .2));
+    st.setProperty('--surface-active', 'rgba(' + [n >> 16, (n >> 8) & 255, n & 255].join(',') + ',.2)'); st.setProperty('--focus-ring', 'rgba(' + [n >> 16, (n >> 8) & 255, n & 255].join(',') + ',.55)');
+    st.setProperty('--wallpaper', 'radial-gradient(ellipse at 75% 15%,' + w + ' 0%,transparent 55%),radial-gradient(ellipse at 15% 90%,' + this.mix(w, 0, .45) + ' 0%,transparent 50%),var(--ink-950)');
+  }
+  setVal(id, v) { this.setState({ [id]: v }, () => (id === 'dockSize' && document.documentElement.style.setProperty('--dock-icon', this.state.dockSize + 'px')) || (id === 'accentColor' || id === 'wallColor' || id === 'shellColor' || id === 'glass' || id === 'glassOpacity') && this.applyColors(this.state)); if (id === 'lang') document.documentElement.lang = { English: 'en', Deutsch: 'de', 'العربية': 'ar', 'עברית': 'he' }[v] || 'en'; if (id === 'themeMode') document.documentElement.dataset.theme = v === 'Light' ? 'light' : 'dark'; }
+  settingsGroups() {
+    const s = this.state, p = this.PAGES[s.page]; if (!p) return [];
+    return p[1].map(([label, rows]) => ({ label, rows: rows.map(([id, title, desc, type, a, b, c], i) => {
+      const set = v => this.setVal(id, v);
+      const r = { title, desc, border: i ? '1px solid var(--border-subtle)' : '0', isSwitch: type === 'sw', isSlider: type === 'sl', isSeg: type === 'seg', isInfo: type === 'info', isColor: type === 'col', set };
+      if (type === 'col') { r.custom = e => set(e.target.value); r.cur = s[id]; r.swatches = a.map(c => ({ c, ring: s[id].toLowerCase() === c ? '0 0 0 2px var(--ink-900),0 0 0 4px var(--text-primary)' : 'none', pick: () => set(c) })); }
+      if (type === 'sw') { r.checked = !!s[id]; if (a) { r.hasSlider = true; r.sValue = s[a]; r.sText = s[a] + '%'; r.sSet = v => this.setVal(a, v); r.sDim = s[id] ? 1 : .4; } }
+      if (type === 'sl') { r.value = s[id]; r.min = a; r.max = b; r.text = s[id] + c; }
+      if (type === 'seg') r.segs = a.map(o => ({ label: o, pick: () => set(o), bg: s[id] === o ? 'var(--accent)' : 'transparent', fg: s[id] === o ? 'var(--text-on-accent)' : 'var(--text-secondary)' }));
+      if (type === 'info') r.text = a;
+      return r;
+    }) }));
+  }
+  selFile() { const s = this.state; return (this.FS[s.fdir] || []).find(x => x[0] === s.fsel) || null; }
+  preview() {
+    const s = this.state, f = this.selFile(); if (!f) return { name: 'No file selected', kind: 'Select a file to see its preview', rows: [], isIcon: true, isText: false, icon: 'file', color: 'var(--text-muted)', cap: 'none', capText: '' };
+    const [name, type, mod, size] = f, dir = type === 'dir', ext = (name.split('.').pop() || '').toLowerCase();
+    const txt = { 'Cargo.toml': '[workspace]\nmembers = ["compositor", "panel"]\n\n[profile.release]\nlto = "fat"', 'build-arm.sh': '#!/bin/bash\ncargo build --release \\\n  --target aarch64-unknown-linux-gnu', 'README.md': '# Patina\nA Rust desktop for IronTide OS.\n\n- Wayland native\n- Low-spec friendly' }[name];
+    const img = /^(png|jpg)$/.test(ext), kind = dir ? 'Folder' : img ? 'PNG image' : ext === 'toml' ? 'TOML document' : ext === 'sh' ? 'Shell script' : ext === 'md' ? 'Markdown document' : ext === 'pdf' ? 'PDF document' : ext === 'iso' ? 'Disk image' : ext === 'zip' ? 'ZIP archive' : 'File';
+    const loc = s.fdir === 'trash' ? '/home/patina/.local/share/Trash' : '/home/patina' + (s.fdir === 'home' ? '' : '/' + s.fdir[0].toUpperCase() + s.fdir.slice(1));
+    const rows = [['Size', size || '—'], ['Modified', mod + ', 2026'], ['Location', loc], ['Permissions', dir ? 'drwxr-xr-x' : ext === 'sh' ? '-rwxr-xr-x' : '-rw-r--r--']];
+    if (img) rows.splice(1, 0, ['Dimensions', '3840 × 2160']);
+    if (dir) rows[0] = ['Items', String((this.FS[name.toLowerCase()] || []).length || 3)];
+    return { name, kind, rows: rows.map(([k, v]) => ({ k, v })), isText: !!txt && !dir, text: txt || '', isIcon: !txt || dir, icon: dir ? 'folder' : img ? 'image' : ext === 'iso' || ext === 'zip' ? 'package' : 'file-text', color: dir ? 'var(--folder)' : 'var(--text-secondary)', cap: img ? 'block' : 'none', capText: 'Image preview' };
+  }
+  fileItems() {
+    const s = this.state, q = s.q.toLowerCase();
+    return (this.FS[s.fdir] || []).filter(f => f[0].toLowerCase().includes(q)).map(([name, type, mod, size]) => {
+      const dir = type === 'dir', sel = s.fsel === name;
+      const icon = dir ? 'folder' : /\.(toml|sh|rs)$/.test(name) ? 'file-code' : /\.(png|jpg)$/.test(name) ? 'image' : /\.(zip|iso)$/.test(name) ? 'package' : 'file-text';
+      const nav = { Documents: 'documents', Downloads: 'downloads', Pictures: 'pictures' }[name];
+      return { name, mod, size: size || '—', icon, color: dir ? 'var(--folder)' : 'var(--text-secondary)', bg: sel ? 'var(--surface-active)' : 'transparent', weight: dir ? 600 : 500, nameColor: sel ? 'var(--accent-text)' : 'var(--text-primary)',
+        select: () => this.setState({ fsel: name, top: 'files' }), open: () => nav && this.setState({ fdir: nav, fsel: null, q: '' }),
+        ctx: e => { this.setState({ fsel: name }); this.open(e, 'file'); } };
+    });
+  }
+  componentDidMount() {
+    setTimeout(() => this.tInp && this.tInp.focus(), 300);
+    this.setState({ fx: Math.max(8, window.innerWidth - 700 - 12), fy: Math.max(8, window.innerHeight - 36 - 340 - 12) });
+    const di = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--dock-icon')); if (di) this.setState({ dockSize: di });
+    this.iv = setInterval(() => this.setState(s => ({ t: s.t + 1 })), 1500);
+    this.esc = e => { if (e.key === 'Escape') this.setState({ menu: null }); if (e.ctrlKey && e.key === ' ') { e.preventDefault(); this.cycleSrc(); } if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'l') { e.preventDefault(); this.lock(); } };
+    window.addEventListener('keydown', this.esc);
+  }
+  componentWillUnmount() { clearTimeout(this.tm); clearInterval(this.iv); window.removeEventListener('keydown', this.esc); }
+  open(e, kind, ctx) {
+    e.preventDefault(); e.stopPropagation();
+    const x = Math.min(e.clientX, window.innerWidth - 216), y = Math.min(e.clientY, window.innerHeight - 220);
+    this.setState({ menu: { x, y, kind, ctx }, launcherOpen: false, qsOpen: false });
+  }
+  menuItems() {
+    const m = this.state.menu; if (!m) return [];
+    const done = () => this.setState({ menu: null });
+    const L = {
+      desktop: [['folder-plus', 'New folder', 'Ctrl+⇧+N'], ['image', 'Change wallpaper'], ['monitor', 'Display settings', '', 1], ['layout-grid', 'Open launcher', 'Super'], ['settings', 'All settings']],
+      file: [['folder-open', 'Open', 'Enter'], ['copy', 'Copy', 'Ctrl+C'], ['scissors', 'Cut', 'Ctrl+X'], ['pencil', 'Rename', 'F2', 1], ['info', 'Properties'], ['trash-2', 'Move to trash', 'Del', 1, 1]],
+      term: [['copy', 'Copy', 'Ctrl+⇧+C'], ['clipboard', 'Paste', 'Ctrl+⇧+V'], ['plus', 'New tab', 'Ctrl+⇧+T', 1], ['eraser', 'Clear', 'Ctrl+L'], ['zoom-in', 'Zoom in', 'Ctrl++', 1], ['zoom-out', 'Zoom out', 'Ctrl+−'], ['palette', 'Next colour profile']],
+      dock: [['external-link', 'Open'], ['pin', 'Keep in dock'], ['x', 'Close all windows', '', 1, 1]]
+    }[m.kind];
+    return L.map(([icon, label, key, sep, danger]) => ({
+      icon, label, key: key || '', sep: sep ? 'block' : 'none', color: danger ? 'var(--danger)' : 'var(--text-primary)',
+      run: () => { if (label === 'Open launcher') this.setState({ menu: null, launcherOpen: true }); else if (label === 'All settings' || label === 'Display settings') this.setState({ menu: null, page: 'display' }); else if (m.kind === 'term' && this.termMenu(label)) { } else done(); }
+    }));
+  }
+  renderVals() {
+    const s = this.state, t = s.t;
+    const w = (i, a, b) => Math.round(a + Math.sin(t * 0.9 + i * 1.7) * b);
+    const cores = [0, 1, 2, 3].map(i => Math.max(8, w(i, 22, 14)));
+    const ram = s.lowSpec ? 29 : 35;
+    const mx = 650;
+    const cmp = [['Patina', ram, 1], ['LXQt', 142], ['XFCE 4.18', 265], ['KDE Plasma 6', 480], ['GNOME 46', 640]];
+    const procs = [[1042, 'patina-compositor', 1.8, 18.4, 'Running'], [1048, 'patina-panel', 0.4, 7.2, 'Sleeping'], [1055, 'patina-launcher', 0.1, 4.1, 'Sleeping'], [1089, 'pipewire', 0.3, 3.8, 'Sleeping'], [1120, 'dbus-daemon', 0.1, 2.4, 'Sleeping']];
+    const frame = (0.78 + (Math.sin(t) + 1) * 0.1).toFixed(2);
+    const pg = s.page, rtl = this.isRtl(), LT = this.TR[s.lang] || this.TR.English, loc = LT.loc, side = rtl ? (s.dockPos === 'Left' ? 'Right' : 'Left') : s.dockPos, cs = this.curSrc();
+    const act = s.top === 'sys' ? 'sysmon' : 'files';
+    const tile = (id, icon, label, on, sub, arrow) => ({ icon, label, sub, bg: on ? 'var(--surface-active)' : 'var(--surface-card)', fg: on ? 'var(--accent-text)' : 'var(--text-primary)', toggle: () => this.setState({ [id]: !s[id], ...(arrow && s[id] && s.qsSub === id && (id === 'wifi' || id === 'bluetooth') ? { qsSub: null } : {}) }), arrowDisp: arrow ? 'grid' : 'none', arrowIcon: s.qsSub === id ? 'chevron-down' : 'chevron-right', arrow: () => this.setState({ qsSub: s.qsSub === id ? null : id }) });
+    const btN = Object.keys(s.btDev).filter(k => s.btDev[k]).length;
+    const WIFI = [['Tidepool-5G', 1], ['Harbor Guest', 0], ['Lighthouse', 1], ['NETGEAR-72', 1]], BT = [['Aura Buds', 'headphones'], ['Keychron K2', 'keyboard'], ['Pixel 8', 'smartphone']];
+    const q = s.qsSub, isW = q === 'wifi', on = { wifi: s.wifi, bluetooth: s.bluetooth, vpn: true, cast: true }[q];
+    const VPN = [['Home WireGuard', 'WireGuard'], ['Work OpenVPN', 'OpenVPN'], ['Travel', 'WireGuard']], CAST = [['Living room TV', 'tv'], ['Bedroom Display', 'monitor'], ['Office Projector', 'projector']];
+    const row = (on2, icon, label, sub, lock, pick) => ({ icon, label, sub, bg: on2 ? 'var(--surface-active)' : 'transparent', fg: on2 ? 'var(--accent-text)' : 'var(--text-primary)', checkDisp: on2 ? 'block' : 'none', lockDisp: lock && !on2 ? 'block' : 'none', pick });
+    return {
+      dockLeft: side === 'Left' ? '14px' : 'auto', dockRight: side === 'Right' ? '14px' : 'auto', dockShift: s.dockHide && !s.dockHover ? (side === 'Left' ? -(s.dockSize + 30) : s.dockSize + 30) : 0,
+      dockIn: () => this.setState({ dockHover: true }), dockOut: () => this.setState({ dockHover: false }),
+      badgeCount: s.badge ? s.notifList.filter(n => n[5]).length : 0,
+      clockText: (() => { const d = new Date(), hm = d.toLocaleTimeString(loc, { hour: s.clock12 === '12 h' ? 'numeric' : '2-digit', minute: '2-digit', hour12: s.clock12 === '12 h' }); return s.showDate ? d.toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + hm : hm; })(),
+      pvW: s.pvW, pvGrip: { down: e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); this.pvD = { x: e.clientX, w: s.pvW }; }, move: e => { const d = this.pvD; if (!d) return; this.setState({ pvW: Math.max(150, Math.min(Math.max(150, s.fw - 340), d.w - (e.clientX - d.x))) }); }, up: () => { this.pvD = null; } }, hasSel: !!this.selFile(), pv: this.preview(),
+      hasStorage: !s.ejected, noStorage: s.ejected, storageBar: s.ejected ? 'none' : 'flex', eject: () => this.setState({ ejected: true }),
+      notifOpen: s.notifOpen, toggleNotif: () => this.setState(x => ({ notifOpen: !x.notifOpen, qsOpen: false, launcherOpen: false, menu: null })),
+      notifs: s.notifList.map(([ic, title, body, app, time, unread], i) => ({ icon: ic === 'files' ? 'assets/files.png' : 'assets/monitor.png', title, body, app, time, dot: unread ? 'block' : 'none', dismiss: () => this.setState(x => ({ notifList: x.notifList.filter((_, j) => j !== i) })) })),
+      noNotifs: s.notifList.length === 0, unreadCount: s.notifList.filter(n => n[5]).length, clearNotifs: () => this.setState({ notifList: [] }), setDnd: v => this.setState({ dnd: v }), dnd: s.dnd,
+      subOpen: !!q, subTitle: { wifi: 'Wi-Fi networks', bluetooth: 'Bluetooth devices', vpn: 'VPN connections', cast: 'Cast to device' }[q] || '', subEmpty: !on, subEmptyText: isW ? 'Wi-Fi is off' : 'Bluetooth is off',
+      subItems: !on ? [] : q === 'wifi' ? WIFI.map(([n, lock]) => row(s.wifiNet === n, 'wifi', n, s.wifiNet === n ? 'Connected' : lock ? 'Secured' : 'Open', lock, () => this.setState({ wifiNet: n }))) : q === 'bluetooth' ? BT.map(([n, i]) => row(s.btDev[n], i, n, s.btDev[n] ? 'Connected' : 'Paired', 0, () => this.setState(x => ({ btDev: Object.assign({}, x.btDev, { [n]: !x.btDev[n] }) })))) : q === 'vpn' ? VPN.map(([n, t]) => row(s.vpn && s.vpnSel === n, 'shield', n, s.vpn && s.vpnSel === n ? 'Connected' : t, 0, () => this.setState(x => x.vpn && x.vpnSel === n ? { vpn: false } : { vpn: true, vpnSel: n }))) : q === 'cast' ? CAST.map(([n, i]) => row(s.cast && s.castDev === n, i, n, s.cast && s.castDev === n ? 'Casting' : 'Available', 0, () => this.setState(x => x.cast && x.castDev === n ? { cast: false } : { cast: true, castDev: n }))) : [],
+      subSettings: () => this.setState({ page: 'network', qsOpen: false, qsSub: null, sysOpen: true, sysMin: false, top: 'sys' }),
+      qsTiles: [tile('wifi', 'wifi', LT.t.wifi, s.wifi, s.wifi ? s.wifiNet : 'Off', 1), tile('bluetooth', 'bluetooth', LT.t.bluetooth, s.bluetooth, s.bluetooth ? (btN ? btN + ' connected' : 'On') : 'Off', 1), tile('vpn', 'shield', LT.t.vpn, s.vpn, s.vpn ? s.vpnSel : 'Off', 1), tile('cast', 'cast', LT.t.cast, s.cast, s.cast ? s.castDev : 'Off', 1)],
+      setBright: v => this.setState({ bright: v }), brightLabel: s.bright + '%',
+      sysShow: s.sysOpen && !s.sysMin, filesShow: s.filesOpen && !s.filesMin,
+      activeApp: this.vis(s.top) ? { files: 'files', sys: 'sysmon', term: 'term', xe: 'xeyes' }[s.top] : null,
+      actTitle: { files: 'File Bin', sys: LT.sys, term: LT.term, xe: 'XEyes (X11)' }[s.top], actIcon: { files: 'assets/files.png', sys: 'assets/monitor.png', term: 'assets/terminal.png', xe: 'assets/xeyes.png' }[s.top],
+      sysC: { min: () => this.setState({ sysMin: true, top: this.nextTop('sys') }), max: () => this.toggleMax('sys') },
+      filC: { min: () => this.setState({ filesMin: true, top: this.nextTop('files') }), max: () => this.toggleMax('files') },
+      closeSys: () => this.setState({ sysOpen: false, sysMin: false, top: this.nextTop('sys') }), closeFiles: () => this.setState({ filesOpen: false, filesMin: false, top: this.nextTop('files') }),
+      dockSelect: id => { const [k, o, m] = { files: ['files', 'filesOpen', 'filesMin'], sysmon: ['sys', 'sysOpen', 'sysMin'], term: ['term', 'termOpen', 'termMin'], xeyes: ['xe', 'xeOpen', 'xeMin'] }[id]; if (id === 'xeyes' && !s.xwl) { this.setState(x => ({ notifList: [['sys', 'XWayland is off', 'Turn on Run X11 apps in Settings to open XEyes.', 'System', 'now', 1]].concat(x.notifList) })); return; } if (s[o] && !s[m] && s.top === k) this.setState({ [m]: true, top: this.nextTop(k) }); else this.setState({ [o]: true, [m]: false, top: k }); },
+      dimAmt: ((100 - s.bright) / 100 * 0.7).toFixed(3),
+      sysD: this.dragger('sys', 'sx', 'sy', 'sw', 'sysPrev'), filD: this.dragger('files', 'fx', 'fy', 'fw', 'filesPrev'),
+      sys: this.rs('sw', 'sh', 560, 360, 'sx', 'sy'), fil: this.rs('fw', 'fh', 420, 260, 'fx', 'fy'),
+      sw: s.sw, sh: s.sh, fw: s.fw, fh: s.fh, fx: s.fx, fy: s.fy,
+      tabs: [['monitor', 'activity'], ['display', 'monitor'], ['sound', 'volume-2'], ['network', 'wifi'], ['appearance', 'palette'], ['keyboard', 'keyboard'], ['dock', 'panel-left'], ['privacy', 'shield'], ['x11', 'app-window'], ['language', 'languages'], ['power', 'battery'], ['users', 'users'], ['about', 'info']].map(([id, icon]) => ({ icon, label: LT.tab[id], active: pg === id, go: () => this.setState({ page: id }) })),
+      isMonitor: pg === 'monitor', isSettings: pg !== 'monitor', pageTitle: this.PAGES[pg] ? (LT.tab[pg] || this.PAGES[pg][0]) : '', groups: this.settingsGroups(),
+      sysActive: s.top === 'sys', filesActive: s.top === 'files', zSys: s.top === 'sys' ? 12 : 10, zFiles: s.top === 'files' ? 12 : 10, zTerm: s.top === 'term' ? 12 : 10, zXe: s.top === 'xe' ? 12 : 10,
+      raiseSys: () => s.top !== 'sys' && this.setState({ top: 'sys' }), raiseFiles: () => s.top !== 'files' && this.setState({ top: 'files' }),
+      netPlaces: this.NET.map(([id, icon, label]) => ({ icon, label, active: s.fdir === id, go: () => this.setState({ fdir: id, fsel: null, q: '' }) })),
+      places: this.PLACES.map(([id, icon, label]) => ({ icon, label: LT.place[id] || label, active: s.fdir === id, go: () => this.setState({ fdir: id, fsel: null, q: '' }) })),
+      files: this.fileItems(), noFiles: this.fileItems().length === 0, q: s.q, setQ: e => this.setState({ q: e.target.value }),
+      goUp: () => this.setState({ fdir: 'home', fsel: null, q: '' }),
+      pathText: s.fdir === 'trash' ? '/home/patina/.local/share/Trash' : s.fdir === 'home' ? '/home/patina' : '/home/patina/' + s.fdir[0].toUpperCase() + s.fdir.slice(1),
+      statusLeft: this.fileItems().length + ' items' + (s.fsel ? ' · ' + s.fsel + ' selected' : ''), statusRight: '18.6 GB free',
+      scale: s.scale, setScale: v => this.setState({ scale: v }), scaleLabel: s.scale + '%',
+      volLabel: s.vol + '%', night: s.night, setNight: v => this.setState({ night: v }),
+      mute: s.mute, setMute: v => this.setState({ mute: v }), dim: s.dim, setDim: v => this.setState({ dim: v }),
+      openSettings: () => this.setState({ page: 'display', qsOpen: false }),
+      menuOpen: !!s.menu, menuX: s.menu ? s.menu.x : 0, menuY: s.menu ? s.menu.y : 0, menuItems: this.menuItems(),
+      closeMenu: () => (s.menu || s.notifOpen) && this.setState({ menu: null, notifOpen: false }),
+      stop: e => { e.preventDefault(); e.stopPropagation(); },
+      ctxDesktop: e => this.open(e, 'desktop'), ctxDock: e => this.open(e, 'dock'),
+      ws: s.ws, setWs: n => this.setState({ ws: n }), noop: () => {},
+      toggleLauncher: () => this.setState(x => ({ launcherOpen: !x.launcherOpen, qsOpen: false, notifOpen: false })),
+      toggleQs: () => this.setState(x => ({ qsOpen: !x.qsOpen, launcherOpen: false, notifOpen: false })),
+      launcherOpen: s.launcherOpen, qsOpen: s.qsOpen,
+      lowSpec: s.lowSpec, setLowSpec: v => this.setState({ lowSpec: v }),
+      tiling: s.tiling, setTiling: v => this.setState({ tiling: v }),
+      vol: s.vol, setVol: v => this.setState({ vol: v }),
+      dockApps: [
+        { id: 'files', label: 'File Bin', icon: 'assets/files.png', running: s.filesOpen },
+        { id: 'sysmon', label: LT.sys, icon: 'assets/monitor.png', running: s.sysOpen },
+        { id: 'term', label: LT.term, icon: 'assets/terminal.png', running: s.termOpen },
+        { id: 'xeyes', label: 'XEyes (X11)', icon: 'assets/xeyes.png', running: s.xeOpen && s.xwl }],
+      ram, ramPct: (ram / 1024 * 100 + 4).toFixed(1), cores, cpuAvg: Math.round(cores.reduce((a, b) => a + b, 0) / 4),
+      frame, framePct: (frame / 16.6 * 100).toFixed(1),
+      cmpX: 0, compare: cmp.map(([name, mib, me]) => ({ name, mib, pct: (mib / mx * 100).toFixed(1), color: me ? 'var(--tide-300)' : 'var(--text-secondary)', weight: me ? 700 : 500, bar: me ? 'var(--accent)' : name === 'GNOME 46' ? 'var(--danger)' : 'var(--ink-500)' })),
+      procs: procs.map(([pid, name, cpu, mem, state]) => ({ pid, name, cpu: cpu.toFixed(1), mem: mem.toFixed(1), state, stateColor: state === 'Running' ? 'var(--success)' : 'var(--text-muted)' })),
+      sessLogin: s.sess === 'login' || s.sess === 'locked', sessDark: s.sess === 'shutdown' || s.sess === 'boot' || s.sess === 'off', sessMsg: s.sess === 'shutdown', sessMsgText: this.msg || '', sessBoot: s.sess === 'boot', sessOff: s.sess === 'off', bootW: s.sessGo ? 100 : 0,
+      loginTime: new Date().toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }), loginDate: new Date().toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'long' }),
+      luBg: s.luIdx ? 'var(--ink-500)' : 'var(--accent)', luInit: this.LU[s.luIdx][1], luName: this.LU[s.luIdx][0], luPh: s.luIdx ? 'No password needed' : LT.pw,
+      switchOpen: s.switchOpen, closeSwitch: () => s.switchOpen && this.setState({ switchOpen: false }), toggleSwitch: e => { e.stopPropagation(); this.setState({ switchOpen: !s.switchOpen }); },
+      luList: this.LU.map(([name, init, sub], i) => ({ name, init, sub, avatar: i ? 'var(--ink-500)' : 'var(--accent)', bg: i === s.luIdx ? 'var(--surface-active)' : 'transparent', fg: i === s.luIdx ? 'var(--accent-text)' : 'var(--text-primary)', pick: () => this.setState({ luIdx: i, switchOpen: false, pw: '', loginErr: '' }) })),
+      pw: s.pw, loginErr: s.loginErr, setPw: e => this.setState({ pw: e.target.value, loginErr: '' }), pwKey: e => { if (e.key === 'Enter') this.signIn(); }, signIn: () => this.signIn(),
+      lockScreen: () => this.lock(),
+      logOff: () => this.endSession('login'),
+      restart: () => { this.msg = 'Restarting…'; this.endSession('shutdown'); this.later(() => this.boot(), 2000); },
+      powerOff: () => { this.msg = 'Shutting down…'; this.endSession('shutdown'); this.later(() => this.setState({ sess: 'off' }), 1800); },
+      powerOn: () => this.boot(),
+      dir: rtl ? 'rtl' : 'ltr', tSys: LT.sys, hPlaces: LT.h.places, hDevices: LT.h.devices, hNet: LT.h.network,
+      srcMulti: this.srcList(s).length > 1, srcCode: this.SRC[cs][0], srcName: this.SRC[cs][1], cycleSrc: () => this.cycleSrc(),
+      ...this.permVals(),
+      ...this.termVals(),
+      _x: 0
+    };
+  }
+}
+</script>
+</body>
+</html>

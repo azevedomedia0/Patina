@@ -1,0 +1,19 @@
+Source: patina-desktop
+Section: x11
+Priority: optional
+Maintainer: Patina contributors <patina@example.invalid>
+Build-Depends: debhelper-compat (= 13), cargo, rustc, pkg-config, libwayland-dev,
+ libxkbcommon-dev, libinput-dev, libgbm-dev, libseat-dev, libudev-dev, libegl1-mesa-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/azevedomedia0/Patina
+
+Package: patina-desktop
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}, seatd, pipewire, wireplumber,
+ network-manager, bluez, upower, policykit-1, xwayland, xdg-desktop-portal,
+ fonts-jetbrains-mono
+Description: Patina Desktop, a Wayland desktop environment written in Rust
+ Compositor, panel, dock and launcher. Installs a "Patina" session
+ that appears in the login screen.
+ .
+ Targets Debian 12+, Linux Mint 21+ and LMDE 6+. Placeholder packaging, untested.

@@ -1,0 +1,10 @@
+[package]
+name = "patina-tokens"
+description = "Design tokens for Patina, generated from design/tokens/*.css"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true

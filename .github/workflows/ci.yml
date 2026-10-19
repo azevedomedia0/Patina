@@ -1,0 +1,41 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  # Format, lint and test inside each target distro's container, so missing
+  # system libraries and old toolchains show up here and not on a user's machine.
+  # Image names for Mint are unverified; confirm them in Milestone 0.
+  distro:
+    name: ${{ matrix.name }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Debian 12,     image: "debian:12",                   arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
+          - { name: Ubuntu 22.04,  image: "ubuntu:22.04",               arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
+          - { name: Ubuntu 24.04,  image: "ubuntu:24.04",               arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
+          - { name: Linux Mint 21, image: "linuxmintd/mint21.3-amd64",  arch: x86_64,  runner: ubuntu-24.04,     pkg: apt }
+          - { name: Fedora,        image: "fedora:latest",              arch: x86_64,  runner: ubuntu-24.04,     pkg: dnf }
+          - { name: Arch,          image: "archlinux:latest",           arch: x86_64,  runner: ubuntu-24.04,     pkg: pacman }
+          - { name: Debian 12,     image: "debian:12",                  arch: aarch64, runner: ubuntu-24.04-arm, pkg: apt }
+          - { name: Fedora,        image: "fedora:latest",              arch: aarch64, runner: ubuntu-24.04-arm, pkg: dnf }
+    steps:
+      - name: Base packages
+        run: |
+          case "${{ matrix.pkg }}" in
+            apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl git build-essential pkg-config ca-certificates ;;
+            dnf)    dnf install -y curl git gcc gcc-c++ make pkgconf-pkg-config ;;
+            pacman) pacman -Syu --noconfirm curl git base-devel ;;
+          esac
+      - uses: actions/checkout@v4
+      - name: Rust (rustup, pinned by rust-toolchain.toml)
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace

@@ -1,0 +1,31 @@
+# Maintainer: Patina contributors
+# Placeholder packaging: assumes a Cargo workspace with the binaries
+# patina-compositor, patina-panel and patina-launcher. Untested.
+pkgname=patina-desktop
+pkgver=0.4.0
+pkgrel=1
+pkgdesc='Patina Desktop, a Wayland desktop environment written in Rust'
+arch=('x86_64' 'aarch64')
+url='https://github.com/azevedomedia0/Patina'
+license=('GPL3')
+depends=('wayland' 'libxkbcommon' 'libinput' 'mesa' 'seatd' 'pipewire' 'wireplumber'
+         'networkmanager' 'bluez' 'upower' 'polkit' 'xorg-xwayland' 'xdg-desktop-portal'
+         'ttf-jetbrains-mono' 'ttf-plus-jakarta-sans')
+makedepends=('cargo' 'git' 'pkgconf')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
+        'patina.desktop' 'patina-session')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+build() {
+  cd "Patina-$pkgver"
+  cargo build --release --locked
+}
+
+package() {
+  cd "Patina-$pkgver"
+  for bin in patina-compositor patina-panel patina-launcher; do
+    install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
+  done
+  install -Dm755 "$srcdir/patina-session" "$pkgdir/usr/bin/patina-session"
+  install -Dm644 "$srcdir/patina.desktop" "$pkgdir/usr/share/wayland-sessions/patina.desktop"
+}

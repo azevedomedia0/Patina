@@ -1,0 +1,6 @@
+# Pinned in Milestone 0 once Smithay and the GUI toolkit MSRVs are confirmed.
+# Distro cargo is too old on Debian 12 (1.63) and Ubuntu 22.04 (1.75), so
+# packages build with this rustup toolchain instead.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
