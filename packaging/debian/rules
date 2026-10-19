@@ -40,3 +40,7 @@ override_dh_dwz:
 
 override_dh_strip:
 	dh_strip --no-automatic-dbgsym
+
+# xz everywhere: Debian 12's tools and older dpkg can read it, zstd is not universal.
+override_dh_builddeb:
+	dh_builddeb -- -Zxz

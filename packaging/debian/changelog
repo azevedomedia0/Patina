@@ -1,11 +1,14 @@
 patina-desktop (0.1.0) unstable; urgency=medium
 
   * First packaging of the compositor and top panel.
-  * The panel shows the real time, battery (when present), focused window title and
-    workspaces; the compositor has four workspaces.
-  * Cursors other than the default arrow (text, resize and so on) come from the system
-    XCursor theme, so a cursor theme is recommended.
-  * Builds with a pinned rustup toolchain (packaging/RUST_VERSION) because the
-    Rust in Debian 12 and Ubuntu 22.04 is too old.
+  * The panel shows the real time, battery (when present), focused window
+    title and workspaces; the compositor has four workspaces, switched with
+    Super+1..4 and windows moved with Super+Shift+1..4.
+  * Blurred glass behind the panel and windows, repainted only where
+    something changed.
+  * Cursors other than the default arrow (text, resize and so on) come from
+    the system XCursor theme, so a cursor theme is recommended.
+  * Builds with a pinned rustup toolchain (packaging/RUST_VERSION) because
+    the Rust in Debian 12 and Ubuntu 22.04 is too old.
 
  -- PatineDE contributors <patina@example.invalid>  Sun, 18 Oct 2026 19:30:00 -0700
