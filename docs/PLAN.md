@@ -15,15 +15,18 @@ Smithay compositor plus separate layer-shell client processes (panel, dock, laun
 Distro cargo is too old (Debian 12: 1.63, Ubuntu 22.04: 1.75). Packages build with a pinned rustup toolchain; release binaries are built in a Debian 12 container for the oldest glibc.
 
 ## Milestones
-0. Repo, CI matrix, toolkit spike, token generator
-1. Nested compositor (winit): window management
-2. DRM/KMS, libinput, seatd/logind
-3. Shell: panel, dock, launcher, notifications, quick settings
-4. Session: session entry, lock, power, greetd greeter, idle/suspend
-5. XWayland isolation, permission broker and prompts
-6. Apps: File Bin, Settings (incl. Processes), Terminal
-7. Settings pages, real Wi-Fi/Bluetooth/audio
-8. Input/i18n, accessibility, light theme, low-spec, .deb/.rpm/PKGBUILD, QA
+
+| # | Milestone | Status (2026-10-19) |
+| --- | --- | --- |
+| 0 | Repo, CI matrix, toolkit spike, token generator | Done. CI passes on all eight distro jobs on GitHub. |
+| 1 | Nested compositor (winit): window management | Done, except window animations (deferred to 3 by decision). |
+| 2 | DRM/KMS, libinput, seatd/logind | Done in the VM. Open: suspend/resume and real-GPU testing, which need hardware (`docs/HARDWARE-TEST.md`). |
+| 3 | Shell: panel, dock, launcher, notifications, quick settings | Started: panel live (clock, battery, title, workspaces). Dock, launcher, notifications, quick settings not started. |
+| 4 | Session: session entry, lock, power, greetd greeter, idle/suspend | Started: session entry works from SDDM, GDM, LightDM and a text console. Lock, power, greeter, idle not started. |
+| 5 | XWayland isolation, permission broker and prompts | Not started. |
+| 6 | Apps: File Bin, Settings (incl. Processes), Terminal | Not started. |
+| 7 | Settings pages, real Wi-Fi/Bluetooth/audio | Not started. |
+| 8 | Input/i18n, accessibility, light theme, low-spec, .deb/.rpm/PKGBUILD, QA | Started: .deb for Debian 12/13 and Ubuntu 22.04/24.04 (arm64, amd64 cross-built), system keyboard layout. .rpm and PKGBUILD not started. |
 
 ## Milestone 0 status
 Done: repo (github.com/azevedomedia0/Patina), fonts, Lucide icons, token generator with tests, CI matrix (all eight jobs pass on GitHub; `docs/CI.md`), Rust pinned to 1.99.1 (`rust-toolchain.toml`, `packaging/RUST_VERSION`), packaging stubs, toolkit spike (docs/SPIKE.md), QEMU build VM (docs/VM.md).
