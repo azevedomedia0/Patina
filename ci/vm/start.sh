@@ -13,7 +13,7 @@ qemu-system-aarch64 \
   -accel hvf -M virt,highmem=on -cpu host -smp 6 -m 8G \
   -drive if=pflash,format=raw,file="$QSHARE/edk2-aarch64-code.fd",readonly=on \
   -drive if=pflash,format=raw,file="$S/vars.fd" \
-  -drive if=virtio,format=qcow2,file="$S/disk.qcow2" \
+  -drive if=virtio,format=qcow2,file="$S/disk.qcow2",discard=unmap,detect-zeroes=unmap \
   -drive if=virtio,format=raw,file="$S/seed.iso",readonly=on \
   -netdev user,id=n0,hostfwd=tcp:127.0.0.1:2222-:22 -device virtio-net-pci,netdev=n0 \
   -device virtio-gpu-pci,id=gpu0 -device qemu-xhci \
