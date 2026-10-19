@@ -41,11 +41,29 @@ pub fn render(width: i32, height: i32, active: bool) -> Shadow {
     render_scaled(width, height, active, 1.0)
 }
 
+/// `--shadow-popover`: `0 16px 32px -8px rgba(0,0,0,.55)`, for the dock, popovers and menus.
+const POPOVER: Spec = Spec {
+    offset_y: 16,
+    blur: 32,
+    spread: -8,
+    alpha: 0.55,
+};
+
 /// Like [`render`], at `scale` device pixels per logical pixel. `width`, `height` and the
 /// returned `pad` are logical; the bitmap is in device pixels.
 pub fn render_scaled(width: i32, height: i32, active: bool, scale: f32) -> Shadow {
+    let spec = if active { ACTIVE } else { INACTIVE };
+    draw(width, height, spec, RADIUS, true, scale)
+}
+
+/// The popover shadow under a shell surface of `width` x `height` with corner `radius`
+/// (logical), at `scale`. It has no outline (the surfaces draw their own borders).
+pub fn render_popover(width: i32, height: i32, radius: f32, scale: f32) -> Shadow {
+    draw(width, height, POPOVER, radius, false, scale)
+}
+
+fn draw(width: i32, height: i32, logical: Spec, radius: f32, outline: bool, scale: f32) -> Shadow {
     let s = if scale > 0.0 { scale } else { 1.0 };
-    let logical = if active { ACTIVE } else { INACTIVE };
     let logical_pad = logical.blur + logical.offset_y;
     let px = |v: i32| (v as f32 * s).round() as i32;
     let spec = Spec {
@@ -56,7 +74,7 @@ pub fn render_scaled(width: i32, height: i32, active: bool, scale: f32) -> Shado
     };
     let pad = px(logical_pad);
     let (width, height) = (px(width), px(height));
-    let radius = RADIUS * s;
+    let radius = radius * s;
     let (w, h) = (width + 2 * pad, height + 2 * pad);
 
     // 1. The shadow shape: the window shrunk by the spread, shifted down.
@@ -108,13 +126,18 @@ pub fn render_scaled(width: i32, height: i32, active: bool, scale: f32) -> Shado
     }
     // A 1 logical pixel outline: `s` device pixels wide, just outside the window.
     let half = 0.5 * s;
-    if let Some(ring) = rounded_rect(
-        pad as f32 - half,
-        pad as f32 - half,
-        width as f32 + 2.0 * half,
-        height as f32 + 2.0 * half,
-        radius + half,
-    ) {
+    let ring = if outline {
+        rounded_rect(
+            pad as f32 - half,
+            pad as f32 - half,
+            width as f32 + 2.0 * half,
+            height as f32 + 2.0 * half,
+            radius + half,
+        )
+    } else {
+        None
+    };
+    if let Some(ring) = ring {
         let mut paint = Paint {
             anti_alias: true,
             ..Paint::default()
@@ -297,6 +320,15 @@ mod tests {
         assert_eq!(two.pad, one.pad);
         assert_eq!(two.bitmap.width, one.bitmap.width * 2);
         assert_eq!(two.bitmap.height, one.bitmap.height * 2);
+    }
+
+    #[test]
+    fn popover_shadows_extend_by_blur_plus_offset_and_have_no_outline() {
+        let s = render_popover(320, 200, 20.0, 1.0);
+        assert_eq!(s.pad, 32 + 16);
+        // Just outside the top edge: no white outline pixel, only (dark) shadow or nothing.
+        let i = (((s.pad - 1) * s.bitmap.width + s.pad + 100) * 4) as usize;
+        assert!(s.bitmap.bgra[i] < 5 && s.bitmap.bgra[i + 1] < 5 && s.bitmap.bgra[i + 2] < 5);
     }
 
     #[test]

@@ -1,0 +1,20 @@
+[package]
+name = "patina-dock"
+description = "Patina dock (layer-shell client)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-tokens = { path = "../patina-tokens" }
+patina-ui = { path = "../patina-ui" }
+patina-apps = { path = "../patina-apps" }
+patina-link = { path = "../patina-link" }
+iced = { version = "0.14", default-features = false, features = ["wgpu", "tiny-skia", "tokio", "svg", "image-without-codecs", "wayland"] }
+iced_layershell = "0.19.1"
+iced_runtime = "0.14"
+tokio = { version = "1", default-features = false, features = ["time", "sync"] }
+
+[lints]
+workspace = true

@@ -1470,6 +1470,7 @@ dependencies = [
  "iced_runtime",
  "iced_widget",
  "iced_winit",
+ "image",
  "thiserror 2.0.21",
 ]
 
@@ -1555,6 +1556,8 @@ dependencies = [
  "half",
  "iced_core",
  "iced_futures",
+ "image",
+ "kamadak-exif",
  "log",
  "raw-window-handle",
  "rustc-hash 2.1.3",
@@ -1715,6 +1718,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "image"
+version = "0.25.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85ab80394333c02fe689eaf900ab500fbd0c2213da414687ebf995a65d5a6104"
+dependencies = [
+ "bytemuck",
+ "byteorder-lite",
+ "moxcms",
+ "num-traits",
+]
+
+[[package]]
 name = "image-webp"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1846,6 +1861,15 @@ dependencies = [
  "cfg-if",
  "futures-util",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "kamadak-exif"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1130d80c7374efad55a117d715a3af9368f0fa7a2c54573afc15a188cd984837"
+dependencies = [
+ "mutate_once",
 ]
 
 [[package]]
@@ -2150,6 +2174,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "moxcms"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
+dependencies = [
+ "num-traits",
+ "pxfm",
+]
+
+[[package]]
 name = "mundy"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2174,6 +2208,12 @@ dependencies = [
  "windows 0.62.2",
  "zbus",
 ]
+
+[[package]]
+name = "mutate_once"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13d2233c9842d08cfe13f9eac96e207ca6a2ea10b80259ebe8ad0268be27d2af"
 
 [[package]]
 name = "naga"
@@ -2711,6 +2751,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "patina-apps"
+version = "0.1.0"
+dependencies = [
+ "png",
+ "resvg",
+ "tiny-skia",
+]
+
+[[package]]
 name = "patina-compositor"
 version = "0.1.0"
 dependencies = [
@@ -2724,12 +2773,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "patina-dock"
+version = "0.1.0"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+ "patina-apps",
+ "patina-link",
+ "patina-tokens",
+ "patina-ui",
+ "tokio",
+]
+
+[[package]]
 name = "patina-frame"
 version = "0.1.0"
 dependencies = [
  "cosmic-text",
  "patina-tokens",
  "tiny-skia",
+]
+
+[[package]]
+name = "patina-link"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "wayland-client",
+ "wayland-protocols",
+ "wayland-protocols-wlr",
 ]
 
 [[package]]
@@ -2758,6 +2831,15 @@ dependencies = [
 [[package]]
 name = "patina-tokens"
 version = "0.1.0"
+
+[[package]]
+name = "patina-ui"
+version = "0.1.0"
+dependencies = [
+ "iced",
+ "patina-apps",
+ "patina-tokens",
+]
 
 [[package]]
 name = "percent-encoding"
@@ -2930,6 +3012,12 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "pxfm"
+version = "0.1.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
 
 [[package]]
 name = "quick-error"

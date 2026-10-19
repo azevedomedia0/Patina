@@ -109,6 +109,8 @@ pub enum CursorSource {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Action {
+    /// A Super tap: open or close the launcher.
+    ToggleLauncher,
     RestoreMinimized,
     /// Switch to virtual terminal `n` (Ctrl+Alt+Fn).
     VtSwitch(i32),

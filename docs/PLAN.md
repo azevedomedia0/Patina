@@ -21,7 +21,7 @@ Distro cargo is too old (Debian 12: 1.63, Ubuntu 22.04: 1.75). Packages build wi
 | 0 | Repo, CI matrix, toolkit spike, token generator | Done. CI passes on all eight distro jobs on GitHub. |
 | 1 | Nested compositor (winit): window management | Done, except window animations (deferred to 3 by decision). |
 | 2 | DRM/KMS, libinput, seatd/logind | Done in the VM. Open: suspend/resume and real-GPU testing, which need hardware (`docs/HARDWARE-TEST.md`). |
-| 3 | Shell: panel, dock, launcher, notifications, quick settings | Started: panel live (clock, battery, title, workspaces). Dock, launcher, notifications, quick settings not started. |
+| 3 | Shell: panel, dock, launcher, notifications, quick settings | In progress. Done: panel; dock (`patina-dock`: pins, running dots, click to open/focus/minimise, right-click menu; tested in the VM); compositor support (blur, radius and shadow per shell surface, menus close on outside press, Super tap and desktop right-click sent to the shell, keyboard focus for the launcher, `--shell` restart). Libraries: `patina-apps`, `patina-ui`, `patina-link`. Not done: launcher, quick settings with real services (`wip/patina-services` started), notification centre and banners, desktop menu; the session script does not start the dock yet. Decisions: real services; no animations except the dock hover; card-style banners; unavailable controls shown dimmed. |
 | 4 | Session: session entry, lock, power, greetd greeter, idle/suspend | Started: session entry works from SDDM, GDM, LightDM and a text console. Lock, power, greeter, idle not started. |
 | 5 | XWayland isolation, permission broker and prompts | Not started. |
 | 6 | Apps: File Bin, Settings (incl. Processes), Terminal | Not started. |

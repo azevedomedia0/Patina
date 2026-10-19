@@ -1,0 +1,16 @@
+[package]
+name = "patina-link"
+description = "What the Patina shell learns from the compositor (windows, workspaces, outputs) and asks of it"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+tokio = { version = "1", default-features = false, features = ["sync"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", default-features = false, features = ["client", "staging"] }
+wayland-protocols-wlr = { version = "0.3", default-features = false, features = ["client"] }
+
+[lints]
+workspace = true

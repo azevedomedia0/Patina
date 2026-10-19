@@ -96,6 +96,12 @@ pub struct Patina {
     pub drag: Option<crate::wm::Drag>,
     /// A press was consumed by a window frame; its release must be swallowed too.
     pub frame_press: bool,
+    /// Super is down and nothing else was pressed since: releasing it opens the launcher.
+    pub super_alone: bool,
+    /// Set by the key filter when a Super tap ended; acted on after the key event.
+    pub launcher_wanted: bool,
+    /// Keyboard focus before an exclusive shell surface (the launcher) took it.
+    pub focus_before_layer: Option<WlSurface>,
     /// The touch point moving or resizing a window by its frame, if any.
     pub touch_drag: Option<smithay::backend::input::TouchSlot>,
     /// Keyboards (libinput devices), for their Caps Lock and Num Lock lights.
@@ -209,6 +215,9 @@ impl Patina {
             drag: None,
             frame_press: false,
             touch_drag: None,
+            super_alone: false,
+            launcher_wanted: false,
+            focus_before_layer: None,
             keyboards: Vec::new(),
             minimized: Vec::new(),
             last_titlebar_click: None,
@@ -416,6 +425,7 @@ impl CompositorHandler for Patina {
                     }
                 }
             }
+            self.layer_committed(&output, surface);
             // The reserved area may have changed (a panel appeared or resized).
             self.fit_windows_to_zone();
         }
@@ -637,6 +647,7 @@ impl WlrLayerShellHandler for Patina {
                 map.unmap_layer(&layer);
             }
         }
+        self.layer_gone(surface.wl_surface());
         // The map lock is released above; fitting windows takes it again.
         self.fit_windows_to_zone();
         self.queue_redraw();

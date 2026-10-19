@@ -14,7 +14,7 @@ use smithay::{
                 render_elements,
                 surface::{render_elements_from_surface_tree, WaylandSurfaceRenderElement},
                 texture::TextureRenderElement,
-                AsRenderElements, Kind,
+                Kind,
             },
             gles::{GlesRenderer, GlesTexProgram, GlesTexture},
         },
@@ -63,6 +63,8 @@ pub struct OutputRender {
     /// Set when the scene cannot be created; frames are then drawn without blur.
     pub unavailable: bool,
     wallpaper: Option<((i32, i32), MemoryRenderBuffer)>,
+    /// Popover shadows of shell surfaces, by size.
+    shadows: std::collections::HashMap<ShadowKey, (Image, i32)>,
 }
 
 impl OutputRender {
@@ -78,6 +80,7 @@ impl OutputRender {
             scene_check: None,
             unavailable: no_blur,
             wallpaper: None,
+            shadows: std::collections::HashMap::new(),
         }
     }
 }
@@ -108,44 +111,146 @@ fn physical(r: Rectangle<i32, Logical>, scale: Scale<f64>) -> Rectangle<i32, Phy
     )
 }
 
-/// Layer surfaces that are glass, by namespace. Only the panel exists so far; the dock, launcher
-/// and quick settings will join it.
-fn layer_glass(namespace: &str) -> Option<glass::Glass> {
-    match namespace {
-        "patina-panel" => Some(glass::panel()),
-        _ => None,
-    }
-}
-
 struct LayerInfo {
     layer: DesktopLayerSurface,
     geometry: Rectangle<i32, Logical>,
     kind: Layer,
 }
 
-fn layer_group(renderer: &mut GlesRenderer, info: &LayerInfo, scale: Scale<f64>) -> Group {
-    let elements = info
-        .layer
-        .render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
+/// A shadow bitmap cached by what it was drawn for: width, height, radius and scale bits.
+type ShadowKey = (i32, i32, u32, u32);
+
+/// The popover shadow for a `rect` (output-local, logical) with `radius`, cached by size.
+fn popover_shadow(
+    rs: &mut OutputRender,
+    renderer: &mut GlesRenderer,
+    rect: Rectangle<i32, Logical>,
+    radius: f32,
+    scale: Scale<f64>,
+) -> Option<PatinaElement> {
+    let key: ShadowKey = (
+        rect.size.w,
+        rect.size.h,
+        radius.to_bits(),
+        (scale.x as f32).to_bits(),
+    );
+    if !rs.shadows.contains_key(&key) {
+        if rs.shadows.len() > 32 {
+            rs.shadows.clear();
+        }
+        let s = shadow::render_popover(rect.size.w, rect.size.h, radius, scale.x as f32);
+        let image = Image {
+            buffer: upload(&s.bitmap.bgra, s.bitmap.width, s.bitmap.height),
+            pixels: (s.bitmap.width, s.bitmap.height),
+        };
+        rs.shadows.insert(key, (image, s.pad));
+    }
+    let (image, pad) = rs.shadows.get(&key)?;
+    let at: Point<f64, Physical> = Point::from((
+        (rect.loc.x - pad) as f64 * scale.x,
+        (rect.loc.y - pad) as f64 * scale.y,
+    ));
+    MemoryRenderBufferRenderElement::from_buffer(
+        renderer,
+        at,
+        &image.buffer,
+        None,
+        Some(whole(image.pixels)),
+        Some(Size::from((rect.size.w + 2 * pad, rect.size.h + 2 * pad))),
+        Kind::Unspecified,
+    )
+    .ok()
+    .map(PatinaElement::Image)
+}
+
+/// One group for `elements` drawn at `rect`, with the shell rules (blur behind, shadow under).
+fn shell_group(
+    rs: &mut OutputRender,
+    renderer: &mut GlesRenderer,
+    key: ObjectId,
+    mut elements: Vec<PatinaElement>,
+    rect: Rectangle<i32, Logical>,
+    rules: Option<patina_frame::shell::ShellSurface>,
+    scale: Scale<f64>,
+) -> Group {
+    let backdrop = rules.and_then(|r| {
+        r.glass.map(|g| Backdrop {
+            rect: physical(rect, scale),
+            radius: r.radius * scale.x as f32,
+            sigma: g.sigma * scale.x as f32,
+            saturation: g.saturation,
+        })
+    });
+    if let Some(r) = rules.filter(|r| r.shadow) {
+        // Elements are top-most first: the shadow goes under the surface.
+        elements.extend(popover_shadow(rs, renderer, rect, r.radius, scale));
+    }
+    Group {
+        key: Some(key),
+        elements,
+        backdrop,
+    }
+}
+
+/// A layer surface, then each of its popups (menus) above it. Patina's own layers get their
+/// shell look (`patina_frame::shell`), and so do their popups.
+fn layer_groups(
+    rs: &mut OutputRender,
+    renderer: &mut GlesRenderer,
+    info: &LayerInfo,
+    scale: Scale<f64>,
+) -> Vec<Group> {
+    let surface = info.layer.wl_surface();
+    let rules = patina_frame::shell::for_namespace(info.layer.namespace());
+    let elements =
+        render_elements_from_surface_tree::<_, WaylandSurfaceRenderElement<GlesRenderer>>(
             renderer,
+            surface,
             info.geometry.loc.to_physical_precise_round(scale),
             scale,
             1.0,
+            Kind::Unspecified,
         )
         .into_iter()
         .map(PatinaElement::Surface)
         .collect();
-    let backdrop = layer_glass(info.layer.namespace()).map(|g| Backdrop {
-        rect: physical(info.geometry, scale),
-        radius: 0.0,
-        sigma: g.sigma * scale.x as f32,
-        saturation: g.saturation,
-    });
-    Group {
-        key: Some(info.layer.wl_surface().id()),
+    let mut groups = vec![shell_group(
+        rs,
+        renderer,
+        surface.id(),
         elements,
-        backdrop,
+        info.geometry,
+        rules,
+        scale,
+    )];
+    for (popup, offset) in PopupManager::popups_for_surface(surface) {
+        let geo = popup.geometry();
+        let rect = Rectangle::new(info.geometry.loc + offset, geo.size);
+        let origin = (info.geometry.loc + offset - geo.loc).to_physical_precise_round(scale);
+        let elements =
+            render_elements_from_surface_tree::<_, WaylandSurfaceRenderElement<GlesRenderer>>(
+                renderer,
+                popup.wl_surface(),
+                origin,
+                scale,
+                1.0,
+                Kind::Unspecified,
+            )
+            .into_iter()
+            .map(PatinaElement::Surface)
+            .collect();
+        let popup_rules = rules.map(|_| patina_frame::shell::popup());
+        groups.push(shell_group(
+            rs,
+            renderer,
+            popup.wl_surface().id(),
+            elements,
+            rect,
+            popup_rules,
+            scale,
+        ));
     }
+    groups
 }
 
 /// The wallpaper as an element at the bottom of the scene, redrawn only when the output size
@@ -215,18 +320,29 @@ pub fn groups(
     };
     let is_below = |l: Layer| matches!(l, Layer::Background | Layer::Bottom);
 
-    // The bottom group: background and bottom layers over the wallpaper.
-    let mut base: Vec<PatinaElement> = layers
-        .iter()
-        .filter(|l| is_below(l.kind))
-        .flat_map(|l| layer_group(renderer, l, scale).elements)
-        .collect();
+    // The bottom group: other programs' background and bottom layers over the wallpaper.
+    let is_shell =
+        |l: &LayerInfo| patina_frame::shell::for_namespace(l.layer.namespace()).is_some();
+    let mut base: Vec<PatinaElement> = Vec::new();
+    for l in layers.iter().filter(|l| is_below(l.kind) && !is_shell(l)) {
+        for g in layer_groups(rs, renderer, l, scale) {
+            base.extend(g.elements);
+        }
+    }
     base.extend(wallpaper_element(rs, renderer, size, scale));
     groups.push(Group {
         key: None,
         elements: base,
         backdrop: None,
     });
+    // Patina's own surfaces below the windows (the dock), bottom-most first, each with glass.
+    for l in layers
+        .iter()
+        .rev()
+        .filter(|l| is_below(l.kind) && is_shell(l))
+    {
+        groups.extend(layer_groups(rs, renderer, l, scale));
+    }
 
     // Windows, bottom-most first. Each: surfaces, then titlebar, then shadow underneath.
     let windows: Vec<Window> = state.space.elements().cloned().collect();
@@ -386,7 +502,7 @@ pub fn groups(
 
     // Layers above windows (top, overlay), bottom-most first.
     for info in layers.iter().rev().filter(|l| !is_below(l.kind)) {
-        groups.push(layer_group(renderer, info, scale));
+        groups.extend(layer_groups(rs, renderer, info, scale));
     }
     groups
 }

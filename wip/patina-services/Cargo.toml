@@ -1,0 +1,16 @@
+[package]
+name = "patina-services"
+description = "System services behind the Patina quick settings and notifications (D-Bus and friends)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-sysinfo = { path = "../patina-sysinfo" }
+zbus = "5"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+tokio = { version = "1", default-features = false, features = ["time", "sync", "rt", "macros", "process", "io-util"] }
+
+[lints]
+workspace = true

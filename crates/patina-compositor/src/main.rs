@@ -3,10 +3,11 @@
 //! Milestone 1: a nested (winit) Wayland compositor with xdg-shell windows and
 //! layer-shell surfaces, so `patina-panel` can attach to it.
 //!
-//! Usage: `patina-compositor [--per-output COMMAND] [COMMAND...]`. Each COMMAND is a shell
-//! command started once the compositor is listening, with `WAYLAND_DISPLAY` pointing at it. The
-//! `--per-output` one (the panel) is started for every output as it appears, with
-//! `PATINA_OUTPUT` set to the output's name, and stopped when the output goes.
+//! Usage: `patina-compositor [--shell COMMAND]... [--per-output COMMAND] [COMMAND...]`. Each
+//! COMMAND is a shell command started once the compositor is listening, with `WAYLAND_DISPLAY`
+//! pointing at it. `--shell` ones (panel, dock) are started again if they stop. The
+//! `--per-output` one is started for every output as it appears, with `PATINA_OUTPUT` set to the
+//! output's name, and stopped when the output goes.
 
 mod blur;
 mod clip;
@@ -15,10 +16,13 @@ mod drm;
 mod dumb;
 mod input;
 mod keyboard;
+mod layers;
 mod outputs;
 mod render;
 mod scene;
+mod shell_ipc;
 mod state;
+mod supervise;
 mod toplevel_info;
 mod winit;
 mod wm;
@@ -42,12 +46,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = Patina::new(&mut event_loop, display);
 
     let mut once = Vec::new();
+    let mut shell = Vec::new();
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
-        if arg == "--per-output" {
-            state.per_output_cmd = args.next();
-        } else {
-            once.push(arg);
+        match arg.as_str() {
+            "--per-output" => state.per_output_cmd = args.next(),
+            "--shell" => shell.extend(args.next()),
+            _ => once.push(arg),
         }
     }
 
@@ -62,6 +67,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     tracing::info!(socket = ?state.socket_name, "listening");
+    let socket = state.socket_name.to_string_lossy().into_owned();
+    for cmd in shell {
+        supervise::keep_running(&state.loop_handle, socket.clone(), cmd);
+    }
     for cmd in once {
         match Command::new("sh")
             .arg("-c")

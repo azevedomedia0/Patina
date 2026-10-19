@@ -8,6 +8,7 @@ pub mod geometry;
 pub mod glass;
 pub mod raster;
 pub mod shadow;
+pub mod shell;
 pub mod wallpaper;
 
 pub use geometry::{control_rect, hit_test, Control, Hit, Rect, TITLEBAR_H};

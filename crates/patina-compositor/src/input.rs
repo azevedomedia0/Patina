@@ -22,6 +22,9 @@ use crate::{
 /// The workspace a number-row key stands for. Physical keys, not symbols, so it works on layouts
 /// where the digits need Shift (xkb keycodes 10..=13 are the keys labelled 1 to 4 on a PC
 /// keyboard).
+/// The right mouse button (`BTN_RIGHT` in `linux/input-event-codes.h`).
+const BTN_RIGHT: u32 = 0x111;
+
 fn workspace_for_key(xkb_keycode: u32) -> Option<usize> {
     (10..10 + crate::workspaces::COUNT as u32)
         .contains(&xkb_keycode)
@@ -45,6 +48,24 @@ impl Patina {
             .or_else(|| outputs.first())?;
         let area = self.space.output_geometry(output)?;
         Some(event.position_transformed(area.size) + area.loc.to_f64())
+    }
+
+    /// Asks the shell for the desktop's right-click menu at `pos`.
+    fn open_desktop_menu(&mut self, pos: Point<f64, Logical>) {
+        let Some(output) = self.output_at(pos) else {
+            return;
+        };
+        let zone = self.zone_of(&output);
+        let (x, y) = (pos.x as i32 - zone.loc.x, pos.y as i32 - zone.loc.y);
+        crate::shell_ipc::send(
+            &self.socket_name.to_string_lossy(),
+            &format!(
+                "desktop-menu {} {x} {y} {} {}",
+                output.name(),
+                zone.size.w,
+                zone.size.h
+            ),
+        );
     }
 
     /// The pointer moved to `pos`: continue a drag, or update hover and pointer focus.
@@ -121,8 +142,17 @@ impl Patina {
                     event.state(),
                     SERIAL_COUNTER.next_serial(),
                     event.time_msec(),
-                    |_, mods, handle| {
+                    |state, mods, handle| {
                         let sym = handle.modified_sym();
+                        // A Super tap (pressed and released with nothing in between) opens the
+                        // launcher; the keys still reach the client.
+                        let is_super = matches!(sym, Keysym::Super_L | Keysym::Super_R);
+                        if pressed {
+                            state.super_alone = is_super;
+                        } else if is_super && std::mem::take(&mut state.super_alone) {
+                            // Forwarded all the same, so the client sees Super go up.
+                            state.launcher_wanted = true;
+                        }
                         if pressed && mods.alt && sym == Keysym::m {
                             FilterResult::Intercept(Action::RestoreMinimized)
                         } else if let Some(n) = pressed
@@ -146,7 +176,20 @@ impl Patina {
                         }
                     },
                 );
+                let action = if std::mem::take(&mut self.launcher_wanted) {
+                    Some(Action::ToggleLauncher)
+                } else {
+                    action
+                };
                 match action {
+                    Some(Action::ToggleLauncher) => {
+                        if let Some(o) = self.pointer_output() {
+                            crate::shell_ipc::send(
+                                &self.socket_name.to_string_lossy(),
+                                &format!("launcher {}", o.name()),
+                            );
+                        }
+                    }
                     Some(Action::RestoreMinimized) => self.restore_minimized(),
                     Some(Action::SwitchWorkspace(n)) => self.switch_workspace(n),
                     Some(Action::MoveToWorkspace(n)) => {
@@ -195,7 +238,20 @@ impl Patina {
                         return;
                     }
                 } else {
-                    match self.pick(pos) {
+                    self.super_alone = false;
+                    let pick = self.pick(pos);
+                    let target = match &pick {
+                        Pick::Surface(wl, _, _) => Some(wl.clone()),
+                        _ => None,
+                    };
+                    self.close_transient_layers(target.as_ref());
+                    if let Pick::Surface(wl, _, None) = &pick {
+                        self.layer_clicked(wl);
+                    }
+                    if matches!(pick, Pick::Nothing) && event.button_code() == BTN_RIGHT {
+                        self.open_desktop_menu(pos);
+                    }
+                    match pick {
                         Pick::Frame(window, hit) => {
                             self.frame_press = true;
                             self.focus_window(&window);
@@ -239,7 +295,13 @@ impl Patina {
                 let Some(touch) = self.seat.get_touch() else {
                     return;
                 };
-                match self.pick(pos) {
+                let pick = self.pick(pos);
+                let target = match &pick {
+                    Pick::Surface(wl, _, _) => Some(wl.clone()),
+                    _ => None,
+                };
+                self.close_transient_layers(target.as_ref());
+                match pick {
                     // The frame is the compositor's: a touch there acts like the pointer.
                     Pick::Frame(window, hit) => {
                         self.focus_window(&window);

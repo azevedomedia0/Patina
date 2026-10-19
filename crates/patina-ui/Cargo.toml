@@ -1,0 +1,15 @@
+[package]
+name = "patina-ui"
+description = "Shared look of the Patina shell surfaces (iced): fonts, colours, icons, controls"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-tokens = { path = "../patina-tokens" }
+patina-apps = { path = "../patina-apps" }
+iced = { version = "0.14", default-features = false, features = ["svg", "image-without-codecs", "tokio", "tiny-skia"] }
+
+[lints]
+workspace = true
