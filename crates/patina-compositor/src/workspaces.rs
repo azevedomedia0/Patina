@@ -230,6 +230,22 @@ impl Patina {
         self.queue_redraw();
     }
 
+    /// Moves `window` to workspace `n`, puts it on top there, and switches to that workspace so
+    /// the window is not lost from sight.
+    pub fn move_window_to_workspace(&mut self, window: &Window, n: usize) {
+        if n >= COUNT || n == self.active_workspace {
+            return;
+        }
+        let Some(rect) = self.client_rect(window) else {
+            return;
+        };
+        self.end_drag();
+        self.space.unmap_elem(window);
+        // Last in the stash means top-most when the workspace is restored.
+        self.stashed[n].push((window.clone(), rect.loc));
+        self.switch_workspace(n);
+    }
+
     /// Forgets a window that no longer exists, wherever it was kept.
     pub fn forget_window(
         &mut self,

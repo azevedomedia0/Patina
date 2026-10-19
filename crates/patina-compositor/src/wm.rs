@@ -95,6 +95,10 @@ pub enum Action {
     RestoreMinimized,
     /// Switch to virtual terminal `n` (Ctrl+Alt+Fn).
     VtSwitch(i32),
+    /// Switch to workspace `n`, counting from zero (Super+1..4).
+    SwitchWorkspace(usize),
+    /// Move the focused window to workspace `n` and follow it (Super+Shift+1..4).
+    MoveToWorkspace(usize),
 }
 
 impl Patina {
@@ -254,6 +258,15 @@ impl Patina {
             hover: st.hover,
             maximized: st.maximized,
         }
+    }
+
+    /// The window that has keyboard focus, if any.
+    pub fn focused_window(&self) -> Option<Window> {
+        let surface = self.seat.get_keyboard()?.current_focus()?;
+        self.space
+            .elements()
+            .find(|w| w.toplevel().is_some_and(|t| t.wl_surface() == &surface))
+            .cloned()
     }
 
     pub fn begin_move(&mut self, window: &Window, pos: Point<f64, Logical>) {

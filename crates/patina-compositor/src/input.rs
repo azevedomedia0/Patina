@@ -19,6 +19,15 @@ use crate::{
     wm::{Action, Drag, Pick},
 };
 
+/// The workspace a number-row key stands for. Physical keys, not symbols, so it works on layouts
+/// where the digits need Shift (xkb keycodes 10..=13 are the keys labelled 1 to 4 on a PC
+/// keyboard).
+fn workspace_for_key(xkb_keycode: u32) -> Option<usize> {
+    (10..10 + crate::workspaces::COUNT as u32)
+        .contains(&xkb_keycode)
+        .then(|| (xkb_keycode - 10) as usize)
+}
+
 impl Patina {
     fn output_size(&self) -> Option<smithay::utils::Size<i32, Logical>> {
         self.output
@@ -105,6 +114,17 @@ impl Patina {
                         let sym = handle.modified_sym();
                         if pressed && mods.alt && sym == Keysym::m {
                             FilterResult::Intercept(Action::RestoreMinimized)
+                        } else if let Some(n) = pressed
+                            .then(|| workspace_for_key(handle.raw_code().raw()))
+                            .flatten()
+                            .filter(|_| mods.logo)
+                        {
+                            // Super+1..4 switch workspace, Super+Shift+1..4 move the window.
+                            FilterResult::Intercept(if mods.shift {
+                                Action::MoveToWorkspace(n)
+                            } else {
+                                Action::SwitchWorkspace(n)
+                            })
                         } else if pressed && (0x1008_FE01..=0x1008_FE0C).contains(&sym.raw()) {
                             // Ctrl+Alt+F1..F12 arrive as XF86Switch_VT_1..12.
                             FilterResult::Intercept(Action::VtSwitch(
@@ -117,6 +137,12 @@ impl Patina {
                 );
                 match action {
                     Some(Action::RestoreMinimized) => self.restore_minimized(),
+                    Some(Action::SwitchWorkspace(n)) => self.switch_workspace(n),
+                    Some(Action::MoveToWorkspace(n)) => {
+                        if let Some(window) = self.focused_window() {
+                            self.move_window_to_workspace(&window, n);
+                        }
+                    }
                     Some(Action::VtSwitch(vt)) => {
                         if let Some(drm) = &mut self.drm {
                             if let Err(e) =
@@ -216,5 +242,23 @@ impl Patina {
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::workspace_for_key;
+
+    #[test]
+    fn number_row_keys_map_to_workspaces() {
+        assert_eq!(workspace_for_key(10), Some(0));
+        assert_eq!(workspace_for_key(13), Some(3));
+    }
+
+    #[test]
+    fn other_keys_do_not() {
+        assert_eq!(workspace_for_key(9), None); // Escape
+        assert_eq!(workspace_for_key(14), None); // the 5 key: only four workspaces
+        assert_eq!(workspace_for_key(38), None); // A
     }
 }
