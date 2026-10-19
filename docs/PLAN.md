@@ -26,7 +26,7 @@ Distro cargo is too old (Debian 12: 1.63, Ubuntu 22.04: 1.75). Packages build wi
 8. Input/i18n, accessibility, light theme, low-spec, .deb/.rpm/PKGBUILD, QA
 
 ## Milestone 0 status
-Done: repo, fonts, Lucide icons, token generator with tests, CI matrix (unrun), packaging stubs, toolkit spike (docs/SPIKE.md), QEMU build VM (docs/VM.md).
+Done: repo (github.com/azevedomedia0/Patina), fonts, Lucide icons, token generator with tests, CI matrix (all eight jobs pass on GitHub; `docs/CI.md`), Rust pinned to 1.99.1 (`rust-toolchain.toml`, `packaging/RUST_VERSION`), packaging stubs, toolkit spike (docs/SPIKE.md), QEMU build VM (docs/VM.md).
 Milestone 1 (nested compositor), working in the QEMU VM (`docs/spike/window-frames.png`):
 - xdg-shell windows with compositor-drawn 38 px titlebars (xdg-decoration forces server-side), layer-shell, viewporter.
 - Move by titlebar, resize by the bottom-right grip, maximise (control or double-click titlebar), minimise (Alt+M restores until the dock exists), close, click-to-raise and focus, hover on controls, inactive windows dimmed to 92%.
