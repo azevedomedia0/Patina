@@ -3,8 +3,8 @@
 Question: can iced draw the Patina panel as a layer-shell client at design fidelity?
 Answer: yes, with two caveats (blur is the compositor's job; software rendering needs care).
 
-Tested on Debian 12 (aarch64, Docker on macOS) against headless sway. Not yet tested: real GPU, x86_64, input.
-Screenshot: `panel-wgpu-gl.png`.
+Tested on Debian 12 aarch64 (Docker, then a QEMU VM), against headless sway and against the nested Patina compositor.
+Screenshots: `panel-wgpu-gl.png` (panel on sway), `nested-compositor-panel.png` (panel and windows in `patina-compositor`).
 
 ## Works
 - 36 px top panel anchored top/left/right with a 36 px exclusive zone, built only from `patina-tokens`.
@@ -19,12 +19,17 @@ Screenshot: `panel-wgpu-gl.png`.
 4. **Variable fonts:** Semibold and Bold looked correct in the screenshot, but this needs a closer weight check on a GPU.
 5. **No OpenType features in iced text** (no `tnum`). The clock uses JetBrains Mono, which is tabular anyway.
 6. **Dependency drift.** `iced_layershell` 0.19.1 does not build against `winit-core 0.31.0-beta.3`. `Cargo.lock` pins `winit-core` and `winit-common` to `0.31.0-beta.2`. Build with `--locked` and do not run a blanket `cargo update`.
-7. Placeholder icons: Lucide SVGs are not downloaded yet.
+
+## Verified in the QEMU VM (Milestone 1 compositor)
+- The panel, with real Lucide icons, runs inside `patina-compositor` as a layer-shell client and matches the design.
+- Pointer input reaches the panel through sway and the nested compositor: clicking workspace 3 highlights it.
+- Click-to-raise and focus work for xdg-shell windows.
+- `iced_layershell` needs the compositor to offer `wp_viewporter` and to send the initial layer `configure` itself; without them the panel waits or panics.
 
 ## Not verified
-- Pointer and keyboard input (headless sway has no input device): hover, click, workspace animation on screen.
-- Frame times on real hardware and on an aarch64 board.
-- x86_64.
+- GPU rendering: the VM's virtio-gpu has no 3D, so everything ran on llvmpipe. A real GPU is untested.
+- Frame times, x86_64, and a real aarch64 board.
+- The easing animation on screen (it is unit-tested).
 
 ## Recommendation
 Keep iced + iced_layershell for the shell, provided the QEMU VM test (virtio-gpu) confirms input and GPU rendering. Plan for compositor-side blur and a renderer fallback chain. Fallback if it fails: custom wgpu layer.

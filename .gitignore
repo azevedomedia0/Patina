@@ -6,3 +6,4 @@
 /src
 .DS_Store
 /ci/spike/out/
+/ci/vm/state/

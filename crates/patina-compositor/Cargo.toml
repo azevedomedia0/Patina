@@ -1,0 +1,21 @@
+[package]
+name = "patina-compositor"
+description = "Patina Wayland compositor (Smithay)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-tokens = { path = "../patina-tokens" }
+smithay = { version = "0.7", default-features = false, features = [
+    "backend_winit",
+    "renderer_gl",
+    "wayland_frontend",
+    "desktop",
+] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[lints]
+workspace = true

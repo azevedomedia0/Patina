@@ -1,0 +1,41 @@
+#cloud-config
+hostname: patina-vm
+users:
+  - name: dev
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - @PUBKEY@
+package_update: true
+packages:
+  - build-essential
+  - pkg-config
+  - git
+  - curl
+  - ca-certificates
+  - rsync
+  - libwayland-dev
+  - libxkbcommon-dev
+  - libudev-dev
+  - libinput-dev
+  - libgbm-dev
+  - libseat-dev
+  - libdrm-dev
+  - libegl1-mesa-dev
+  - libgles2-mesa-dev
+  - libvulkan1
+  - mesa-vulkan-drivers
+  - libgl1-mesa-dri
+  - seatd
+  - sway
+  - grim
+  - imagemagick
+  - xwayland
+  - dbus
+  - dbus-user-session
+  - mesa-utils
+  - libdisplay-info-dev
+runcmd:
+  - [su, dev, -c, "curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"]
+  - [touch, /var/lib/patina-provisioned]

@@ -7,9 +7,10 @@ mod motion;
 use std::time::{Duration, Instant};
 
 use iced::font::{Family, Weight};
-use iced::widget::{button, column, container, row, text, Space};
+use iced::widget::{button, column, container, row, stack, svg, text, Space};
 use iced::{
-    Alignment, Background, Border, Color as IcedColor, Element, Font, Length, Subscription, Task,
+    alignment, Alignment, Background, Border, Color as IcedColor, Element, Font, Length, Radians,
+    Rotation, Subscription, Task,
 };
 use iced_layershell::application;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer};
@@ -23,6 +24,25 @@ const SANS: &[u8] =
     include_bytes!("../../../assets/fonts/plus-jakarta-sans/PlusJakartaSans-Variable.ttf");
 const MONO: &[u8] =
     include_bytes!("../../../assets/fonts/jetbrains-mono/JetBrainsMono-Variable.ttf");
+
+/// Lucide icons (ISC licence, `assets/icons/lucide/LICENSE`), stroke 2, 24 px grid.
+mod icons {
+    pub const LAYOUT_GRID: &[u8] = include_bytes!("../../../assets/icons/lucide/layout-grid.svg");
+    pub const WIFI: &[u8] = include_bytes!("../../../assets/icons/lucide/wifi.svg");
+    pub const BLUETOOTH: &[u8] = include_bytes!("../../../assets/icons/lucide/bluetooth.svg");
+    pub const SUN: &[u8] = include_bytes!("../../../assets/icons/lucide/sun.svg");
+    pub const VOLUME_2: &[u8] = include_bytes!("../../../assets/icons/lucide/volume-2.svg");
+    pub const BATTERY_FULL: &[u8] = include_bytes!("../../../assets/icons/lucide/battery-full.svg");
+    pub const BELL: &[u8] = include_bytes!("../../../assets/icons/lucide/bell.svg");
+}
+
+/// A 14 px tinted icon, as used throughout the top panel.
+fn icon(bytes: &'static [u8], color: IcedColor) -> svg::Svg<'static> {
+    svg(svg::Handle::from_memory(bytes))
+        .width(14)
+        .height(14)
+        .style(move |_, _| svg::Style { color: Some(color) })
+}
 
 fn sans(weight: Weight) -> Font {
     Font {
@@ -170,25 +190,21 @@ fn workspace_button(panel: &Panel, n: u8) -> Element<'_, Message> {
 }
 
 fn view(panel: &Panel) -> Element<'_, Message> {
-    // Placeholder for the Lucide `layout-grid` icon until icons are added.
-    let launcher = button(
-        text("::")
-            .size(tok::FS_SMALL)
-            .font(sans(Weight::Bold))
-            .color(c(tok::TEXT_ON_ACCENT)),
-    )
-    .height(24)
-    .padding([0, 12])
-    .on_press(Message::Launcher)
-    .style(|_, _| button::Style {
-        background: Some(Background::Color(c(tok::ACCENT))),
-        text_color: c(tok::TEXT_ON_ACCENT),
-        border: Border {
-            radius: tok::RADIUS_PILL.into(),
-            ..Border::default()
-        },
-        ..button::Style::default()
-    });
+    let launcher =
+        button(container(icon(icons::LAYOUT_GRID, c(tok::TEXT_ON_ACCENT))).center(Length::Fill))
+            .height(24)
+            .width(32)
+            .padding(0)
+            .on_press(Message::Launcher)
+            .style(|_, _| button::Style {
+                background: Some(Background::Color(c(tok::ACCENT))),
+                text_color: c(tok::TEXT_ON_ACCENT),
+                border: Border {
+                    radius: tok::RADIUS_PILL.into(),
+                    ..Border::default()
+                },
+                ..button::Style::default()
+            });
 
     let workspaces = row((1..=4).map(|n| workspace_button(panel, n))).spacing(2);
     let title = text("Terminal")
@@ -204,21 +220,48 @@ fn view(panel: &Panel) -> Element<'_, Message> {
         .size(tok::FS_SMALL)
         .font(mono(Weight::Medium))
         .color(c(tok::TEXT_PRIMARY));
-    let status = row![
-        text("wifi  bt  sun  vol")
-            .size(tok::FS_CAPTION)
-            .font(sans(Weight::Medium))
-            .color(c(tok::TEXT_SECONDARY)),
+    let dim = c(tok::TEXT_SECONDARY);
+    let battery = row![
+        icon(icons::BATTERY_FULL, dim)
+            .rotation(Rotation::Solid(Radians(-std::f32::consts::FRAC_PI_2))),
         text("87%")
             .size(tok::FS_CAPTION)
             .font(mono(Weight::Semibold))
             .color(c(tok::TEXT_PRIMARY)),
     ]
+    .spacing(4)
+    .align_y(Alignment::Center);
+    let status = row![
+        icon(icons::WIFI, dim),
+        icon(icons::BLUETOOTH, dim),
+        icon(icons::SUN, dim),
+        icon(icons::VOLUME_2, dim),
+        battery,
+    ]
     .spacing(12)
     .align_y(Alignment::Center);
     let status = container(status).align_right(Length::Fill);
 
-    let bar = container(row![left, clock, status].align_y(Alignment::Center))
+    // Unread notifications: bell with a red dot at its top-right corner.
+    let dot = container(Space::new().width(6).height(6)).style(|_| container::Style {
+        background: Some(Background::Color(c(tok::DANGER))),
+        border: Border {
+            radius: 3.0.into(),
+            ..Border::default()
+        },
+        ..container::Style::default()
+    });
+    let bell = stack![
+        icon(icons::BELL, c(tok::ACCENT_TEXT)),
+        container(dot)
+            .width(14)
+            .height(14)
+            .align_x(alignment::Horizontal::Right)
+            .align_y(alignment::Vertical::Top),
+    ];
+    let centre = row![bell, clock].spacing(8).align_y(Alignment::Center);
+
+    let bar = container(row![left, centre, status].align_y(Alignment::Center))
         .padding([0, 12])
         .height(Length::Fill)
         .width(Length::Fill)
