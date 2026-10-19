@@ -3,7 +3,8 @@
 //! Milestone 1: a nested (winit) Wayland compositor with xdg-shell windows and
 //! layer-shell surfaces, so `patina-panel` can attach to it.
 //!
-//! Usage: `patina-compositor [--shell COMMAND]... [--per-output COMMAND] [COMMAND...]`. Each
+//! Usage: `patina-compositor [--greeter COMMAND] [--shell COMMAND]... [--per-output COMMAND]
+//! [COMMAND...]`. `--greeter` runs a sign-in screen and ends the compositor when it ends. Each
 //! COMMAND is a shell command started once the compositor is listening, with `WAYLAND_DISPLAY`
 //! pointing at it. `--shell` ones (panel, dock) are started again if they stop. The
 //! `--per-output` one is started for every output as it appears, with `PATINA_OUTPUT` set to the
@@ -14,12 +15,15 @@ mod clip;
 mod cursor;
 mod drm;
 mod dumb;
+mod idle;
 mod input;
 mod keyboard;
 mod layers;
+mod logind;
 mod outputs;
 mod render;
 mod scene;
+mod session_lock;
 mod shell_ipc;
 mod state;
 mod supervise;
@@ -27,8 +31,6 @@ mod toplevel_info;
 mod winit;
 mod wm;
 mod workspaces;
-
-use std::process::Command;
 
 use smithay::reexports::calloop::EventLoop;
 use state::Patina;
@@ -47,11 +49,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut once = Vec::new();
     let mut shell = Vec::new();
+    let mut greeter = None;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--per-output" => state.per_output_cmd = args.next(),
             "--shell" => shell.extend(args.next()),
+            "--greeter" => greeter = args.next(),
             _ => once.push(arg),
         }
     }
@@ -66,18 +70,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => drm::init(&mut event_loop, &mut state)?,
     }
 
+    state.logind = logind::start(&state.loop_handle);
+    state.arm_idle_timer();
     tracing::info!(socket = ?state.socket_name, "listening");
     let socket = state.socket_name.to_string_lossy().into_owned();
     for cmd in shell {
         supervise::keep_running(&state.loop_handle, socket.clone(), cmd);
     }
+    if let Some(cmd) = greeter {
+        supervise::run_then_quit(&state.loop_handle, &socket, &cmd);
+    }
     for cmd in once {
-        match Command::new("sh")
-            .arg("-c")
-            .arg(&cmd)
-            .env("WAYLAND_DISPLAY", &state.socket_name)
-            .spawn()
-        {
+        match supervise::spawn_once(&socket, &cmd) {
             Ok(_) => tracing::info!(%cmd, "started"),
             Err(e) => tracing::warn!(%cmd, error = %e, "failed to start"),
         }

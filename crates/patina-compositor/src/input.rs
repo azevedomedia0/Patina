@@ -121,6 +121,12 @@ impl Patina {
     /// Handles one input event, then asks for a frame: input can move the cursor, change hover,
     /// or move, resize and close windows.
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
+        if !matches!(
+            event,
+            InputEvent::DeviceAdded { .. } | InputEvent::DeviceRemoved { .. }
+        ) {
+            self.reset_idle();
+        }
         self.handle_input_event(event);
         self.queue_redraw();
     }
@@ -153,6 +159,20 @@ impl Patina {
                             // Forwarded all the same, so the client sees Super go up.
                             state.launcher_wanted = true;
                         }
+                        if pressed && mods.ctrl && mods.alt && sym == Keysym::l {
+                            // Ctrl+Alt+L locks, as in the prototype.
+                            return FilterResult::Intercept(Action::Lock);
+                        }
+                        if state.is_locked() {
+                            // Locked: only VT switching; everything else goes to the locker.
+                            return if pressed && (0x1008_FE01..=0x1008_FE0C).contains(&sym.raw()) {
+                                FilterResult::Intercept(Action::VtSwitch(
+                                    (sym.raw() - 0x1008_FE01 + 1) as i32,
+                                ))
+                            } else {
+                                FilterResult::Forward
+                            };
+                        }
                         if pressed && mods.alt && sym == Keysym::m {
                             FilterResult::Intercept(Action::RestoreMinimized)
                         } else if let Some(n) = pressed
@@ -182,6 +202,8 @@ impl Patina {
                     action
                 };
                 match action {
+                    Some(Action::Lock) => self.start_locker(),
+                    Some(Action::ToggleLauncher) if self.is_locked() => {}
                     Some(Action::ToggleLauncher) => {
                         if let Some(o) = self.pointer_output() {
                             crate::shell_ipc::send(
@@ -229,7 +251,9 @@ impl Patina {
                 let serial = SERIAL_COUNTER.next_serial();
                 let pos = pointer.current_location();
 
-                if pointer.is_grabbed() && self.drag.is_none() && !self.frame_press {
+                if self.is_locked() {
+                    // Locked: the press goes to the lock surface under the pointer, nothing else.
+                } else if pointer.is_grabbed() && self.drag.is_none() && !self.frame_press {
                     // An open menu has the pointer: it decides, and closes on a click outside.
                 } else if event.state() == ButtonState::Released {
                     if self.frame_press || self.drag.is_some() {

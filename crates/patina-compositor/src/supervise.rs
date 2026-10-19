@@ -61,3 +61,49 @@ pub fn keep_running(handle: &LoopHandle<'static, Patina>, socket: String, cmd: S
         }
     });
 }
+
+/// Starts `sh -c cmd` once with `WAYLAND_DISPLAY` set, and reaps it when it ends (so no zombie
+/// is left behind).
+pub fn spawn_once(socket: &str, cmd: &str) -> std::io::Result<u32> {
+    let mut child = Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .env("WAYLAND_DISPLAY", socket)
+        .env("PATINA_COMPOSITOR_PID", std::process::id().to_string())
+        .spawn()?;
+    let pid = child.id();
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(pid)
+}
+
+/// Starts `cmd` (the greeter) and stops the compositor when it ends: greetd then starts the
+/// signed-in session, or the greeter again.
+pub fn run_then_quit(handle: &LoopHandle<'static, Patina>, socket: &str, cmd: &str) {
+    let (tx, rx) = channel::channel::<()>();
+    match Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .env("WAYLAND_DISPLAY", socket)
+        .spawn()
+    {
+        Ok(mut child) => {
+            tracing::info!(%cmd, "greeter started");
+            std::thread::spawn(move || {
+                let status = child.wait();
+                tracing::info!(?status, "greeter ended");
+                let _ = tx.send(());
+            });
+        }
+        Err(e) => {
+            tracing::error!(%cmd, error = %e, "cannot start the greeter");
+            let _ = tx.send(());
+        }
+    }
+    let _ = handle.insert_source(rx, |event, _, state| {
+        if let Event::Msg(()) = event {
+            state.loop_signal.stop();
+        }
+    });
+}

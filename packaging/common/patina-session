@@ -31,6 +31,6 @@ exec >>"$LOG" 2>&1
 echo "=== patina-session started $(date)"
 
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
-  exec dbus-run-session -- patina-compositor --per-output patina-panel "$@"
+  exec dbus-run-session -- patina-compositor --per-output patina-panel --shell patina-dock patina-autostart "$@"
 fi
-exec patina-compositor --per-output patina-panel "$@"
+exec patina-compositor --per-output patina-panel --shell patina-dock patina-autostart "$@"

@@ -6,8 +6,9 @@ patina-session \- start a Patina desktop session
 .RI [ COMMAND ...]
 .SH DESCRIPTION
 .B patina-session
-starts the Patina compositor with the top panel, inside a D-Bus session bus if one is not
-already running.
+starts the Patina compositor with the top panel and the dock, inside a D-Bus session bus if
+one is not already running, and starts the programs set to start with the session
+(XDG autostart: \fI~/.config/autostart\fR and \fI/etc/xdg/autostart\fR).
 It is what the "Patina" entry in a display manager's session list runs, and it can also be
 run from a text console: switch to one with Ctrl+Alt+F3, log in, and run
 .BR patina-session .

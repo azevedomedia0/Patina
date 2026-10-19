@@ -3,6 +3,10 @@
 patina-compositor \- Wayland compositor of the Patina desktop
 .SH SYNOPSIS
 .B patina-compositor
+.RB [ \-\-greeter
+.IR COMMAND ]
+.RB [ \-\-shell
+.IR COMMAND ]...
 .RB [ \-\-per\-output
 .IR COMMAND ]
 .RI [ COMMAND ...]
@@ -26,6 +30,13 @@ command (the panel) is started once for every display as it is connected, with
 set to the display's name, and stopped when the display is unplugged. Usually this is done by
 .BR patina-session (1).
 .PP
+A
+.B \-\-shell
+command (the dock) is started again if it stops. With
+.B \-\-greeter
+the compositor runs only that sign-in screen and ends when it ends (see
+.BR patina-greeter (1)).
+.PP
 When started from a login session on a seat it drives the display through DRM/KMS and reads
 input with libinput. When
 .B WAYLAND_DISPLAY
@@ -48,6 +59,15 @@ The
 family of variables overrides it. Keys repeat after 400 ms. A touchscreen works on the built-in
 display (or the first one): touches go to applications, and a touch on a window frame moves,
 resizes or presses its buttons.
+.SH LOCKING AND IDLE
+Ctrl+Alt+L locks the screen with
+.BR patina-lock (1),
+as does
+.B loginctl lock-session
+and going to sleep. After a minute without input the screen dims (the backlight goes down to
+30%, or the picture darkens where there is no backlight); after 15 minutes the screen locks
+and the computer sleeps. Programs that play video can hold this off (the idle-inhibit
+protocol).
 .SH MOUSE AND KEYBOARD
 .TP
 Drag the titlebar
@@ -88,6 +108,16 @@ planes. Needed when capturing the screen from a virtual machine.
 When set, the blur behind the panel and windows is not drawn. Use it on machines where
 rendering is slow.
 .TP
+.B PATINA_IDLE_DIM
+Seconds without input before the screen dims (default 60; 0 never).
+.TP
+.B PATINA_IDLE_SLEEP
+Seconds without input before the screen locks and the computer sleeps (default 900; 0 never).
+.TP
+.B PATINA_LOCKER
+Command that locks the screen (default
+.BR patina-lock ).
+.TP
 .B PATINA_SCALE
 Display scale, overriding the one chosen from each display's pixel density: one number for all
 displays, such as
@@ -108,4 +138,5 @@ Log filter, for example
 .BR patina_compositor=debug .
 .SH SEE ALSO
 .BR patina-session (1),
-.BR patina-panel (1)
+.BR patina-panel (1),
+.BR patina-lock (1)

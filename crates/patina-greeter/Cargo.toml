@@ -1,0 +1,19 @@
+[package]
+name = "patina-greeter"
+description = "Patina sign-in screen for greetd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-tokens = { path = "../patina-tokens" }
+patina-ui = { path = "../patina-ui" }
+patina-signin = { path = "../patina-signin" }
+iced = { version = "0.14", default-features = false, features = ["wgpu", "tiny-skia", "tokio", "svg", "image-without-codecs", "wayland"] }
+iced_layershell = "0.19.1"
+greetd_ipc = { version = "0.10", features = ["sync-codec"] }
+tokio = { version = "1", default-features = false, features = ["time", "sync", "rt"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,23 @@
+.TH PATINA-AUTOSTART 1 "2026-10-19" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-autostart \- start the programs set to start with the session
+.SH SYNOPSIS
+.B patina-autostart
+.SH DESCRIPTION
+.B patina-autostart
+starts the programs in the XDG autostart directories, then exits:
+.I ~/.config/autostart
+first, then
+.IR /etc/xdg/autostart .
+A file in the user's directory replaces the system file of the same name, so
+.B Hidden=true
+there turns a program off. Entries limited to other desktops
+.RB ( OnlyShowIn ,
+.BR NotShowIn )
+or turned off with
+.B X-GNOME-Autostart-enabled=false
+are skipped.
+.B patina-session
+runs it once the compositor is up.
+.SH SEE ALSO
+.BR patina-session (1)

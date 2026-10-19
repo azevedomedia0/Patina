@@ -1,0 +1,3 @@
+# PAM for the Patina lock screen: check the password like a login does.
+@include common-auth
+@include common-account

@@ -1,0 +1,15 @@
+# greetd configuration that shows the Patina sign-in screen.
+#
+# To use it: install greetd, copy this file to /etc/greetd/config.toml, turn off the current
+# display manager and turn greetd on, for example:
+#   sudo systemctl disable gdm3 sddm lightdm
+#   sudo systemctl enable greetd
+# The sign-in screen runs in its own Patina compositor as greetd's user and starts
+# patina-session for whoever signs in.
+
+[terminal]
+vt = 7
+
+[default_session]
+command = "patina-compositor --greeter patina-greeter"
+user = "_greetd"

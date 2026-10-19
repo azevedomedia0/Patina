@@ -1,0 +1,28 @@
+.TH PATINA-LOCK 1 "2026-10-19" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-lock \- lock screen of the Patina desktop
+.SH SYNOPSIS
+.B patina-lock
+.SH DESCRIPTION
+.B patina-lock
+locks the session and shows the sign-in screen for the signed-in user on every display: the
+time and date, the user, and a password field. The session unlocks when the right password is
+typed. Passwords are checked with PAM, service
+.BR patina-lock .
+.PP
+The compositor starts it on Ctrl+Alt+L, before the computer sleeps, after 15 minutes without
+input, and when asked with
+.BR "loginctl lock-session" .
+If it stops while the session is locked, the screen stays black and locked; Ctrl+Alt+L starts
+it again.
+.PP
+The button bottom-left shows the other users; picking one asks LightDM to show that user's
+sign-in (with other display managers it is dimmed). The button bottom-right shuts the
+computer down.
+.SH FILES
+.TP
+.I /etc/pam.d/patina-lock
+PAM configuration for checking the password.
+.SH SEE ALSO
+.BR patina-compositor (1),
+.BR patina-greeter (1)

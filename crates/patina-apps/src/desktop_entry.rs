@@ -59,6 +59,30 @@ impl DesktopEntry {
             .unwrap_or_default()
     }
 
+    /// Whether an autostart entry should start in this desktop (XDG Autostart spec): not
+    /// `Hidden`, not turned off by GNOME's key, shown in this desktop, its `TryExec` present.
+    /// (`NoDisplay` does not matter for autostart.)
+    pub fn autostarts(&self, desktops: &[String]) -> bool {
+        if self.get("Type").is_some_and(|t| t != "Application")
+            || self.flag("Hidden")
+            || self.get("X-GNOME-Autostart-enabled") == Some("false")
+        {
+            return false;
+        }
+        let only = self.list("OnlyShowIn");
+        if !only.is_empty() && !only.iter().any(|d| desktops.iter().any(|c| c == d)) {
+            return false;
+        }
+        if self
+            .list("NotShowIn")
+            .iter()
+            .any(|d| desktops.iter().any(|c| c == d))
+        {
+            return false;
+        }
+        self.get("TryExec").is_none_or(crate::exec::in_path) && self.get("Exec").is_some()
+    }
+
     /// The application this entry describes, if the launcher should show it.
     pub fn to_app(&self, id: &str, path: &Path, desktops: &[String], locale: &str) -> Option<App> {
         if self.get("Type") != Some("Application") || self.flag("NoDisplay") || self.flag("Hidden")

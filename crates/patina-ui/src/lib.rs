@@ -79,7 +79,7 @@ macro_rules! icons {
 }
 
 icons! {
-    BatteryFull => "battery-full", Bell => "bell", BellOff => "bell-off",
+    ArrowRight => "arrow-right", BatteryFull => "battery-full", Bell => "bell", BellOff => "bell-off",
     Bluetooth => "bluetooth", BluetoothOff => "bluetooth-off", Cast => "cast", Check => "check",
     ChevronDown => "chevron-down", ChevronRight => "chevron-right", ExternalLink => "external-link",
     FolderPlus => "folder-plus", Gamepad => "gamepad-2", Headphones => "headphones",
@@ -87,7 +87,7 @@ icons! {
     Lock => "lock", LogOut => "log-out", Monitor => "monitor", Mouse => "mouse", Pin => "pin",
     Power => "power", Printer => "printer", Projector => "projector", RotateCw => "rotate-cw",
     Search => "search", Settings => "settings", Shield => "shield", Smartphone => "smartphone",
-    Speaker => "speaker", Sun => "sun", Tv => "tv", Volume2 => "volume-2", VolumeX => "volume-x",
+    Speaker => "speaker", Sun => "sun", Tv => "tv", Users => "users", Volume2 => "volume-2", VolumeX => "volume-x",
     Wifi => "wifi", WifiOff => "wifi-off", X => "x",
 }
 

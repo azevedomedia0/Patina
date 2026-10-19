@@ -186,6 +186,15 @@ impl Patina {
             for layer in layer_map_for_output(output).layers() {
                 layer.with_surfaces(tell(output));
             }
+            if let Some(surface) = self.lock_surface(output) {
+                smithay::wayland::compositor::with_surface_tree_downward(
+                    &surface,
+                    (),
+                    |_, _, _| smithay::wayland::compositor::TraversalAction::DoChildren(()),
+                    |s, states, _| tell(output)(s, states),
+                    |_, _, _| true,
+                );
+            }
         }
     }
 

@@ -104,6 +104,19 @@ pub struct Patina {
     pub focus_before_layer: Option<WlSurface>,
     /// The touch point moving or resizing a window by its frame, if any.
     pub touch_drag: Option<smithay::backend::input::TouchSlot>,
+    /// The session lock (`ext-session-lock-v1`).
+    pub lock: crate::session_lock::Lock,
+    pub session_lock_state: smithay::wayland::session_lock::SessionLockManagerState,
+    /// Idleness: dimming, sleeping, inhibitors.
+    pub idle: crate::idle::Idle,
+    pub idle_notifier_state: smithay::wayland::idle_notify::IdleNotifierState<Patina>,
+    /// Held only to keep the idle-inhibit global alive.
+    #[allow(dead_code)]
+    pub idle_inhibit_state: smithay::wayland::idle_inhibit::IdleInhibitManagerState,
+    /// Requests to logind, when the session has it.
+    pub logind: Option<std::sync::mpsc::Sender<crate::logind::Request>>,
+    /// Sleep is waiting for the screen to lock.
+    pub sleep_delay_pending: bool,
     /// Keyboards (libinput devices), for their Caps Lock and Num Lock lights.
     pub keyboards: Vec<smithay::reexports::input::Device>,
     pub minimized: Vec<(Window, smithay::utils::Point<i32, smithay::utils::Logical>)>,
@@ -215,6 +228,21 @@ impl Patina {
             drag: None,
             frame_press: false,
             touch_drag: None,
+            lock: crate::session_lock::Lock::default(),
+            session_lock_state: smithay::wayland::session_lock::SessionLockManagerState::new::<
+                Self,
+                _,
+            >(&dh, |_| true),
+            idle: crate::idle::Idle::default(),
+            idle_notifier_state: smithay::wayland::idle_notify::IdleNotifierState::new(
+                &dh,
+                event_loop.handle(),
+            ),
+            idle_inhibit_state: smithay::wayland::idle_inhibit::IdleInhibitManagerState::new::<Self>(
+                &dh,
+            ),
+            logind: None,
+            sleep_delay_pending: false,
             super_alone: false,
             launcher_wanted: false,
             focus_before_layer: None,
@@ -275,6 +303,15 @@ impl Patina {
             layer.send_frame(output, elapsed, Some(std::time::Duration::ZERO), |_, _| {
                 Some(output.clone())
             });
+        }
+        if let Some(surface) = self.lock_surface(output) {
+            smithay::desktop::utils::send_frames_surface_tree(
+                &surface,
+                output,
+                elapsed,
+                Some(std::time::Duration::ZERO),
+                |_, _| Some(output.clone()),
+            );
         }
     }
 

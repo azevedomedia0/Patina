@@ -1,4 +1,8 @@
 target/release/patina-compositor usr/bin
 target/release/patina-panel usr/bin
+target/release/patina-dock usr/bin
+target/release/patina-lock usr/bin
+target/release/patina-greeter usr/bin
+target/release/patina-autostart usr/bin
 packaging/common/patina-session usr/bin
 packaging/common/patina.desktop usr/share/wayland-sessions

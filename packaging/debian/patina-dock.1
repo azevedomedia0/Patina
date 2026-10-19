@@ -1,0 +1,22 @@
+.TH PATINA-DOCK 1 "2026-10-19" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-dock \- dock of the Patina desktop
+.SH SYNOPSIS
+.B patina-dock
+.SH DESCRIPTION
+.B patina-dock
+shows the floating dock on the left of every display: the apps kept in the dock, then the
+other running apps. A dot marks a running app. Clicking an app starts it, brings its window
+back, or minimises it when it has focus. Right-clicking opens a menu to open another window,
+keep the app in the dock or take it out, and close all its windows.
+.PP
+.B patina-session
+starts it, and the compositor starts it again if it stops.
+.SH FILES
+.TP
+.I ~/.config/patina/dock-pins
+The apps kept in the dock, one desktop file name per line. Without it the dock keeps a
+terminal, a file manager and a web browser, the first of each that is installed.
+.SH SEE ALSO
+.BR patina-session (1),
+.BR patina-panel (1)

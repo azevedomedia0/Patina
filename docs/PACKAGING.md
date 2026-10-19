@@ -66,6 +66,13 @@ Not tested: Ubuntu and Mint amd64 builds (Ubuntu keeps amd64 and arm64 on differ
 so the cross-build chroot only does Debian), a real Linux Mint install, a real GPU, removal
 and purge on a system with a running session.
 
+### Signing in with greetd
+
+The package includes Patina's own sign-in screen for greetd. To use it instead of GDM, SDDM or
+LightDM: `sudo apt install greetd`, copy `/usr/share/doc/patina-desktop/greetd-config.toml` to
+`/etc/greetd/config.toml`, disable the other display manager and enable `greetd`. Tested in the
+Debian 12 VM.
+
 ### Known limits
 - On the software-rendered VM the panel takes several seconds to appear.
 - `packaging/arch/PKGBUILD` is still the untested handoff stub (it builds a `patina-launcher`

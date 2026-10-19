@@ -574,8 +574,18 @@ impl Patina {
                 }
             }
         });
+        self.after_frames();
         if failed {
             self.retry_render_later();
+        }
+    }
+
+    /// After drawing: a pending lock is confirmed now that every output shows it, and a sleep
+    /// that waited for the lock may go ahead.
+    pub fn after_frames(&mut self) {
+        if self.lock.pending.is_some() {
+            self.confirm_lock_if_drawn();
+            self.release_sleep_delay();
         }
     }
 }

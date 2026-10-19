@@ -112,6 +112,8 @@ pub enum Action {
     /// A Super tap: open or close the launcher.
     ToggleLauncher,
     RestoreMinimized,
+    /// Lock the session (Ctrl+Alt+L).
+    Lock,
     /// Switch to virtual terminal `n` (Ctrl+Alt+Fn).
     VtSwitch(i32),
     /// Switch to workspace `n`, counting from zero (Super+1..4).
@@ -142,6 +144,18 @@ impl Patina {
         let Some(output) = self.output_at(pos) else {
             return Pick::Nothing;
         };
+        if self.is_locked() {
+            // Locked: only the lock surface of this output can be touched.
+            let origin = self
+                .space
+                .output_geometry(&output)
+                .map(|g| g.loc)
+                .unwrap_or_default();
+            return match self.lock_surface(&output) {
+                Some(s) => Pick::Surface(s, origin.to_f64(), None),
+                None => Pick::Nothing,
+            };
+        }
         // Layer geometry is relative to its output.
         let origin = self
             .space

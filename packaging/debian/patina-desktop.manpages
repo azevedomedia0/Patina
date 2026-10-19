@@ -1,3 +1,7 @@
 packaging/debian/patina-session.1
 packaging/debian/patina-compositor.1
 packaging/debian/patina-panel.1
+packaging/debian/patina-dock.1
+packaging/debian/patina-lock.1
+packaging/debian/patina-greeter.1
+packaging/debian/patina-autostart.1

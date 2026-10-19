@@ -12,6 +12,7 @@ use smithay::{
             element::{
                 memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
                 render_elements,
+                solid::SolidColorRenderElement,
                 surface::{render_elements_from_surface_tree, WaylandSurfaceRenderElement},
                 texture::TextureRenderElement,
                 Kind,
@@ -41,6 +42,7 @@ render_elements! {
     Clipped = ClippedSurface,
     Image = MemoryRenderBufferRenderElement<GlesRenderer>,
     Scene = TextureRenderElement<GlesTexture>,
+    Solid = SolidColorRenderElement,
 }
 
 /// One surface and, if it is glass, the area behind it to blur first.
@@ -65,6 +67,8 @@ pub struct OutputRender {
     wallpaper: Option<((i32, i32), MemoryRenderBuffer)>,
     /// Popover shadows of shell surfaces, by size.
     shadows: std::collections::HashMap<ShadowKey, (Image, i32)>,
+    /// Identity of the idle-dimming overlay, kept so damage tracking sees one element.
+    dim_id: smithay::backend::renderer::element::Id,
 }
 
 impl OutputRender {
@@ -81,6 +85,7 @@ impl OutputRender {
             unavailable: no_blur,
             wallpaper: None,
             shadows: std::collections::HashMap::new(),
+            dim_id: smithay::backend::renderer::element::Id::new(),
         }
     }
 }
@@ -521,10 +526,64 @@ pub fn frame_elements(
     output: &Output,
 ) -> Vec<PatinaElement> {
     let scale = Scale::from(output.current_scale().fractional_scale());
+    let dim = dim_overlay(state, rs, output);
+    if state.is_locked() {
+        // Nothing of the session shows while locked: the lock surface over black.
+        let mut out: Vec<PatinaElement> = dim.into_iter().collect();
+        if let Some(surface) = state.lock_surface(output) {
+            out.extend(
+                render_elements_from_surface_tree::<_, WaylandSurfaceRenderElement<GlesRenderer>>(
+                    renderer,
+                    &surface,
+                    (0, 0),
+                    scale,
+                    1.0,
+                    Kind::Unspecified,
+                )
+                .into_iter()
+                .map(PatinaElement::Surface),
+            );
+        }
+        return out;
+    }
     let groups = groups(state, renderer, clip_program, rs, output);
     let Some(size) = output.current_mode().map(|m| m.size) else {
         return flatten(groups);
     };
+    if let Some(d) = dim {
+        // The overlay goes over everything (but under the pointer, which the caller adds).
+        let mut out = vec![d];
+        out.extend(frame_elements_inner(
+            state, renderer, rs, groups, size, scale,
+        ));
+        return out;
+    }
+    frame_elements_inner(state, renderer, rs, groups, size, scale)
+}
+
+/// Black at `idle::OVERLAY_ALPHA` over the whole output while idle-dimmed without a backlight.
+fn dim_overlay(state: &Patina, rs: &OutputRender, output: &Output) -> Option<PatinaElement> {
+    if !state.idle.overlay() {
+        return None;
+    }
+    let size = output.current_mode()?.size;
+    Some(PatinaElement::Solid(SolidColorRenderElement::new(
+        rs.dim_id.clone(),
+        Rectangle::from_size(size),
+        smithay::backend::renderer::utils::CommitCounter::default(),
+        [0.0, 0.0, 0.0, crate::idle::OVERLAY_ALPHA],
+        Kind::Unspecified,
+    )))
+}
+
+fn frame_elements_inner(
+    state: &mut Patina,
+    renderer: &mut GlesRenderer,
+    rs: &mut OutputRender,
+    groups: Vec<Group>,
+    size: Size<i32, Physical>,
+    scale: Scale<f64>,
+) -> Vec<PatinaElement> {
     if rs.unavailable {
         return flatten(groups);
     }

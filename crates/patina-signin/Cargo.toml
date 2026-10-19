@@ -1,0 +1,18 @@
+[package]
+name = "patina-signin"
+description = "The Patina sign-in screen (lock screen and greeter share it)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-tokens = { path = "../patina-tokens" }
+patina-ui = { path = "../patina-ui" }
+patina-frame = { path = "../patina-frame" }
+iced = { version = "0.14", default-features = false, features = ["tiny-skia", "tokio", "svg", "image-without-codecs"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+zbus = "5"
+
+[lints]
+workspace = true

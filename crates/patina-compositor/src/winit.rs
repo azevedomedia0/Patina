@@ -115,6 +115,7 @@ pub fn init(
                 backend.submit(Some(&[damage])).unwrap();
 
                 state.send_frames(&output);
+                state.after_frames();
             }
             WinitEvent::CloseRequested => state.loop_signal.stop(),
             _ => {}

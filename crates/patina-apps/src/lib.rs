@@ -4,6 +4,7 @@
 //!
 //! No Wayland or GUI dependency, so it is tested on any OS.
 
+pub mod autostart;
 pub mod desktop_entry;
 pub mod exec;
 pub mod icons;

@@ -1,0 +1,27 @@
+.TH PATINA-GREETER 1 "2026-10-19" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-greeter \- Patina sign-in screen for greetd
+.SH SYNOPSIS
+.B patina-compositor \-\-greeter patina-greeter
+.SH DESCRIPTION
+.B patina-greeter
+is the Patina sign-in screen for the
+.BR greetd (1)
+login daemon. It shows the time, the people who can sign in (accounts with a login shell and
+a user id from 1000), and a password field; it checks the password through greetd and starts
+.B patina-session
+for the user. The button bottom-left picks another user; the one bottom-right shuts the
+computer down.
+.PP
+It runs inside its own compositor:
+.B patina-compositor \-\-greeter
+starts it and ends when it ends. An example greetd configuration is in
+.IR /usr/share/doc/patina-desktop/greetd-config.toml .
+.SH ENVIRONMENT
+.TP
+.B PATINA_GREETER_SESSION
+The command started for the user instead of
+.BR patina-session .
+.SH SEE ALSO
+.BR patina-session (1),
+.BR patina-lock (1)

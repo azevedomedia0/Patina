@@ -22,7 +22,7 @@ Distro cargo is too old (Debian 12: 1.63, Ubuntu 22.04: 1.75). Packages build wi
 | 1 | Nested compositor (winit): window management | Done, except window animations (deferred to 3 by decision). |
 | 2 | DRM/KMS, libinput, seatd/logind | Done in the VM. Open: suspend/resume and real-GPU testing, which need hardware (`docs/HARDWARE-TEST.md`). |
 | 3 | Shell: panel, dock, launcher, notifications, quick settings | In progress. Done: panel; dock (`patina-dock`: pins, running dots, click to open/focus/minimise, right-click menu; tested in the VM); compositor support (blur, radius and shadow per shell surface, menus close on outside press, Super tap and desktop right-click sent to the shell, keyboard focus for the launcher, `--shell` restart). Libraries: `patina-apps`, `patina-ui`, `patina-link`. Not done: launcher, quick settings with real services (`wip/patina-services` started), notification centre and banners, desktop menu; the session script does not start the dock yet. Decisions: real services; no animations except the dock hover; card-style banners; unavailable controls shown dimmed. |
-| 4 | Session: session entry, lock, power, greetd greeter, idle/suspend | Started: session entry works from SDDM, GDM, LightDM and a text console. Lock, power, greeter, idle not started. |
+| 4 | Session: session entry, lock, power, greetd greeter, idle/suspend | Done in the VM (see below). Open: Log off and Restart buttons belong to the quick settings (milestone 3); suspend needs real hardware to test; switch user on the lock screen only with LightDM. |
 | 5 | XWayland isolation, permission broker and prompts | Not started. |
 | 6 | Apps: File Bin, Settings (incl. Processes), Terminal | Not started. |
 | 7 | Settings pages, real Wi-Fi/Bluetooth/audio | Not started. |
@@ -61,6 +61,15 @@ Milestone 1 completion:
 - Animations: deliberately not done. The design only says "fades and small translates, 120-180 ms"; the decision (2026-10-19) was to design window motion together with the dock and launcher in milestone 3.
 Decision made without sign-off: the compositor draws every titlebar, including for our own apps (consistent look, and blur only works compositor-side). Revisit if you want apps to draw their own.
 Open: verify on a real Linux Mint install, Fedora spec, real GPU testing.
+
+## Milestone 4 status (2026-10-19)
+- Session entry: SDDM, GDM, LightDM, a text console, and now greetd with Patina's own sign-in screen.
+- Lock screen (`patina-lock`, `ext-session-lock-v1` in the compositor): the prototype's sign-in screen (128 px clock and date, avatar with initials, name, pill password field with the round arrow button, error line, switch-user button with its popover bottom-left, power button bottom-right) for the signed-in user on every output; PAM service `patina-lock`. Locks on Ctrl+Alt+L (the prototype's shortcut), `loginctl lock-session`, before sleep (a logind delay inhibitor holds sleep until the lock is shown, at most 2 s), and after 15 idle minutes. While locked nothing of the session is drawn and input goes only to the lock surface; if the locker dies the session stays locked and Ctrl+Alt+L starts a new one, which takes over. Tested: lock, wrong password ("Wrong password", wording mine; the prototype only has "Enter your password"), right password, killed locker taken over, `loginctl lock-session`, the installed package in a logind session.
+- Greeter (`patina-greeter` in `patina-compositor --greeter`): the same screen for greetd; any user can be picked; the password goes through greetd, which then starts `patina-session`. Tested end to end in the VM with greetd 0.9: wrong password, right password, then a Patina session on seat0 with the panel, dock and autostarted apps. Example config: `packaging/common/greetd-config.toml`.
+- Power: the power button on the lock screen and greeter shuts down through logind (polkit decides), showing the prototype's dark "Shutting down…" screen. Log off and Restart are in the quick settings (milestone 3).
+- Idle: dim after 1 minute (backlight to 30% through logind, or a 50% black overlay without one), lock and suspend after 15 minutes (the prototype's defaults); input undims; `idle-inhibit` (video players) holds both off; `ext-idle-notify` for other programs. Tested: dim and undim in the VM; idle still 0 wakeups/s. Suspend itself cannot be tested in the VM.
+- Autostart: `patina-autostart` (XDG Autostart) runs at session start; tested with an entry in `~/.config/autostart`.
+- Not done: switch user from the lock screen with GDM or greetd (no way to hand over; the button is dimmed there), remembering the last user in the greeter, the IronTide boot screen (IronTide OS only).
 
 ## Not designed yet (propose in-style, then wait for approval)
 Input methods, RTL, workspace overview and Alt+Tab, calendar/weather popover, Wi-Fi/Bluetooth pairing, light-theme pass, File Bin file operations, wallpaper picker.
