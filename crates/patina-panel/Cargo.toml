@@ -1,0 +1,15 @@
+[package]
+name = "patina-panel"
+description = "Patina top panel (layer-shell client)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-tokens = { path = "../patina-tokens" }
+iced = { version = "0.14", default-features = false, features = ["wgpu", "tiny-skia", "tokio", "svg", "wayland"] }
+iced_layershell = "0.19.1"
+
+[lints]
+workspace = true

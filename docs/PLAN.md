@@ -26,8 +26,8 @@ Distro cargo is too old (Debian 12: 1.63, Ubuntu 22.04: 1.75). Packages build wi
 8. Input/i18n, accessibility, light theme, low-spec, .deb/.rpm/PKGBUILD, QA
 
 ## Milestone 0 status
-Done: repo, fonts, token generator with tests, CI matrix (unrun), packaging stubs copied.
-Open: toolkit spike (panel on layer-shell with blur), pin Rust version, verify Mint image names, Fedora spec, Linux build container for the compositor.
+Done: repo, fonts, token generator with tests, CI matrix (unrun), packaging stubs, toolkit spike (see docs/SPIKE.md).
+Open: confirm the spike on a GPU with input in a QEMU VM, build the compositor in a QEMU VM, pin Rust version, verify Mint image names, Fedora spec, Lucide icons.
 
 ## Not designed yet (propose in-style, then wait for approval)
 Input methods, RTL, workspace overview and Alt+Tab, calendar/weather popover, Wi-Fi/Bluetooth pairing, light-theme pass, File Bin file operations, wallpaper picker.

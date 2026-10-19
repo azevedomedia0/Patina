@@ -6,7 +6,8 @@ on:
 jobs:
   # Format, lint and test inside each target distro's container, so missing
   # system libraries and old toolchains show up here and not on a user's machine.
-  # Image names for Mint are unverified; confirm them in Milestone 0.
+  # Image names for Mint and the dnf/pacman dev-package names are unverified;
+  # only the Debian 12 aarch64 container has been run so far.
   distro:
     name: ${{ matrix.name }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
@@ -27,9 +28,9 @@ jobs:
       - name: Base packages
         run: |
           case "${{ matrix.pkg }}" in
-            apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl git build-essential pkg-config ca-certificates ;;
-            dnf)    dnf install -y curl git gcc gcc-c++ make pkgconf-pkg-config ;;
-            pacman) pacman -Syu --noconfirm curl git base-devel ;;
+            apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl git build-essential pkg-config ca-certificates libwayland-dev libxkbcommon-dev ;;
+            dnf)    dnf install -y curl git gcc gcc-c++ make pkgconf-pkg-config wayland-devel libxkbcommon-devel ;;
+            pacman) pacman -Syu --noconfirm curl git base-devel wayland libxkbcommon ;;
           esac
       - uses: actions/checkout@v4
       - name: Rust (rustup, pinned by rust-toolchain.toml)
@@ -37,5 +38,5 @@ jobs:
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo test --locked --workspace
