@@ -3,6 +3,8 @@
 patina-compositor \- Wayland compositor of the Patina desktop
 .SH SYNOPSIS
 .B patina-compositor
+.RB [ \-\-per\-output
+.IR COMMAND ]
 .RI [ COMMAND ...]
 .SH DESCRIPTION
 .B patina-compositor
@@ -17,7 +19,11 @@ Each
 .I COMMAND
 is a shell command started once the compositor is listening, with
 .B WAYLAND_DISPLAY
-set to its socket. Usually this is done by
+set to its socket. The
+.B \-\-per\-output
+command (the panel) is started once for every display as it is connected, with
+.B PATINA_OUTPUT
+set to the display's name, and stopped when the display is unplugged. Usually this is done by
 .BR patina-session (1).
 .PP
 When started from a login session on a seat it drives the display through DRM/KMS and reads
@@ -25,7 +31,13 @@ input with libinput. When
 .B WAYLAND_DISPLAY
 or
 .B DISPLAY
-is set it runs inside that session as a window. This pre-release uses one GPU and one display.
+is set it runs inside that session as a window.
+.PP
+Every connected display on every GPU is used, placed side by side from left to right in the
+order they were found, at its preferred resolution. Displays and GPUs can be plugged in and
+unplugged while the session runs. Windows on a display that is unplugged move to the first
+display. Display-only adapters (USB and DisplayLink docks, for example) work, but their
+frames are copied through memory and drawn in software, which costs CPU time.
 .SH MOUSE AND KEYBOARD
 .TP
 Drag the titlebar

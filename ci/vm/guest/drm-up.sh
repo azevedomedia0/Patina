@@ -11,7 +11,7 @@ unset WAYLAND_DISPLAY DISPLAY
 export LIBSEAT_BACKEND=seatd PATINA_BACKEND=drm
 BIN=$HOME/PatineDE/target/release
 [ $# -eq 0 ] && set -- 'foot -T Terminal'
-setsid env RUST_LOG=${PATINA_LOG:-info,patina_compositor=debug} "$BIN/patina-compositor" "${PANEL_CMD:-WGPU_BACKEND=gl $BIN/patina-panel}" "$@" >/tmp/patina-drm.log 2>&1 &
+setsid env RUST_LOG=${PATINA_LOG:-info,patina_compositor=debug} "$BIN/patina-compositor" --per-output "${PANEL_CMD:-WGPU_BACKEND=gl $BIN/patina-panel}" "$@" >/tmp/patina-drm.log 2>&1 &
 sleep 8
 echo "--- log"; sed 's/\x1b\[[0-9;]*m//g' /tmp/patina-drm.log | grep -v -E "EGL|GL_|smithay::input" | cut -c1-220 | head -30
 pgrep -a -u "$(id -u)" 'patina|foot' | cut -c1-70

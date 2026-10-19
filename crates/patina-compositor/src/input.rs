@@ -29,13 +29,6 @@ fn workspace_for_key(xkb_keycode: u32) -> Option<usize> {
 }
 
 impl Patina {
-    fn output_size(&self) -> Option<smithay::utils::Size<i32, Logical>> {
-        self.output
-            .as_ref()
-            .and_then(|o| self.space.output_geometry(o))
-            .map(|g| g.size)
-    }
-
     /// The pointer moved to `pos`: continue a drag, or update hover and pointer focus.
     fn pointer_moved(&mut self, pos: Point<f64, Logical>, time: u32) {
         let Some(pointer) = self.seat.get_pointer() else {
@@ -156,20 +149,19 @@ impl Patina {
                 }
             }
             InputEvent::PointerMotionAbsolute { event } => {
-                let Some(size) = self.output_size() else {
+                // Tablets and virtual machine pointers span all outputs together.
+                let Some(bounds) = self.layout_bounds() else {
                     return;
                 };
-                self.pointer_moved(event.position_transformed(size), event.time_msec());
+                let pos = event.position_transformed(bounds.size) + bounds.loc.to_f64();
+                let pos = self.clamp_to_outputs(pos);
+                self.pointer_moved(pos, event.time_msec());
             }
             InputEvent::PointerMotion { event } => {
-                let Some(size) = self.output_size() else {
+                if self.layout_bounds().is_none() {
                     return;
-                };
-                let loc = pointer.current_location() + event.delta();
-                let pos = Point::from((
-                    loc.x.clamp(0.0, size.w as f64 - 1.0),
-                    loc.y.clamp(0.0, size.h as f64 - 1.0),
-                ));
+                }
+                let pos = self.clamp_to_outputs(pointer.current_location() + event.delta());
                 self.pointer_moved(pos, event.time_msec());
             }
             InputEvent::PointerButton { event } => {

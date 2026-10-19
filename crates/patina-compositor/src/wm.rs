@@ -118,27 +118,26 @@ impl Patina {
         ))
     }
 
-    /// Area not covered by panels and docks.
-    pub fn usable_zone(&self) -> Rectangle<i32, Logical> {
-        self.output
-            .as_ref()
-            .map(|o| layer_map_for_output(o).non_exclusive_zone())
-            .unwrap_or_default()
-    }
-
     /// Top-most thing at `pos`: overlay and top layers, then windows, then bottom layers.
     pub fn pick(&self, pos: Point<f64, Logical>) -> Pick {
-        let Some(output) = self.output.as_ref() else {
+        let Some(output) = self.output_at(pos) else {
             return Pick::Nothing;
         };
-        let map = layer_map_for_output(output);
+        // Layer geometry is relative to its output.
+        let origin = self
+            .space
+            .output_geometry(&output)
+            .map(|g| g.loc)
+            .unwrap_or_default();
+        let local = pos - origin.to_f64();
+        let map = layer_map_for_output(&output);
         let layer_hit = |layers: &[Layer]| {
             layers.iter().find_map(|&layer| {
-                let surface = map.layer_under(layer, pos)?;
+                let surface = map.layer_under(layer, local)?;
                 let geo = map.layer_geometry(surface)?;
                 let (wl, loc) =
-                    surface.surface_under(pos - geo.loc.to_f64(), WindowSurfaceType::ALL)?;
-                Some(Pick::Surface(wl, (loc + geo.loc).to_f64(), None))
+                    surface.surface_under(local - geo.loc.to_f64(), WindowSurfaceType::ALL)?;
+                Some(Pick::Surface(wl, (loc + geo.loc + origin).to_f64(), None))
             })
         };
 
@@ -209,12 +208,12 @@ impl Patina {
     /// Moves windows out from under panels and refits maximised ones, after the area reserved
     /// by layer-shell surfaces changed.
     pub fn fit_windows_to_zone(&mut self) {
-        let zone = self.usable_zone();
         let windows: Vec<Window> = self.space.elements().cloned().collect();
         for window in windows {
             let Some(rect) = self.client_rect(&window) else {
                 continue;
             };
+            let zone = self.zone_for_window(&window);
             if win_state(&window).borrow().maximized {
                 let area = Rectangle::new(
                     (zone.loc.x, zone.loc.y + TITLEBAR_H).into(),
@@ -368,7 +367,7 @@ impl Patina {
             win_state(window).borrow_mut().maximized = false;
             self.space.map_element(window.clone(), restore.loc, false);
         } else {
-            let zone = self.usable_zone();
+            let zone = self.zone_for_window(window);
             let area = Rectangle::new(
                 (zone.loc.x, zone.loc.y + TITLEBAR_H).into(),
                 (zone.size.w, zone.size.h - TITLEBAR_H).into(),

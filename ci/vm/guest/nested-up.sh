@@ -20,7 +20,7 @@ export SWAYSOCK=$(ls "$XDG_RUNTIME_DIR"/sway-ipc.*.sock | head -1)
 echo "sway display: $WAYLAND_DISPLAY"
 BIN=$HOME/PatineDE/target/release
 [ $# -eq 0 ] && set -- weston-simple-shm weston-simple-shm
-setsid env RUST_LOG=info,patina_compositor=debug "$BIN/patina-compositor" "WGPU_BACKEND=gl $BIN/patina-panel" "$@" >/tmp/patina-comp.log 2>&1 &
+setsid env RUST_LOG=info,patina_compositor=debug "$BIN/patina-compositor" --per-output "WGPU_BACKEND=gl $BIN/patina-panel" "$@" >/tmp/patina-comp.log 2>&1 &
 sleep 6
 echo "--- compositor log"; head -20 /tmp/patina-comp.log
 pgrep -a -u "$(id -u)" 'sway|patina|weston' | cut -c1-80

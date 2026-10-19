@@ -23,4 +23,6 @@ Notes
 ci/vm/ssh.sh 'sh PatineDE/ci/vm/guest/drm-up.sh'      # compositor on /dev/dri/card0 via seatd, panel and a terminal
 ci/vm/qmp.py screendump out.png                       # what the virtual monitor shows
 ```
+Several displays: `SECOND_GPU=1 ci/vm/start.sh` boots with a second virtio GPU and display (`screendump out.png gpu1` captures it). `ci/vm/qmp.py plug d3 hp2 bochs-display` hot-plugs a display-only adapter into a running VM and `ci/vm/qmp.py unplug d3` removes it (`sudo modprobe bochs` in the guest first; virtio GPUs cannot be hot-plugged). Do not `screendump` a hot-plugged bochs display: QEMU 11.1 on macOS crashed doing that. The two PCIe root ports changed the firmware's view of the machine once; `/boot/efi/startup.nsh` in the guest boots the fallback loader if the boot entry is lost again.
+
 QEMU's `screendump` omits the hardware cursor plane. Start with `PATINA_NO_PLANES=1` to composite the cursor into the frame when you need it in a capture.

@@ -407,7 +407,11 @@ fn main() -> Result<(), iced_layershell::Error> {
                 anchor: Anchor::Top | Anchor::Left | Anchor::Right,
                 layer: Layer::Top,
                 keyboard_interactivity: KeyboardInteractivity::None,
-                start_mode: StartMode::Active,
+                // The compositor starts one panel per output and names it in PATINA_OUTPUT.
+                start_mode: match std::env::var("PATINA_OUTPUT") {
+                    Ok(name) if !name.is_empty() => StartMode::TargetScreen(name),
+                    _ => StartMode::Active,
+                },
                 ..Default::default()
             },
             ..Default::default()

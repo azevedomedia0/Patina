@@ -3,14 +3,18 @@
 //! Milestone 1: a nested (winit) Wayland compositor with xdg-shell windows and
 //! layer-shell surfaces, so `patina-panel` can attach to it.
 //!
-//! Usage: `patina-compositor [COMMAND...]`. Each argument is a shell command started
-//! once the compositor is listening, with `WAYLAND_DISPLAY` pointing at it.
+//! Usage: `patina-compositor [--per-output COMMAND] [COMMAND...]`. Each COMMAND is a shell
+//! command started once the compositor is listening, with `WAYLAND_DISPLAY` pointing at it. The
+//! `--per-output` one (the panel) is started for every output as it appears, with
+//! `PATINA_OUTPUT` set to the output's name, and stopped when the output goes.
 
 mod blur;
 mod clip;
 mod cursor;
 mod drm;
+mod dumb;
 mod input;
+mod outputs;
 mod render;
 mod scene;
 mod state;
@@ -36,6 +40,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let display = smithay::reexports::wayland_server::Display::new()?;
     let mut state = Patina::new(&mut event_loop, display);
 
+    let mut once = Vec::new();
+    let mut args = std::env::args().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--per-output" {
+            state.per_output_cmd = args.next();
+        } else {
+            once.push(arg);
+        }
+    }
+
     // Nested inside another session: winit. From a TTY: DRM. PATINA_BACKEND=drm|winit overrides.
     let nested =
         std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some();
@@ -47,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     tracing::info!(socket = ?state.socket_name, "listening");
-    for cmd in std::env::args().skip(1) {
+    for cmd in once {
         match Command::new("sh")
             .arg("-c")
             .arg(&cmd)

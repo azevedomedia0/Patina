@@ -22,7 +22,8 @@ pub fn init(
     let (backend, winit_source) = winit::init::<GlesRenderer>()?;
     let backend = Rc::new(RefCell::new(backend));
 
-    state.clip_program = crate::clip::compile_logged(backend.borrow_mut().renderer());
+    let clip_program = crate::clip::compile_logged(backend.borrow_mut().renderer());
+    let mut output_render = crate::render::OutputRender::new(state.no_blur);
 
     let mode = Mode {
         size: backend.borrow().window_size(),
@@ -46,7 +47,7 @@ pub fn init(
     );
     output.set_preferred(mode);
     state.space.map_output(&output, (0, 0));
-    state.output = Some(output.clone());
+    state.spawn_panel(&output);
 
     let mut damage_tracker = OutputDamageTracker::from_output(&output);
     let bg = patina_tokens::BG_DESKTOP;
@@ -95,7 +96,13 @@ pub fn init(
                 state.refresh_toplevel_info();
                 {
                     let (renderer, mut framebuffer) = backend.bind().unwrap();
-                    let elements = crate::render::frame_elements(state, renderer, &output);
+                    let elements = crate::render::frame_elements(
+                        state,
+                        renderer,
+                        clip_program.as_ref(),
+                        &mut output_render,
+                        &output,
+                    );
                     damage_tracker
                         .render_output(renderer, &mut framebuffer, 0, &elements, clear)
                         .unwrap();

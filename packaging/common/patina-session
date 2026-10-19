@@ -3,7 +3,8 @@
 #
 # Installed as /usr/bin/patina-session. The "Patina" entry in a display manager's session
 # list runs this, and so can you from a text console (Ctrl+Alt+F3, log in, patina-session).
-# Extra arguments are shell commands that the compositor starts alongside the panel.
+# Extra arguments are shell commands that the compositor starts alongside the panels (one panel
+# per display).
 #
 # Optional per-user settings go in ~/.config/patina/session.env, for example:
 #   WGPU_BACKEND=vulkan
@@ -30,6 +31,6 @@ exec >>"$LOG" 2>&1
 echo "=== patina-session started $(date)"
 
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
-  exec dbus-run-session -- patina-compositor patina-panel "$@"
+  exec dbus-run-session -- patina-compositor --per-output patina-panel "$@"
 fi
-exec patina-compositor patina-panel "$@"
+exec patina-compositor --per-output patina-panel "$@"

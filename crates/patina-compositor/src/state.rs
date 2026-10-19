@@ -24,7 +24,7 @@ use smithay::{
             Client, Display, DisplayHandle,
         },
     },
-    utils::{Serial, SERIAL_COUNTER},
+    utils::{Logical, Rectangle, Serial, SERIAL_COUNTER},
     wayland::{
         buffer::BufferHandler,
         compositor::{
@@ -71,23 +71,17 @@ pub struct Patina {
     /// grip; takes priority over whatever a client asked for.
     pub frame_cursor: Option<CursorIcon>,
     pub rasterizer: patina_frame::Rasterizer,
-    /// Shader that rounds window content corners; `None` if it failed to compile.
-    /// The composed frame, rebuilt only when something in it changes.
-    pub scene: Option<crate::scene::Scene>,
-    /// Set when the scene cannot be created; frames are then drawn without blur.
-    pub scene_unavailable: bool,
+    /// `PATINA_NO_BLUR=1`: draw without blur, for slow machines and for testing.
+    pub no_blur: bool,
+    /// The command started for every output, with `PATINA_OUTPUT` set to its name (the panel).
+    pub per_output_cmd: Option<String>,
+    pub panels: Vec<(String, std::process::Child)>,
     /// `PATINA_FULL_RECOMPOSE=1`: repaint the whole scene every time.
     pub full_recompose: bool,
     /// `PATINA_VERIFY_RECOMPOSE=1`: check each partial repaint against a full one.
     pub verify_recompose: bool,
-    pub scene_check: Option<crate::scene::Scene>,
     pub verified_frames: u32,
     pub mismatched_frames: u32,
-    pub wallpaper: Option<(
-        (i32, i32),
-        smithay::backend::renderer::element::memory::MemoryRenderBuffer,
-    )>,
-    pub clip_program: Option<smithay::backend::renderer::gles::GlesTexProgram>,
     pub toplevel_info: crate::toplevel_info::ToplevelInfoState,
     pub workspace_protocol: crate::workspaces::WorkspaceProtocol,
     pub active_workspace: usize,
@@ -102,8 +96,8 @@ pub struct Patina {
     pub loop_signal: LoopSignal,
     pub socket_name: OsString,
 
+    /// Windows, and the outputs placed side by side in it.
     pub space: Space<Window>,
-    pub output: Option<Output>,
 
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
@@ -168,16 +162,13 @@ impl Patina {
             cursor_status: CursorImageStatus::default_named(),
             frame_cursor: None,
             rasterizer: patina_frame::Rasterizer::new(),
-            scene: None,
-            // PATINA_NO_BLUR=1 draws without blur, for slow machines and for testing.
-            scene_unavailable: std::env::var_os("PATINA_NO_BLUR").is_some(),
+            no_blur: std::env::var_os("PATINA_NO_BLUR").is_some(),
+            per_output_cmd: None,
+            panels: Vec::new(),
             full_recompose: std::env::var_os("PATINA_FULL_RECOMPOSE").is_some(),
             verify_recompose: std::env::var_os("PATINA_VERIFY_RECOMPOSE").is_some(),
-            scene_check: None,
             verified_frames: 0,
             mismatched_frames: 0,
-            wallpaper: None,
-            clip_program: None,
             toplevel_info: crate::toplevel_info::ToplevelInfoState::new(&dh),
             workspace_protocol: crate::workspaces::WorkspaceProtocol::new(&dh),
             active_workspace: 0,
@@ -189,7 +180,6 @@ impl Patina {
             loop_signal: event_loop.get_signal(),
             socket_name,
             space: Space::default(),
-            output: None,
             compositor_state: CompositorState::new::<Self>(&dh),
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
@@ -217,7 +207,20 @@ impl Patina {
     /// Draws frame callbacks for everything on `output` so clients render their next frame.
     pub fn send_frames(&self, output: &Output) {
         let elapsed = self.start_time.elapsed();
+        let area = self.space.output_geometry(output);
         for window in self.space.elements() {
+            // A window on another output gets its callbacks when that one draws.
+            let on_output = self.frame_rect(window).is_some_and(|f| {
+                area.is_none_or(|a| {
+                    a.overlaps(Rectangle::<i32, Logical>::new(
+                        (f.x, f.y).into(),
+                        (f.w, f.h).into(),
+                    ))
+                })
+            });
+            if !on_output {
+                continue;
+            }
             window.send_frame(output, elapsed, Some(std::time::Duration::ZERO), |_, _| {
                 Some(output.clone())
             });
@@ -229,17 +232,21 @@ impl Patina {
         }
     }
 
-    /// Puts the pointer in the middle of the output.
+    /// Puts the pointer in the middle of the first output.
     pub fn center_pointer(&mut self) {
         let Some(geo) = self
-            .output
-            .as_ref()
+            .space
+            .outputs()
+            .next()
             .and_then(|o| self.space.output_geometry(o))
         else {
             return;
         };
         if let Some(pointer) = self.seat.get_pointer() {
-            let centre = (geo.size.w as f64 / 2.0, geo.size.h as f64 / 2.0);
+            let centre = (
+                geo.loc.x as f64 + geo.size.w as f64 / 2.0,
+                geo.loc.y as f64 + geo.size.h as f64 / 2.0,
+            );
             pointer.motion(
                 self,
                 None,
@@ -340,32 +347,30 @@ impl CompositorHandler for Patina {
 
         // Layer surfaces: re-arrange on commit, and send the initial configure the
         // client is waiting for before it may attach a buffer.
-        let output = self.output.clone();
-        if let Some(output) = output {
-            let is_layer = layer_map_for_output(&output)
+        let layer_output = self.outputs().into_iter().find(|o| {
+            layer_map_for_output(o)
                 .layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
-                .is_some();
-            if is_layer {
-                {
-                    let mut map = layer_map_for_output(&output);
-                    let initial_configure_sent = with_states(surface, |states| {
-                        states
-                            .data_map
-                            .get::<LayerSurfaceData>()
-                            .is_some_and(|d| d.lock().unwrap().initial_configure_sent)
-                    });
-                    map.arrange();
-                    if !initial_configure_sent {
-                        if let Some(layer) =
-                            map.layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
-                        {
-                            layer.layer_surface().send_configure();
-                        }
+                .is_some()
+        });
+        if let Some(output) = layer_output {
+            {
+                let mut map = layer_map_for_output(&output);
+                let initial_configure_sent = with_states(surface, |states| {
+                    states
+                        .data_map
+                        .get::<LayerSurfaceData>()
+                        .is_some_and(|d| d.lock().unwrap().initial_configure_sent)
+                });
+                map.arrange();
+                if !initial_configure_sent {
+                    if let Some(layer) = map.layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
+                    {
+                        layer.layer_surface().send_configure();
                     }
                 }
-                // The reserved area may have changed (a panel appeared or resized).
-                self.fit_windows_to_zone();
             }
+            // The reserved area may have changed (a panel appeared or resized).
+            self.fit_windows_to_zone();
         }
     }
 }
@@ -491,7 +496,8 @@ impl WlrLayerShellHandler for Patina {
         let output = output
             .as_ref()
             .and_then(Output::from_resource)
-            .or_else(|| self.output.clone());
+            .or_else(|| self.pointer_output())
+            .or_else(|| self.space.outputs().next().cloned());
         let Some(output) = output else { return };
         {
             let mut map = layer_map_for_output(&output);
@@ -501,7 +507,7 @@ impl WlrLayerShellHandler for Patina {
     }
 
     fn layer_destroyed(&mut self, surface: smithay::wayland::shell::wlr_layer::LayerSurface) {
-        if let Some(output) = self.output.clone() {
+        for output in self.outputs() {
             let mut map = layer_map_for_output(&output);
             let layer = map
                 .layers()

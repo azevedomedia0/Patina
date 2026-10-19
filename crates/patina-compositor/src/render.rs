@@ -16,7 +16,7 @@ use smithay::{
                 texture::TextureRenderElement,
                 AsRenderElements, Kind,
             },
-            gles::{GlesRenderer, GlesTexture},
+            gles::{GlesRenderer, GlesTexProgram, GlesTexture},
         },
     },
     desktop::{layer_map_for_output, LayerSurface as DesktopLayerSurface, Window},
@@ -45,6 +45,29 @@ pub struct Group {
     /// The surface's elements, top-most first.
     pub elements: Vec<PatinaElement>,
     pub backdrop: Option<Backdrop>,
+}
+
+/// What one output keeps between frames. Its textures belong to the renderer that draws the
+/// output, so every output has its own.
+pub struct OutputRender {
+    /// The composed frame, rebuilt only where something in it changes.
+    pub scene: Option<Scene>,
+    /// A second scene composed in full, for `PATINA_VERIFY_RECOMPOSE=1`.
+    pub scene_check: Option<Scene>,
+    /// Set when the scene cannot be created; frames are then drawn without blur.
+    pub unavailable: bool,
+    wallpaper: Option<((i32, i32), MemoryRenderBuffer)>,
+}
+
+impl OutputRender {
+    pub fn new(no_blur: bool) -> Self {
+        Self {
+            scene: None,
+            scene_check: None,
+            unavailable: no_blur,
+            wallpaper: None,
+        }
+    }
 }
 
 /// Inactive windows are drawn slightly translucent (`opacity: .92` in the design).
@@ -111,16 +134,16 @@ fn layer_group(renderer: &mut GlesRenderer, info: &LayerInfo, scale: Scale<f64>)
 /// The wallpaper as an element at the bottom of the scene, redrawn only when the output size
 /// changes.
 fn wallpaper_element(
-    state: &mut Patina,
+    rs: &mut OutputRender,
     renderer: &mut GlesRenderer,
     size: Size<i32, Physical>,
 ) -> Option<PatinaElement> {
     let key = (size.w, size.h);
-    if state.wallpaper.as_ref().is_none_or(|(k, _)| *k != key) {
+    if rs.wallpaper.as_ref().is_none_or(|(k, _)| *k != key) {
         let bitmap = patina_frame::wallpaper::render(size.w, size.h);
-        state.wallpaper = Some((key, upload(&bitmap.bgra, bitmap.width, bitmap.height)));
+        rs.wallpaper = Some((key, upload(&bitmap.bgra, bitmap.width, bitmap.height)));
     }
-    let (_, buffer) = state.wallpaper.as_ref()?;
+    let (_, buffer) = rs.wallpaper.as_ref()?;
     MemoryRenderBufferRenderElement::from_buffer(
         renderer,
         Point::<f64, Physical>::from((0.0, 0.0)),
@@ -134,10 +157,23 @@ fn wallpaper_element(
     .map(PatinaElement::Image)
 }
 
-/// Everything on `output`, bottom-most group first.
-pub fn groups(state: &mut Patina, renderer: &mut GlesRenderer, output: &Output) -> Vec<Group> {
+/// Shadows reach this far outside a window frame (logical pixels); a window this close to an
+/// output still draws on it.
+const SHADOW_REACH: i32 = 96;
+
+/// Everything on `output`, bottom-most group first, in the output's own coordinates.
+pub fn groups(
+    state: &mut Patina,
+    renderer: &mut GlesRenderer,
+    clip_program: Option<&GlesTexProgram>,
+    rs: &mut OutputRender,
+    output: &Output,
+) -> Vec<Group> {
     let scale = Scale::from(output.current_scale().fractional_scale());
     let size = output.current_mode().map(|m| m.size).unwrap_or_default();
+    // Windows live in compositor space; the output shows the part at its rectangle.
+    let area = state.space.output_geometry(output).unwrap_or_default();
+    let offset = area.loc;
     let mut groups: Vec<Group> = Vec::new();
 
     // Layer surfaces, top-most first.
@@ -162,7 +198,7 @@ pub fn groups(state: &mut Patina, renderer: &mut GlesRenderer, output: &Output) 
         .filter(|l| is_below(l.kind))
         .flat_map(|l| layer_group(renderer, l, scale).elements)
         .collect();
-    base.extend(wallpaper_element(state, renderer, size));
+    base.extend(wallpaper_element(rs, renderer, size));
     groups.push(Group {
         key: None,
         elements: base,
@@ -172,17 +208,34 @@ pub fn groups(state: &mut Patina, renderer: &mut GlesRenderer, output: &Output) 
     // Windows, bottom-most first. Each: surfaces, then titlebar, then shadow underneath.
     let windows: Vec<Window> = state.space.elements().cloned().collect();
     for window in windows {
-        let Some(geo) = state.client_rect(&window) else {
+        let Some(global) = state.client_rect(&window) else {
             continue;
         };
+        let reach = Rectangle::<i32, Logical>::new(
+            (
+                global.loc.x - SHADOW_REACH,
+                global.loc.y - TITLEBAR_H - SHADOW_REACH,
+            )
+                .into(),
+            (
+                global.size.w + 2 * SHADOW_REACH,
+                global.size.h + TITLEBAR_H + 2 * SHADOW_REACH,
+            )
+                .into(),
+        );
+        if !reach.overlaps(area) {
+            continue;
+        }
+        let geo = Rectangle::new(global.loc - offset, global.size);
         let mut out: Vec<PatinaElement> = Vec::new();
         let bar = state.title_bar_for(&window, geo.size.w);
         let alpha = if bar.active { 1.0 } else { INACTIVE_ALPHA };
         let maximized = bar.maximized;
 
         // Client surfaces, with the bottom corners rounded unless the window fills the screen.
-        let origin =
-            state.space.element_location(&window).unwrap_or_default() - window.geometry().loc;
+        let origin = state.space.element_location(&window).unwrap_or_default()
+            - window.geometry().loc
+            - offset;
         let content = physical(geo, scale);
         let radius = patina_frame::geometry::RADIUS * scale.x as f32;
         for el in window.render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
@@ -191,7 +244,7 @@ pub fn groups(state: &mut Patina, renderer: &mut GlesRenderer, output: &Output) 
             scale,
             alpha,
         ) {
-            match (&state.clip_program, maximized) {
+            match (clip_program, maximized) {
                 (Some(program), false) => out.push(PatinaElement::Clipped(ClippedSurface::new(
                     el,
                     program.clone(),
@@ -300,34 +353,36 @@ fn flatten(groups: Vec<Group>) -> Vec<PatinaElement> {
 pub fn frame_elements(
     state: &mut Patina,
     renderer: &mut GlesRenderer,
+    clip_program: Option<&GlesTexProgram>,
+    rs: &mut OutputRender,
     output: &Output,
 ) -> Vec<PatinaElement> {
     let scale = Scale::from(output.current_scale().fractional_scale());
-    let groups = groups(state, renderer, output);
+    let groups = groups(state, renderer, clip_program, rs, output);
     let Some(size) = output.current_mode().map(|m| m.size) else {
         return flatten(groups);
     };
-    if state.scene_unavailable {
+    if rs.unavailable {
         return flatten(groups);
     }
 
-    if state.scene.as_ref().is_none_or(|s| s.size() != size) {
+    if rs.scene.as_ref().is_none_or(|s| s.size() != size) {
         match Scene::new(renderer, size, state.full_recompose) {
-            Ok(scene) => state.scene = Some(scene),
+            Ok(scene) => rs.scene = Some(scene),
             Err(e) => {
                 tracing::warn!(error = %e, "blur unavailable: cannot create the scene");
-                state.scene_unavailable = true;
+                rs.unavailable = true;
                 return flatten(groups);
             }
         }
     }
-    let Some(scene) = state.scene.as_mut() else {
+    let Some(scene) = rs.scene.as_mut() else {
         return flatten(groups);
     };
     if let Err(e) = scene.update(renderer, &groups, scale) {
         tracing::warn!(error = %e, "blur unavailable: cannot compose the scene");
-        state.scene = None;
-        state.scene_unavailable = true;
+        rs.scene = None;
+        rs.unavailable = true;
         return flatten(groups);
     }
     let element = scene.element();
@@ -335,22 +390,23 @@ pub fn frame_elements(
     // PATINA_VERIFY_RECOMPOSE=1: also compose every frame in full and compare, to catch stale
     // pixels left by partial updates.
     if state.verify_recompose {
-        verify_against_full(state, renderer, &groups, size, scale);
+        verify_against_full(state, rs, renderer, &groups, size, scale);
     }
     vec![element]
 }
 
 fn verify_against_full(
     state: &mut Patina,
+    rs: &mut OutputRender,
     renderer: &mut GlesRenderer,
     groups: &[Group],
     size: Size<i32, Physical>,
     scale: Scale<f64>,
 ) {
-    if state.scene_check.as_ref().is_none_or(|s| s.size() != size) {
-        state.scene_check = Scene::new(renderer, size, true).ok();
+    if rs.scene_check.as_ref().is_none_or(|s| s.size() != size) {
+        rs.scene_check = Scene::new(renderer, size, true).ok();
     }
-    let (Some(scene), Some(check)) = (state.scene.as_ref(), state.scene_check.as_mut()) else {
+    let (Some(scene), Some(check)) = (rs.scene.as_ref(), rs.scene_check.as_mut()) else {
         return;
     };
     if check.update(renderer, groups, scale).is_err() {
@@ -406,7 +462,11 @@ fn verify_against_full(
 
 /// The pointer, drawn by the compositor when there is no host to draw it (DRM backend).
 /// Returned top-most first; usually one element, none when a client hides the cursor.
-pub fn cursor_elements(state: &mut Patina, renderer: &mut GlesRenderer) -> Vec<PatinaElement> {
+pub fn cursor_elements(
+    state: &mut Patina,
+    renderer: &mut GlesRenderer,
+    output: &Output,
+) -> Vec<PatinaElement> {
     use crate::wm::CursorSource;
     use smithay::{
         backend::renderer::element::surface::render_elements_from_surface_tree,
@@ -417,14 +477,22 @@ pub fn cursor_elements(state: &mut Patina, renderer: &mut GlesRenderer) -> Vec<P
     if !state.software_cursor {
         return Vec::new();
     }
-    let Some(pos) = state.seat.get_pointer().map(|p| p.current_location()) else {
+    let Some(global) = state.seat.get_pointer().map(|p| p.current_location()) else {
         return Vec::new();
     };
-    let scale = state
-        .output
-        .as_ref()
-        .map(|o| Scale::from(o.current_scale().fractional_scale()))
-        .unwrap_or(Scale::from(1.0));
+    let Some(area) = state.space.output_geometry(output) else {
+        return Vec::new();
+    };
+    // Drawn on the output it is on; one near an edge spills onto the neighbour too.
+    let near = Rectangle::<i32, Logical>::new(
+        (area.loc.x - 64, area.loc.y - 64).into(),
+        (area.size.w + 128, area.size.h + 128).into(),
+    );
+    if !near.contains(global.to_i32_round()) {
+        return Vec::new();
+    }
+    let pos = global - area.loc.to_f64();
+    let scale = Scale::from(output.current_scale().fractional_scale());
     let at =
         |hotspot: smithay::utils::Point<i32, smithay::utils::Logical>| -> Point<f64, Physical> {
             Point::from((

@@ -18,6 +18,10 @@ status icons do not show real state: the launcher, quick settings and a notifica
 not part of this pre-release.
 .SH ENVIRONMENT
 .TP
+.B PATINA_OUTPUT
+Name of the display to show the panel on. The compositor sets it when it starts one panel per
+display; without it the panel goes on the display the compositor chooses.
+.TP
 .B WGPU_BACKEND
 Graphics API. Use
 .B gl

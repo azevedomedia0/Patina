@@ -8,7 +8,11 @@
   qmp.py combo alt m     hold modifiers, tap the last key
   qmp.py status          show whether the VM is running or paused
   qmp.py cont            resume a paused VM (QEMU pauses it when the host disk fills)
-  qmp.py screendump FILE.png  capture the VM's display (what a monitor would show)
+  qmp.py screendump FILE.png [DEVICE]  capture a display (default: the first GPU)
+  qmp.py plug ID [PORT] [DRIVER]  hot-plug a second GPU with a display into a PCIe root port
+                         (default hp1; start.sh creates hp1 and hp2). DRIVER defaults to
+                         virtio-gpu-pci; bochs-display is a display-only adapter
+  qmp.py unplug ID       remove it again
   qmp.py key ret         press and release a key (QMP key names: a, ret, esc, ctrl, ...)
 """
 import json, os, socket, sys, time
@@ -71,7 +75,20 @@ def main(argv):
     elif cmd == "cont":
         print(json.dumps(send(f, {"execute": "cont"})))
     elif cmd == "screendump":
-        r = send(f, {"execute": "screendump", "arguments": {"filename": os.path.abspath(argv[2]), "format": "png"}})
+        args = {"filename": os.path.abspath(argv[2]), "format": "png"}
+        if len(argv) > 3:
+            args["device"] = argv[3]
+        r = send(f, {"execute": "screendump", "arguments": args})
+        if "error" in r:
+            sys.exit(r["error"]["desc"])
+    elif cmd == "plug":
+        port = argv[3] if len(argv) > 3 else "hp1"
+        driver = argv[4] if len(argv) > 4 else "virtio-gpu-pci"
+        r = send(f, {"execute": "device_add", "arguments": {"driver": driver, "id": argv[2], "bus": port}})
+        if "error" in r:
+            sys.exit(r["error"]["desc"])
+    elif cmd == "unplug":
+        r = send(f, {"execute": "device_del", "arguments": {"id": argv[2]}})
         if "error" in r:
             sys.exit(r["error"]["desc"])
     elif cmd == "combo":
