@@ -4,10 +4,7 @@ use std::time::Duration;
 
 use smithay::{
     backend::{
-        renderer::{
-            damage::OutputDamageTracker, element::surface::WaylandSurfaceRenderElement,
-            gles::GlesRenderer,
-        },
+        renderer::{damage::OutputDamageTracker, gles::GlesRenderer},
         winit::{self, WinitEvent},
     },
     desktop::layer_map_for_output,
@@ -79,23 +76,10 @@ pub fn init(
                 state.space.refresh();
                 {
                     let (renderer, mut framebuffer) = backend.bind().unwrap();
-                    smithay::desktop::space::render_output::<
-                        _,
-                        WaylandSurfaceRenderElement<GlesRenderer>,
-                        _,
-                        _,
-                    >(
-                        &output,
-                        renderer,
-                        &mut framebuffer,
-                        1.0,
-                        0,
-                        [&state.space],
-                        &[],
-                        &mut damage_tracker,
-                        clear,
-                    )
-                    .unwrap();
+                    let elements = crate::render::elements(state, renderer, &output);
+                    damage_tracker
+                        .render_output(renderer, &mut framebuffer, 0, &elements, clear)
+                        .unwrap();
                 }
                 backend.submit(Some(&[damage])).unwrap();
 

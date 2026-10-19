@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs inside the VM. Starts sway (headless output, real virtio input), then
-# patina-compositor nested in it with the panel and two weston test windows.
+# patina-compositor nested in it with the panel and test clients (default: two weston-simple-shm).
 export XDG_RUNTIME_DIR=/tmp/xdg-patina
 for p in sway patina-compositor patina-panel weston-simple-shm swaybg; do pkill -u "$(id -u)" -x "$p" >/dev/null 2>&1; done
 sleep 1
@@ -17,7 +17,8 @@ export WAYLAND_DISPLAY=$(ls "$XDG_RUNTIME_DIR" | grep '^wayland-[0-9]*$' | head 
 export SWAYSOCK=$(ls "$XDG_RUNTIME_DIR"/sway-ipc.*.sock | head -1)
 echo "sway display: $WAYLAND_DISPLAY"
 BIN=$HOME/PatineDE/target/release
-setsid env RUST_LOG=info "$BIN/patina-compositor" "WGPU_BACKEND=gl $BIN/patina-panel" weston-simple-shm weston-simple-shm >/tmp/patina-comp.log 2>&1 &
+[ $# -eq 0 ] && set -- weston-simple-shm weston-simple-shm
+setsid env RUST_LOG=info,patina_compositor=debug "$BIN/patina-compositor" "WGPU_BACKEND=gl $BIN/patina-panel" "$@" >/tmp/patina-comp.log 2>&1 &
 sleep 6
 echo "--- compositor log"; head -20 /tmp/patina-comp.log
 pgrep -a -u "$(id -u)" 'sway|patina|weston' | cut -c1-80

@@ -7,8 +7,10 @@
 //! once the compositor is listening, with `WAYLAND_DISPLAY` pointing at it.
 
 mod input;
+mod render;
 mod state;
 mod winit;
+mod wm;
 
 use std::process::Command;
 

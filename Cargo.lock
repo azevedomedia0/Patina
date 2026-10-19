@@ -2552,10 +2552,20 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 name = "patina-compositor"
 version = "0.1.0"
 dependencies = [
+ "patina-frame",
  "patina-tokens",
  "smithay",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "patina-frame"
+version = "0.1.0"
+dependencies = [
+ "cosmic-text",
+ "patina-tokens",
+ "tiny-skia",
 ]
 
 [[package]]

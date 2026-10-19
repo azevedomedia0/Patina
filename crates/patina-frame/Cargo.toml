@@ -1,0 +1,15 @@
+[package]
+name = "patina-frame"
+description = "Window frame geometry, hit-testing and titlebar drawing for the Patina compositor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+patina-tokens = { path = "../patina-tokens" }
+tiny-skia = "0.11"
+cosmic-text = { version = "0.15", default-features = false, features = ["std", "swash"] }
+
+[lints]
+workspace = true

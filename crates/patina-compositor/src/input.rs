@@ -5,48 +5,21 @@ use smithay::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
         KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
     },
-    desktop::{layer_map_for_output, WindowSurfaceType},
     input::{
-        keyboard::FilterResult,
+        keyboard::{FilterResult, Keysym},
         pointer::{AxisFrame, ButtonEvent, MotionEvent},
     },
-    reexports::wayland_server::protocol::wl_surface::WlSurface,
-    utils::{Logical, Point, SERIAL_COUNTER},
-    wayland::shell::wlr_layer::Layer,
+    utils::SERIAL_COUNTER,
 };
 
-use crate::state::Patina;
+use patina_frame::{Control, Hit};
+
+use crate::{
+    state::Patina,
+    wm::{Action, Pick},
+};
 
 impl Patina {
-    /// The surface under `pos`, with that surface's origin in compositor space.
-    /// Order: overlay and top layers, windows, then bottom and background layers.
-    pub fn surface_under(
-        &self,
-        pos: Point<f64, Logical>,
-    ) -> Option<(WlSurface, Point<f64, Logical>)> {
-        let output = self.output.as_ref()?;
-        let map = layer_map_for_output(output);
-
-        let layer_hit = |layers: &[Layer]| {
-            layers.iter().find_map(|&layer| {
-                let surface = map.layer_under(layer, pos)?;
-                let geo = map.layer_geometry(surface)?;
-                let (wl, loc) =
-                    surface.surface_under(pos - geo.loc.to_f64(), WindowSurfaceType::ALL)?;
-                Some((wl, (loc + geo.loc).to_f64()))
-            })
-        };
-
-        if let Some(hit) = layer_hit(&[Layer::Overlay, Layer::Top]) {
-            return Some(hit);
-        }
-        if let Some((window, origin)) = self.space.element_under(pos) {
-            let (wl, loc) = window.surface_under(pos - origin.to_f64(), WindowSurfaceType::ALL)?;
-            return Some((wl, (loc + origin).to_f64()));
-        }
-        layer_hit(&[Layer::Bottom, Layer::Background])
-    }
-
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
         let Some(pointer) = self.seat.get_pointer() else {
             return;
@@ -57,14 +30,24 @@ impl Patina {
 
         match event {
             InputEvent::Keyboard { event } => {
-                keyboard.input::<(), _>(
+                let pressed = event.state() == smithay::backend::input::KeyState::Pressed;
+                let action = keyboard.input::<Action, _>(
                     self,
                     event.key_code(),
                     event.state(),
                     SERIAL_COUNTER.next_serial(),
                     event.time_msec(),
-                    |_, _, _| FilterResult::Forward,
+                    |_, mods, handle| {
+                        if pressed && mods.alt && handle.modified_sym() == Keysym::m {
+                            FilterResult::Intercept(Action::RestoreMinimized)
+                        } else {
+                            FilterResult::Forward
+                        }
+                    },
                 );
+                if let Some(Action::RestoreMinimized) = action {
+                    self.restore_minimized();
+                }
             }
             InputEvent::PointerMotionAbsolute { event } => {
                 let Some(size) = self
@@ -76,28 +59,77 @@ impl Patina {
                     return;
                 };
                 let pos = event.position_transformed(size);
-                let focus = self.surface_under(pos);
+                let serial = SERIAL_COUNTER.next_serial();
+                let time = event.time_msec();
+
+                if self.drag.is_some() {
+                    self.apply_drag(pos);
+                    pointer.motion(
+                        self,
+                        None,
+                        &MotionEvent {
+                            location: pos,
+                            serial,
+                            time,
+                        },
+                    );
+                    pointer.frame(self);
+                    return;
+                }
+
+                let pick = self.pick(pos);
+                self.update_hover(&pick);
+                let focus = match pick {
+                    Pick::Surface(wl, origin, _) => Some((wl, origin)),
+                    _ => None,
+                };
                 pointer.motion(
                     self,
                     focus,
                     &MotionEvent {
                         location: pos,
-                        serial: SERIAL_COUNTER.next_serial(),
-                        time: event.time_msec(),
+                        serial,
+                        time,
                     },
                 );
                 pointer.frame(self);
             }
             InputEvent::PointerButton { event } => {
                 let serial = SERIAL_COUNTER.next_serial();
-                if event.state() == ButtonState::Pressed && !pointer.is_grabbed() {
-                    let pos = pointer.current_location();
-                    if let Some((window, _)) =
-                        self.space.element_under(pos).map(|(w, l)| (w.clone(), l))
-                    {
-                        self.focus_window(&window);
+                let pos = pointer.current_location();
+
+                if event.state() == ButtonState::Released {
+                    if self.frame_press || self.drag.is_some() {
+                        self.frame_press = false;
+                        self.end_drag();
+                        return;
+                    }
+                } else {
+                    match self.pick(pos) {
+                        Pick::Frame(window, hit) => {
+                            self.frame_press = true;
+                            self.focus_window(&window);
+                            match hit {
+                                Hit::Titlebar => {
+                                    if self.titlebar_double_click(&window) {
+                                        self.toggle_maximize(&window);
+                                    } else {
+                                        self.begin_move(&window, pos);
+                                    }
+                                }
+                                Hit::Control(Control::Close) => self.close(&window),
+                                Hit::Control(Control::Maximize) => self.toggle_maximize(&window),
+                                Hit::Control(Control::Minimize) => self.minimize(&window),
+                                Hit::ResizeGrip => self.begin_resize(&window, pos),
+                                Hit::Client => {}
+                            }
+                            return;
+                        }
+                        Pick::Surface(_, _, Some(window)) => self.focus_window(&window),
+                        _ => {}
                     }
                 }
+
                 pointer.button(
                     self,
                     &ButtonEvent {

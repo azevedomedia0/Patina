@@ -4,7 +4,7 @@ use std::{ffi::OsString, os::unix::io::OwnedFd, sync::Arc, time::Instant};
 
 use smithay::{
     delegate_compositor, delegate_data_device, delegate_layer_shell, delegate_output,
-    delegate_seat, delegate_shm, delegate_viewporter, delegate_xdg_shell,
+    delegate_seat, delegate_shm, delegate_viewporter, delegate_xdg_decoration, delegate_xdg_shell,
     desktop::{
         layer_map_for_output, LayerSurface as DesktopLayerSurface, Space, Window, WindowSurfaceType,
     },
@@ -12,7 +12,10 @@ use smithay::{
     output::Output,
     reexports::{
         calloop::{generic::Generic, EventLoop, Interest, LoopSignal, Mode, PostAction},
-        wayland_protocols::xdg::shell::server::xdg_toplevel,
+        wayland_protocols::xdg::{
+            decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecorationMode,
+            shell::server::xdg_toplevel,
+        },
         wayland_server::{
             backend::{ClientData, ClientId, DisconnectReason},
             protocol::{wl_buffer::WlBuffer, wl_output::WlOutput, wl_seat, wl_surface::WlSurface},
@@ -35,7 +38,10 @@ use smithay::{
         },
         shell::{
             wlr_layer::{Layer, LayerSurfaceData, WlrLayerShellHandler, WlrLayerShellState},
-            xdg::{PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState},
+            xdg::{
+                decoration::{XdgDecorationHandler, XdgDecorationState},
+                PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState,
+            },
         },
         shm::{ShmHandler, ShmState},
         socket::ListeningSocketSource,
@@ -45,6 +51,12 @@ use smithay::{
 
 pub struct Patina {
     pub start_time: Instant,
+    pub rasterizer: patina_frame::Rasterizer,
+    pub drag: Option<crate::wm::Drag>,
+    /// A press was consumed by a window frame; its release must be swallowed too.
+    pub frame_press: bool,
+    pub minimized: Vec<(Window, smithay::utils::Point<i32, smithay::utils::Logical>)>,
+    pub last_titlebar_click: Option<(Instant, Window)>,
     pub display_handle: DisplayHandle,
     pub loop_signal: LoopSignal,
     pub socket_name: OsString,
@@ -55,6 +67,9 @@ pub struct Patina {
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
     pub layer_shell_state: WlrLayerShellState,
+    /// Held only to keep the xdg-decoration global alive.
+    #[allow(dead_code)]
+    pub decoration_state: XdgDecorationState,
     pub shm_state: ShmState,
     /// Held only to keep the wp_viewporter global alive (required by iced_layershell).
     #[allow(dead_code)]
@@ -99,6 +114,11 @@ impl Patina {
 
         Self {
             start_time: Instant::now(),
+            rasterizer: patina_frame::Rasterizer::new(),
+            drag: None,
+            frame_press: false,
+            minimized: Vec::new(),
+            last_titlebar_click: None,
             loop_signal: event_loop.get_signal(),
             socket_name,
             space: Space::default(),
@@ -106,6 +126,7 @@ impl Patina {
             compositor_state: CompositorState::new::<Self>(&dh),
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
+            decoration_state: XdgDecorationState::new::<Self>(&dh),
             shm_state: ShmState::new::<Self>(&dh, vec![]),
             viewporter_state: ViewporterState::new::<Self>(&dh),
             output_manager_state: OutputManagerState::new_with_xdg_output::<Self>(&dh),
@@ -126,7 +147,10 @@ impl Patina {
             }
         }
         for w in self.space.elements() {
-            if let Some(t) = w.toplevel() {
+            if let Some(t) = w
+                .toplevel()
+                .filter(|t| crate::wm::initial_configure_sent(t))
+            {
                 t.send_pending_configure();
             }
         }
@@ -164,12 +188,36 @@ impl CompositorHandler for Patina {
             while let Some(parent) = get_parent(&root) {
                 root = parent;
             }
-            if let Some(window) = self
+            let window = self
                 .space
                 .elements()
                 .find(|w| w.toplevel().is_some_and(|t| t.wl_surface() == &root))
-            {
+                .cloned();
+            if let Some(window) = window {
                 window.on_commit();
+                if let Some(toplevel) = window.toplevel() {
+                    // Clients wait for the initial configure before drawing their first frame.
+                    if !crate::wm::initial_configure_sent(toplevel) {
+                        toplevel.send_configure();
+                    }
+                    // Focus only once there is something to show: a keyboard enter before the
+                    // initial configure crashes some clients.
+                    let has_buffer =
+                        smithay::backend::renderer::utils::with_renderer_surface_state(
+                            toplevel.wl_surface(),
+                            |s| s.buffer().is_some(),
+                        )
+                        .unwrap_or(false);
+                    let first = {
+                        let mut st = crate::wm::win_state(&window).borrow_mut();
+                        let first = has_buffer && !st.focused_once;
+                        st.focused_once |= has_buffer;
+                        first
+                    };
+                    if first {
+                        self.focus_window(&window);
+                    }
+                }
             }
         }
 
@@ -239,24 +287,52 @@ impl XdgShellHandler for Patina {
     }
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
-        // Cascade new windows below the panel until real placement lands.
+        // Cascade new windows below the panel (and their titlebar) until real placement lands.
         let n = self.space.elements().count() as i32;
-        let origin = (96 + 32 * n, 64 + 32 * n);
+        let zone = self.usable_zone();
+        let origin = (
+            zone.loc.x + 96 + 32 * n,
+            zone.loc.y + patina_frame::TITLEBAR_H + 28 + 32 * n,
+        );
         let window = Window::new_wayland_window(surface);
-        self.space.map_element(window.clone(), origin, false);
-        self.focus_window(&window);
+        self.space.map_element(window, origin, false);
     }
 
     fn new_popup(&mut self, _: PopupSurface, _: PositionerState) {}
     fn grab(&mut self, _: PopupSurface, _: wl_seat::WlSeat, _: Serial) {}
     fn reposition_request(&mut self, _: PopupSurface, _: PositionerState, _: u32) {}
 
-    fn toplevel_destroyed(&mut self, _: ToplevelSurface) {
-        // Focus falls back to the top-most remaining window.
-        let top = self.space.elements().next_back().cloned();
+    fn toplevel_destroyed(&mut self, surface: ToplevelSurface) {
+        // Focus falls back to the top-most remaining window. The destroyed one may still be
+        // mapped at this point, so skip it.
+        let top = self
+            .space
+            .elements()
+            .rev()
+            .find(|w| w.toplevel() != Some(&surface))
+            .cloned();
         if let Some(window) = top {
             self.focus_window(&window);
         }
+        self.refresh_hover();
+    }
+}
+
+/// The compositor draws every titlebar, so clients are always told to use server-side decorations.
+impl XdgDecorationHandler for Patina {
+    fn new_decoration(&mut self, toplevel: ToplevelSurface) {
+        toplevel.with_pending_state(|s| s.decoration_mode = Some(DecorationMode::ServerSide));
+        if crate::wm::initial_configure_sent(&toplevel) {
+            toplevel.send_pending_configure();
+        }
+    }
+
+    fn request_mode(&mut self, toplevel: ToplevelSurface, _: DecorationMode) {
+        self.new_decoration(toplevel);
+    }
+
+    fn unset_mode(&mut self, toplevel: ToplevelSurface) {
+        self.new_decoration(toplevel);
     }
 }
 
@@ -288,6 +364,7 @@ delegate_output!(Patina);
 delegate_seat!(Patina);
 delegate_data_device!(Patina);
 delegate_xdg_shell!(Patina);
+delegate_xdg_decoration!(Patina);
 delegate_layer_shell!(Patina);
 delegate_viewporter!(Patina);
 

@@ -26,6 +26,10 @@ Screenshots: `panel-wgpu-gl.png` (panel on sway), `nested-compositor-panel.png` 
 - Click-to-raise and focus work for xdg-shell windows.
 - `iced_layershell` needs the compositor to offer `wp_viewporter` and to send the initial layer `configure` itself; without them the panel waits or panics.
 
+## Notes from window management work
+- Variable-font weights work in cosmic-text (ink coverage rises from weight 200 to 800), but weight 700 measured a much wider line than 600 or 800 (123 px against 99 px for the same text). Check before using bold text.
+- Smithay does not send the initial `configure` for toplevels or layer surfaces; the commit handler must. Keyboard focus before the first configure crashes some clients (foot).
+
 ## Not verified
 - GPU rendering: the VM's virtio-gpu has no 3D, so everything ran on llvmpipe. A real GPU is untested.
 - Frame times, x86_64, and a real aarch64 board.
