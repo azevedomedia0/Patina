@@ -4,11 +4,13 @@
 # then checks the installed files, that no binary has an unresolved library, and that purging
 # removes everything.
 #
-# Usage: install-test.sh release [deb]   deb defaults to ~/PatineDE/dist/<release>/*.deb
+# Usage: install-test.sh release [arch]   the .deb comes from ~/PatineDE/dist/<release>[-arch]/.
+#        A foreign arch (amd64 on this arm64 VM) runs through qemu-user, installed if missing.
 set -eu
 RELEASE=${1:?release}
-DEB=${2:-$(ls "$HOME"/PatineDE/dist/"$RELEASE"/patina-desktop_*.deb)}
-CHROOT=/srv/bare-$RELEASE
+ARCH=${2:-}
+DEB=$(ls "$HOME"/PatineDE/dist/"$RELEASE${ARCH:+-$ARCH}"/patina-desktop_*.deb)
+CHROOT=/srv/bare-$RELEASE${ARCH:+-$ARCH}
 
 case "$RELEASE" in
   bookworm | trixie) MIRROR=http://deb.debian.org/debian; COMPONENTS=main ;;
@@ -27,7 +29,11 @@ trap cleanup EXIT
 
 if [ ! -d "$CHROOT/usr" ]; then
   [ -e /usr/share/debootstrap/scripts/noble ] || sudo ln -s gutsy /usr/share/debootstrap/scripts/noble
-  sudo debootstrap --variant=minbase --components="$COMPONENTS" "$RELEASE" "$CHROOT" "$MIRROR"
+  if [ -n "$ARCH" ] && [ "$ARCH" != "$(dpkg --print-architecture)" ]; then
+    command -v qemu-x86_64-static >/dev/null || sudo apt-get install -y -q qemu-user-static binfmt-support
+  fi
+  sudo debootstrap --variant=minbase ${ARCH:+--arch="$ARCH"} --components="$COMPONENTS" \
+    "$RELEASE" "$CHROOT" "$MIRROR"
 fi
 sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
 sudo cp "$DEB" "$CHROOT/tmp/patina.deb"

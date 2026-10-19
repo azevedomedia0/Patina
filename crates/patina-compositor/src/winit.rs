@@ -20,6 +20,7 @@ pub fn init(
     state: &mut Patina,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (backend, winit_source) = winit::init::<GlesRenderer>()?;
+    backend.window().set_title("Patina");
     let backend = Rc::new(RefCell::new(backend));
 
     let clip_program = crate::clip::compile_logged(backend.borrow_mut().renderer());

@@ -42,7 +42,7 @@ Outputs: every GPU with display connectors is opened and every connected display
 Known gaps in M2: no suspend/resume testing, software GL only in the VM (no real GPU tested), 
 Known gaps in M1: no popups or menus, windows are not re-clamped when the panel appears late, no HiDPI, no animations, windows are placed by a simple cascade, and the DRM/KMS backend (Milestone 2) is not started.
 Decision made without sign-off: the compositor draws every titlebar, including for our own apps (consistent look, and blur only works compositor-side). Revisit if you want apps to draw their own.
-Open: pin Rust version, verify Mint image names, Fedora spec, GPU testing.
+Open: verify on a real Linux Mint install, Fedora spec, real GPU testing.
 
 ## Not designed yet (propose in-style, then wait for approval)
 Input methods, RTL, workspace overview and Alt+Tab, calendar/weather popover, Wi-Fi/Bluetooth pairing, light-theme pass, File Bin file operations, wallpaper picker.

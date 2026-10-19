@@ -16,7 +16,7 @@ Build-Depends:
  libwayland-dev,
  libxkbcommon-dev,
  pkg-config,
- python3,
+ python3:native,
 
 Package: patina-desktop
 Architecture: amd64 arm64

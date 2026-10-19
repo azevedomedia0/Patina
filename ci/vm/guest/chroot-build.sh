@@ -3,10 +3,13 @@
 # that anything missing from debian/control's Build-Depends fails the build instead of being masked
 # by packages already installed in the VM. The package is copied to dist/<release>/.
 #
-# Usage: chroot-build.sh [release]   bookworm (default), trixie, jammy or noble
+# Usage: chroot-build.sh [release] [host-arch]   bookworm (default), trixie, jammy or noble;
+#        host-arch cross-builds for another architecture (amd64; Debian releases only, since
+#        Ubuntu keeps amd64 and arm64 on different mirrors)
 set -eu
 RELEASE=${1:-bookworm}
-CHROOT=/srv/chroot-$RELEASE
+HOST_ARCH=${2:-}
+CHROOT=/srv/chroot-$RELEASE${HOST_ARCH:+-$HOST_ARCH}
 # SRC is the tree to build (default: the working tree); OUT receives the packages.
 SRC=${SRC:-$HOME/PatineDE}
 OUT=${OUT:-$HOME/PatineDE/dist}
@@ -53,13 +56,17 @@ sudo rsync -a --delete \
 sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
 mountpoint -q "$CHROOT/proc" || sudo mount -t proc proc "$CHROOT/proc"
 
-sudo chroot "$CHROOT" /bin/sh -c '
+# HOST_ARCH is passed through the environment: the script below is single-quoted.
+sudo env HOST_ARCH="$HOST_ARCH" chroot "$CHROOT" /bin/sh -c '
+  set -e
   export DEBIAN_FRONTEND=noninteractive HOME=/root
+  if [ -n "$HOST_ARCH" ]; then dpkg --add-architecture "$HOST_ARCH"; fi
   apt-get update -q >/dev/null
   cd /build/PatineDE
-  packaging/debian/build.sh --bootstrap-rust --install-build-deps
+  packaging/debian/build.sh --bootstrap-rust --install-build-deps ${HOST_ARCH:+--host-arch "$HOST_ARCH"}
 '
-mkdir -p "$OUT/$RELEASE"
-sudo cp "$CHROOT"/build/PatineDE/dist/patina-desktop_* "$OUT/$RELEASE/"
+DEST="$OUT/$RELEASE${HOST_ARCH:+-$HOST_ARCH}"
+mkdir -p "$DEST"
+sudo cp "$CHROOT"/build/PatineDE/dist/patina-desktop_* "$DEST/"
 sudo chown -R "$(id -u):$(id -g)" "$OUT"
-ls -l "$OUT/$RELEASE"
+ls -l "$DEST"

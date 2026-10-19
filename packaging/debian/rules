@@ -7,6 +7,20 @@
 export CARGO_TARGET_DIR = $(CURDIR)/target
 BINARIES = -p patina-compositor -p patina-panel
 
+include /usr/share/dpkg/architecture.mk
+
+# Cross builds (dpkg-buildpackage -a amd64 on arm64, or the other way round): build for the
+# host architecture's Rust target with its cross linker, and find its libraries through
+# multiarch. The binaries are copied to target/release so the install file is the same.
+ifneq ($(DEB_BUILD_GNU_TYPE),$(DEB_HOST_GNU_TYPE))
+RUST_TARGET = $(DEB_HOST_GNU_CPU)-unknown-linux-gnu
+RUST_TARGET_ENV = $(shell echo $(RUST_TARGET) | tr a-z- A-Z_)
+export CARGO_TARGET_$(RUST_TARGET_ENV)_LINKER = $(DEB_HOST_GNU_TYPE)-gcc
+export PKG_CONFIG_ALLOW_CROSS = 1
+export PKG_CONFIG_LIBDIR = /usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig:/usr/share/pkgconfig
+CARGO_TARGET_FLAG = --target $(RUST_TARGET)
+endif
+
 %:
 	dh $@
 
@@ -20,11 +34,16 @@ override_dh_auto_configure:
 	fi
 
 override_dh_auto_build:
-	cargo build --release --locked $(BINARIES)
+	cargo build --release --locked $(CARGO_TARGET_FLAG) $(BINARIES)
+ifdef RUST_TARGET
+	mkdir -p target/release
+	cp target/$(RUST_TARGET)/release/patina-compositor target/$(RUST_TARGET)/release/patina-panel target/release/
+endif
 	python3 packaging/common/crate-licenses.py > debian/third-party-crates.txt
 
+# Tests run on the build machine, so not in a cross build.
 override_dh_auto_test:
-ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS))$(RUST_TARGET))
 	cargo test --release --locked -p patina-tokens -p patina-frame -p patina-panel
 endif
 
