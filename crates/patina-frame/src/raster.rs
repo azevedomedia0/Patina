@@ -119,6 +119,49 @@ impl Rasterizer {
         }
     }
 
+    /// The dark screen shown while a session ends (the prototype's restart and shut-down
+    /// screens): `#05070b` with `message` centred in 13 px `#8a93a3`, `width` x `height` device
+    /// pixels at `scale`.
+    pub fn ending(&mut self, width: i32, height: i32, scale: f32, message: &str) -> Bitmap {
+        let (w, h) = (width.max(1) as u32, height.max(1) as u32);
+        let mut pm = Pixmap::new(w, h).expect("non-empty screen");
+        pm.fill(Color::from_rgba8(0x05, 0x07, 0x0b, 255));
+        let size = 13.0 * scale;
+        let line = size * tok::LH_BODY;
+        let attrs = Attrs::new()
+            .family(Family::Name("Plus Jakarta Sans"))
+            .weight(Weight::NORMAL);
+        let mut buf = Buffer::new(&mut self.fonts, Metrics::new(size, line));
+        buf.set_size(&mut self.fonts, None, None);
+        buf.set_text(&mut self.fonts, message, &attrs, Shaping::Advanced, None);
+        buf.shape_until_scroll(&mut self.fonts, false);
+        let text_w = buf.layout_runs().map(|r| r.line_w).fold(0.0_f32, f32::max);
+        let x = ((w as f32 - text_w) / 2.0).round();
+        let y = ((h as f32 - line) / 2.0).round();
+        let fg = cosmic_text::Color::rgb(0x8a, 0x93, 0xa3);
+        buf.draw(
+            &mut self.fonts,
+            &mut self.swash,
+            fg,
+            |gx, gy, gw, gh, gc| {
+                if gc.a() == 0 {
+                    return;
+                }
+                if let Some(rect) =
+                    Rect::from_xywh(x + gx as f32, y + gy as f32, gw as f32, gh as f32)
+                {
+                    let p = paint(Color::from_rgba8(gc.r(), gc.g(), gc.b(), gc.a()));
+                    pm.fill_rect(rect, &p, Transform::identity(), None);
+                }
+            },
+        );
+        Bitmap {
+            width: w as i32,
+            height: h as i32,
+            bgra: to_bgra(&pm),
+        }
+    }
+
     /// Draws the title at logical `x`, fitting `avail` logical pixels, at scale `s`.
     fn draw_title(
         &mut self,
@@ -393,6 +436,17 @@ mod tests {
         b.scale = 1.5;
         let bm = Rasterizer::new().draw(&b);
         assert_eq!((bm.width, bm.height), (602, 57));
+    }
+
+    #[test]
+    fn the_ending_screen_is_dark_with_grey_text_in_the_middle() {
+        let b = Rasterizer::new().ending(400, 200, 1.0, "Shutting down…");
+        assert_eq!(px(&b, 0, 0), [0x0b, 0x07, 0x05, 255]);
+        let lit = (100..300)
+            .flat_map(|x| (90..110).map(move |y| (x, y)))
+            .filter(|&(x, y)| px(&b, x, y)[2] > 0x40)
+            .count();
+        assert!(lit > 20, "the message is drawn");
     }
 
     #[test]

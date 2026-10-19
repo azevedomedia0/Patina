@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+# The greeter remembers the last user here; it runs as greetd's user.
+if [ "$1" = "configure" ] && getent passwd _greetd >/dev/null; then
+    install -d -o _greetd -g _greetd -m 0755 /var/cache/patina-greeter
+fi
+
+#DEBHELPER#
+exit 0

@@ -37,7 +37,7 @@ override_dh_auto_build:
 	cargo build --release --locked $(CARGO_TARGET_FLAG) $(BINARIES)
 ifdef RUST_TARGET
 	mkdir -p target/release
-	cp $(addprefix target/$(RUST_TARGET)/release/,patina-compositor patina-panel patina-dock patina-lock patina-greeter patina-autostart) target/release/
+	cp $(addprefix target/$(RUST_TARGET)/release/,patina-compositor patina-panel patina-dock patina-lock patina-greeter patina-autostart patina-session-ctl) target/release/
 endif
 	python3 packaging/common/crate-licenses.py > debian/third-party-crates.txt
 

@@ -7,6 +7,7 @@
 //! The screen does not authenticate: [`SignIn::update`] returns an [`Action`] for the program
 //! to carry out (PAM for the lock screen, greetd for the greeter).
 
+pub mod switch;
 pub mod users;
 
 use iced::{

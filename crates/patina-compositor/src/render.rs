@@ -69,6 +69,8 @@ pub struct OutputRender {
     shadows: std::collections::HashMap<ShadowKey, (Image, i32)>,
     /// Identity of the idle-dimming overlay, kept so damage tracking sees one element.
     dim_id: smithay::backend::renderer::element::Id,
+    /// The end-of-session screen, by message and size.
+    ending: Option<((String, i32, i32), Image)>,
 }
 
 impl OutputRender {
@@ -86,6 +88,7 @@ impl OutputRender {
             wallpaper: None,
             shadows: std::collections::HashMap::new(),
             dim_id: smithay::backend::renderer::element::Id::new(),
+            ending: None,
         }
     }
 }
@@ -526,6 +529,11 @@ pub fn frame_elements(
     output: &Output,
 ) -> Vec<PatinaElement> {
     let scale = Scale::from(output.current_scale().fractional_scale());
+    if let Some(message) = state.ending.clone() {
+        return ending_element(state, renderer, rs, output, &message)
+            .into_iter()
+            .collect();
+    }
     let dim = dim_overlay(state, rs, output);
     if state.is_locked() {
         // Nothing of the session shows while locked: the lock surface over black.
@@ -559,6 +567,45 @@ pub fn frame_elements(
         return out;
     }
     frame_elements_inner(state, renderer, rs, groups, size, scale)
+}
+
+/// The dark end-of-session screen, drawn once per output size and message.
+fn ending_element(
+    state: &mut Patina,
+    renderer: &mut GlesRenderer,
+    rs: &mut OutputRender,
+    output: &Output,
+    message: &str,
+) -> Option<PatinaElement> {
+    let size = output.current_mode()?.size;
+    let scale = output.current_scale().fractional_scale();
+    let key = (message.to_string(), size.w, size.h);
+    if rs.ending.as_ref().is_none_or(|(k, _)| *k != key) {
+        let b = state
+            .rasterizer
+            .ending(size.w, size.h, scale as f32, message);
+        let image = Image {
+            buffer: upload(&b.bgra, b.width, b.height),
+            pixels: (b.width, b.height),
+        };
+        rs.ending = Some((key, image));
+    }
+    let (_, image) = rs.ending.as_ref()?;
+    let logical = Size::<i32, Logical>::from((
+        (size.w as f64 / scale).round() as i32,
+        (size.h as f64 / scale).round() as i32,
+    ));
+    MemoryRenderBufferRenderElement::from_buffer(
+        renderer,
+        Point::<f64, Physical>::from((0.0, 0.0)),
+        &image.buffer,
+        None,
+        Some(whole(image.pixels)),
+        Some(logical),
+        Kind::Unspecified,
+    )
+    .ok()
+    .map(PatinaElement::Image)
 }
 
 /// Black at `idle::OVERLAY_ALPHA` over the whole output while idle-dimmed without a backlight.
@@ -696,7 +743,7 @@ pub fn cursor_elements(
         wayland::compositor::with_states,
     };
 
-    if !state.software_cursor {
+    if !state.software_cursor || state.ending.is_some() {
         return Vec::new();
     }
     let Some(global) = state.seat.get_pointer().map(|p| p.current_location()) else {

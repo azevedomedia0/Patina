@@ -16,11 +16,15 @@ pub enum Event {
     PrepareForSleep(bool),
     /// Someone asked to lock this session (`loginctl lock-session`).
     Lock,
+    /// A restart or shut down was refused (by polkit, usually).
+    EndRefused,
 }
 
 #[derive(Debug)]
 pub enum Request {
     Suspend,
+    Reboot,
+    PowerOff,
     /// Backlight `name` (in /sys/class/backlight) to `value`.
     SetBrightness(String, u32),
     /// Let the pending sleep go ahead (we have locked).
@@ -97,6 +101,7 @@ pub fn start(handle: &LoopHandle<'static, Patina>) -> Option<mpsc::Sender<Reques
     }
 
     let (req_tx, req_rx) = mpsc::channel::<Request>();
+    let events = tx.clone();
     std::thread::spawn(move || {
         let Ok(manager) =
             zbus::blocking::Proxy::new(&conn, DEST, MANAGER, "org.freedesktop.login1.Manager")
@@ -125,8 +130,12 @@ pub fn start(handle: &LoopHandle<'static, Patina>) -> Option<mpsc::Sender<Reques
         };
         let mut delay = inhibit();
         while let Ok(req) = req_rx.recv() {
+            let ends = matches!(req, Request::Reboot | Request::PowerOff);
             let result = match req {
                 Request::Suspend => manager.call::<_, _, ()>("Suspend", &(false,)),
+                // `true`: polkit may ask (other users signed in).
+                Request::Reboot => manager.call::<_, _, ()>("Reboot", &(true,)),
+                Request::PowerOff => manager.call::<_, _, ()>("PowerOff", &(true,)),
                 Request::SetBrightness(name, value) => {
                     session.call::<_, _, ()>("SetBrightness", &("backlight", name.as_str(), value))
                 }
@@ -144,6 +153,9 @@ pub fn start(handle: &LoopHandle<'static, Patina>) -> Option<mpsc::Sender<Reques
             };
             if let Err(e) = result {
                 tracing::warn!(error = %e, "logind request failed");
+                if ends {
+                    let _ = events.send(Event::EndRefused);
+                }
             }
         }
     });

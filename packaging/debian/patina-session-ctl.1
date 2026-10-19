@@ -1,0 +1,26 @@
+.TH PATINA-SESSION-CTL 1 "2026-10-19" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-session-ctl \- log off, restart, shut down or lock the Patina session
+.SH SYNOPSIS
+.B patina-session-ctl
+.BR logout | reboot | poweroff | lock
+.SH DESCRIPTION
+.B patina-session-ctl
+asks the running Patina session to end or lock.
+.B logout
+ends the session, and the login screen comes back.
+.B reboot
+and
+.B poweroff
+show "Restarting…" or "Shutting down…" and ask systemd-logind; if it refuses (for example,
+another user is signed in and authorisation is needed), the desktop comes back.
+.B lock
+locks the screen.
+.SH ENVIRONMENT
+.B WAYLAND_DISPLAY
+and
+.B XDG_RUNTIME_DIR
+name the session, as inside it they always do.
+.SH SEE ALSO
+.BR patina-session (1),
+.BR patina-lock (1)

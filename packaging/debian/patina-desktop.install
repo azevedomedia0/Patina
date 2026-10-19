@@ -4,5 +4,6 @@ target/release/patina-dock usr/bin
 target/release/patina-lock usr/bin
 target/release/patina-greeter usr/bin
 target/release/patina-autostart usr/bin
+target/release/patina-session-ctl usr/bin
 packaging/common/patina-session usr/bin
 packaging/common/patina.desktop usr/share/wayland-sessions

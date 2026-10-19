@@ -23,6 +23,7 @@ mod logind;
 mod outputs;
 mod render;
 mod scene;
+mod session_end;
 mod session_lock;
 mod shell_ipc;
 mod state;
@@ -71,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     state.logind = logind::start(&state.loop_handle);
+    session_end::listen(&mut state);
     state.arm_idle_timer();
     tracing::info!(socket = ?state.socket_name, "listening");
     let socket = state.socket_name.to_string_lossy().into_owned();
@@ -91,5 +93,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     event_loop.run(None, &mut state, move |_| {
         let _ = dh.flush_clients();
     })?;
+    if let Some(path) = &state.control_socket {
+        let _ = std::fs::remove_file(path);
+    }
     Ok(())
 }

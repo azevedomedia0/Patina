@@ -218,6 +218,10 @@ impl Patina {
                 self.queue_redraw();
             }
             crate::logind::Event::Lock => self.start_locker(),
+            crate::logind::Event::EndRefused => {
+                self.ending = None;
+                self.queue_redraw();
+            }
         }
     }
 

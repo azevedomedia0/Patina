@@ -115,6 +115,10 @@ pub struct Patina {
     pub idle_inhibit_state: smithay::wayland::idle_inhibit::IdleInhibitManagerState,
     /// Requests to logind, when the session has it.
     pub logind: Option<std::sync::mpsc::Sender<crate::logind::Request>>,
+    /// The session is ending: this message on the dark screen ("Shutting down…").
+    pub ending: Option<String>,
+    /// The control socket (`session_end`), removed on exit.
+    pub control_socket: Option<std::path::PathBuf>,
     /// Sleep is waiting for the screen to lock.
     pub sleep_delay_pending: bool,
     /// Keyboards (libinput devices), for their Caps Lock and Num Lock lights.
@@ -243,6 +247,8 @@ impl Patina {
             ),
             logind: None,
             sleep_delay_pending: false,
+            ending: None,
+            control_socket: None,
             super_alone: false,
             launcher_wanted: false,
             focus_before_layer: None,

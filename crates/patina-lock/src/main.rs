@@ -19,6 +19,7 @@ const PAM_SERVICE: &str = "patina-lock";
 
 struct Lock {
     screen: SignIn,
+    switcher: Option<patina_signin::switch::Switcher>,
 }
 
 #[to_session_message]
@@ -27,18 +28,6 @@ enum Message {
     SignIn(Msg),
     Checked(bool),
     PowerFailed(String),
-}
-
-fn in_path(program: &str) -> bool {
-    std::env::var_os("PATH")
-        .map(|p| std::env::split_paths(&p).any(|d| d.join(program).is_file()))
-        .unwrap_or(false)
-}
-
-/// Whether the display manager can show another user's sign-in while this session stays
-/// locked: LightDM can (`dm-tool switch-to-user`).
-fn can_switch() -> bool {
-    std::env::var_os("XDG_SEAT_PATH").is_some() && in_path("dm-tool")
 }
 
 fn focus_password() -> Task<Message> {
@@ -52,8 +41,9 @@ fn new() -> (Lock, Task<Message>) {
         users.retain(|u| u.login != me.login);
         users.insert(0, me);
     }
-    let screen = SignIn::new(Mode::Lock, users, 0, can_switch());
-    (Lock { screen }, focus_password())
+    let switcher = patina_signin::switch::available();
+    let screen = SignIn::new(Mode::Lock, users, 0, switcher.is_some());
+    (Lock { screen, switcher }, focus_password())
 }
 
 fn update(lock: &mut Lock, message: Message) -> Task<Message> {
@@ -70,12 +60,14 @@ fn update(lock: &mut Lock, message: Message) -> Task<Message> {
                 Message::Checked,
             ),
             Some(Action::SwitchUser(login)) => {
-                // LightDM shows that user's sign-in on another terminal; this lock stays.
-                if let Err(e) = std::process::Command::new("dm-tool")
-                    .args(["switch-to-user", &login])
-                    .spawn()
-                {
-                    eprintln!("patina-lock: cannot switch user: {e}");
+                // The display manager shows that user's sign-in on another terminal; this
+                // session stays locked behind it.
+                if let Some(switcher) = lock.switcher.clone() {
+                    std::thread::spawn(move || {
+                        if let Err(e) = patina_signin::switch::switch_to(&switcher, &login) {
+                            eprintln!("patina-lock: cannot switch user: {e}");
+                        }
+                    });
                 }
                 Task::none()
             }

@@ -5,7 +5,9 @@
 #   sudo systemctl disable gdm3 sddm lightdm
 #   sudo systemctl enable greetd
 # The sign-in screen runs in its own Patina compositor as greetd's user and starts
-# patina-session for whoever signs in.
+# patina-session for whoever signs in. It remembers the last user in
+# /var/cache/patina-greeter; if greetd was installed after Patina, make that directory with
+#   sudo install -d -o _greetd -g _greetd /var/cache/patina-greeter
 
 [terminal]
 vt = 7

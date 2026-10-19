@@ -68,6 +68,10 @@ and going to sleep. After a minute without input the screen dims (the backlight 
 30%, or the picture darkens where there is no backlight); after 15 minutes the screen locks
 and the computer sleeps. Programs that play video can hold this off (the idle-inhibit
 protocol).
+.PP
+.BR patina-session-ctl (1)
+logs off, restarts, shuts down or locks the session through the compositor's control socket,
+.IR $XDG_RUNTIME_DIR/patina-compositor-$WAYLAND_DISPLAY.sock .
 .SH MOUSE AND KEYBOARD
 .TP
 Drag the titlebar

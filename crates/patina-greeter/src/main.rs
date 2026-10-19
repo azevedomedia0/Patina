@@ -18,6 +18,21 @@ use patina_signin::{Action, Mode, Msg, SignIn};
 use patina_tokens as tok;
 use patina_ui::{self as ui, c};
 
+/// Where the last user to sign in is remembered, so the next sign-in starts with them. The
+/// package makes the directory, owned by greetd's user.
+fn last_user_file() -> std::path::PathBuf {
+    std::env::var_os("PATINA_GREETER_STATE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| "/var/cache/patina-greeter".into())
+        .join("last-user")
+}
+
+fn remember(login: &str) {
+    if let Err(e) = std::fs::write(last_user_file(), format!("{login}\n")) {
+        eprintln!("patina-greeter: cannot remember the last user: {e}");
+    }
+}
+
 /// What greetd starts after a successful sign-in.
 fn session_command() -> Vec<String> {
     std::env::var("PATINA_GREETER_SESSION")
@@ -43,7 +58,12 @@ fn focus_password() -> Task<Message> {
 
 fn new() -> (Greeter, Task<Message>) {
     let users = patina_signin::users::all();
-    let screen = SignIn::new(Mode::Greeter, users, 0, false);
+    let last = std::fs::read_to_string(last_user_file()).unwrap_or_default();
+    let selected = users
+        .iter()
+        .position(|u| u.login == last.trim())
+        .unwrap_or(0);
+    let screen = SignIn::new(Mode::Greeter, users, selected, false);
     (Greeter { screen }, focus_password())
 }
 
@@ -79,7 +99,12 @@ fn update(g: &mut Greeter, message: Message) -> Task<Message> {
             Some(Action::SwitchUser(_)) | None => Task::none(),
         },
         // greetd starts the session once this greeter (and its compositor) has gone.
-        Message::Done(Ok(())) => std::process::exit(0),
+        Message::Done(Ok(())) => {
+            if let Some(u) = g.screen.user() {
+                remember(&u.login);
+            }
+            std::process::exit(0)
+        }
         Message::Done(Err(e)) => {
             g.screen.failed(&e);
             focus_password()
