@@ -1,5 +1,7 @@
 //! Nested backend: runs the compositor inside a window of another compositor.
 
+use std::{cell::RefCell, rc::Rc};
+
 use smithay::{
     backend::{
         renderer::{damage::OutputDamageTracker, gles::GlesRenderer},
@@ -7,7 +9,7 @@ use smithay::{
     },
     desktop::layer_map_for_output,
     output::{Mode, Output, PhysicalProperties, Subpixel},
-    reexports::calloop::EventLoop,
+    reexports::calloop::{ping::make_ping, EventLoop},
     utils::{Rectangle, Transform},
 };
 
@@ -17,12 +19,13 @@ pub fn init(
     event_loop: &mut EventLoop<Patina>,
     state: &mut Patina,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (mut backend, winit_source) = winit::init::<GlesRenderer>()?;
+    let (backend, winit_source) = winit::init::<GlesRenderer>()?;
+    let backend = Rc::new(RefCell::new(backend));
 
-    state.clip_program = crate::clip::compile_logged(backend.renderer());
+    state.clip_program = crate::clip::compile_logged(backend.borrow_mut().renderer());
 
     let mode = Mode {
-        size: backend.window_size(),
+        size: backend.borrow().window_size(),
         refresh: 60_000,
     };
     let output = Output::new(
@@ -54,6 +57,17 @@ pub fn init(
         1.0,
     ];
 
+    // A queued redraw asks the host window for a frame; nothing redraws on a timer.
+    let (ping, ping_source) = make_ping()?;
+    let wake = backend.clone();
+    event_loop
+        .handle()
+        .insert_source(ping_source, move |_, _, _| {
+            wake.borrow().window().request_redraw()
+        })?;
+    state.redraw_ping = Some(ping);
+
+    let backend_for_events = backend.clone();
     event_loop
         .handle()
         .insert_source(winit_source, move |event, _, state| match event {
@@ -68,9 +82,13 @@ pub fn init(
                     None,
                 );
                 layer_map_for_output(&output).arrange();
+                state.fit_windows_to_zone();
+                state.queue_redraw();
             }
             WinitEvent::Input(event) => state.process_input_event(event),
             WinitEvent::Redraw => {
+                let mut backend = backend_for_events.borrow_mut();
+                state.redraw_wanted = false;
                 let size = backend.window_size();
                 let damage = Rectangle::from_size(size);
                 state.space.refresh();
@@ -84,7 +102,6 @@ pub fn init(
                 backend.submit(Some(&[damage])).unwrap();
 
                 state.send_frames(&output);
-                backend.window().request_redraw();
             }
             WinitEvent::CloseRequested => state.loop_signal.stop(),
             _ => {}

@@ -11,7 +11,7 @@ use smithay::{
             Format, Fourcc,
         },
         drm::{
-            compositor::{DrmCompositor, FrameFlags},
+            compositor::{DrmCompositor, FrameFlags, PrimaryPlaneElement},
             exporter::gbm::GbmFramebufferExporter,
             DrmDevice, DrmDeviceFd, DrmEvent,
         },
@@ -24,6 +24,7 @@ use smithay::{
     output::{Mode as OutputMode, Output, PhysicalProperties, Subpixel},
     reexports::{
         calloop::{
+            ping::make_ping,
             timer::{TimeoutAction, Timer},
             EventLoop,
         },
@@ -87,7 +88,7 @@ pub fn init(event_loop: &mut EventLoop<Patina>, state: &mut Patina) -> Result<()
                     d.compositor.reset_buffers();
                     d.frame_pending = false;
                 }
-                state.schedule_render();
+                state.queue_redraw();
             }
         })
         .map_err(|e| format!("session source: {e}"))?;
@@ -193,16 +194,30 @@ pub fn init(event_loop: &mut EventLoop<Patina>, state: &mut Patina) -> Result<()
     )
     .map_err(|e| format!("drm compositor: {e:?}"))?;
 
+    // Rendering is woken by this ping and by vblank, never by a timer.
+    let (ping, ping_source) = make_ping().map_err(|e| format!("ping: {e}"))?;
+    handle
+        .insert_source(ping_source, |_, _, state| {
+            tracing::trace!("ping woke the loop");
+            state.render_drm()
+        })
+        .map_err(|e| format!("ping source: {e}"))?;
+    state.redraw_ping = Some(ping);
+
     handle
         .insert_source(notifier, |event, _, state| match event {
             DrmEvent::VBlank(_) => {
+                tracing::trace!(wanted = state.redraw_wanted, "vblank");
                 if let Some(d) = &mut state.drm {
                     if let Err(e) = d.compositor.frame_submitted() {
                         tracing::warn!(error = ?e, "frame_submitted");
                     }
                     d.frame_pending = false;
                 }
-                state.render_drm();
+                // Changes that arrived while this frame was on its way get drawn now.
+                if state.redraw_wanted {
+                    state.render_drm();
+                }
             }
             DrmEvent::Error(e) => tracing::error!(error = ?e, "drm error"),
         })
@@ -215,17 +230,18 @@ pub fn init(event_loop: &mut EventLoop<Patina>, state: &mut Patina) -> Result<()
         compositor,
         frame_pending: false,
     });
-    state.schedule_render();
+    state.queue_redraw();
     Ok(())
 }
 
 impl Patina {
-    /// Renders on the next loop iteration (used to start and to retry after an empty frame).
-    pub fn schedule_render(&mut self) {
+    /// Tries again shortly after a failure. Not used for empty frames: those mean there is
+    /// nothing to show, and the loop sleeps until something changes.
+    fn retry_render_later(&mut self) {
         let _ = self.loop_handle.insert_source(
-            Timer::from_duration(Duration::from_millis(16)),
+            Timer::from_duration(Duration::from_millis(100)),
             |_, _, state| {
-                state.render_drm();
+                state.queue_redraw();
                 TimeoutAction::Drop
             },
         );
@@ -240,9 +256,12 @@ impl Patina {
             return;
         };
         if drm.frame_pending {
+            // The vblank handler draws again if redraw_wanted is still set.
+            tracing::trace!("render deferred: frame in flight");
             self.drm = Some(drm);
             return;
         }
+        self.redraw_wanted = false;
 
         self.space.refresh();
         let mut elements = crate::render::elements(self, &mut drm.renderer, &output);
@@ -264,29 +283,44 @@ impl Patina {
         } else {
             FrameFlags::DEFAULT
         };
-        let mut retry = false;
+        let mut failed = false;
         match drm
             .compositor
             .render_frame(&mut drm.renderer, &elements, clear, flags)
         {
-            Ok(result) if !result.is_empty => match drm.compositor.queue_frame(()) {
-                Ok(()) => drm.frame_pending = true,
-                Err(e) => {
-                    tracing::warn!(error = ?e, "queue_frame");
-                    retry = true;
+            Ok(result) if !result.is_empty => {
+                // Without fence support (virtio-gpu, software GL) the GPU may still be drawing
+                // when the frame is queued, and the screen would show a half-drawn frame.
+                // Smithay leaves waiting for the render to finish to us in that case.
+                if result.needs_sync() {
+                    if let PrimaryPlaneElement::Swapchain(element) = result.primary_element {
+                        let _ = element.sync.wait();
+                    }
                 }
-            },
-            Ok(_) => retry = true,
+                match drm.compositor.queue_frame(()) {
+                    Ok(()) => {
+                        tracing::trace!(elements = elements.len(), "frame queued");
+                        drm.frame_pending = true;
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = ?e, "queue_frame");
+                        failed = true;
+                    }
+                }
+            }
+            // Nothing changed on screen: stay idle until something does.
+            Ok(_) => tracing::trace!(elements = elements.len(), "frame empty"),
             Err(e) => {
                 tracing::warn!(error = ?e, "render_frame");
-                retry = true;
+                failed = true;
             }
         }
         drop(elements);
+        // Clients waiting on a frame callback may draw again; if they commit, that wakes us.
         self.send_frames(&output);
         self.drm = Some(drm);
-        if retry {
-            self.schedule_render();
+        if failed {
+            self.retry_render_later();
         }
     }
 }

@@ -7,7 +7,9 @@
 pub mod geometry;
 pub mod raster;
 pub mod shadow;
+pub mod wallpaper;
 
 pub use geometry::{control_rect, hit_test, Control, Hit, Rect, TITLEBAR_H};
+pub(crate) use patina_tokens::parse::parse_color;
 pub use raster::{Bitmap, Rasterizer, TitleBar};
 pub use shadow::Shadow;

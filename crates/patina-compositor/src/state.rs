@@ -56,6 +56,10 @@ pub struct Patina {
     pub drm: Option<crate::drm::DrmBackend>,
     /// We draw the pointer ourselves (DRM); winit shows the host's pointer instead.
     pub software_cursor: bool,
+    /// Something changed since the last frame. Rendering is driven by this, never by a timer.
+    pub redraw_wanted: bool,
+    /// Wakes the event loop to draw; registered by the active backend.
+    pub redraw_ping: Option<smithay::reexports::calloop::ping::Ping>,
     pub cursor: Option<crate::cursor::Cursor>,
     pub rasterizer: patina_frame::Rasterizer,
     /// Shader that rounds window content corners; `None` if it failed to compile.
@@ -125,6 +129,8 @@ impl Patina {
             loop_handle: event_loop.handle(),
             drm: None,
             software_cursor: false,
+            redraw_wanted: false,
+            redraw_ping: None,
             cursor: crate::cursor::load(),
             rasterizer: patina_frame::Rasterizer::new(),
             clip_program: None,
@@ -147,6 +153,15 @@ impl Patina {
             seat_state,
             seat,
             display_handle: dh,
+        }
+    }
+
+    /// Asks for a new frame. Cheap to call often: calls made before the loop wakes coalesce.
+    pub fn queue_redraw(&mut self) {
+        tracing::trace!(ping = self.redraw_ping.is_some(), "queue_redraw");
+        self.redraw_wanted = true;
+        if let Some(ping) = &self.redraw_ping {
+            ping.ping();
         }
     }
 
@@ -234,6 +249,7 @@ impl CompositorHandler for Patina {
 
     fn commit(&mut self, surface: &WlSurface) {
         smithay::backend::renderer::utils::on_commit_buffer_handler::<Self>(surface);
+        self.queue_redraw();
 
         if !is_sync_subsurface(surface) {
             let mut root = surface.clone();
@@ -354,6 +370,15 @@ impl XdgShellHandler for Patina {
         );
         let window = Window::new_wayland_window(surface);
         self.space.map_element(window, origin, false);
+        self.queue_redraw();
+    }
+
+    // Titles and app ids change without a surface commit, but they show in the titlebar.
+    fn title_changed(&mut self, _: ToplevelSurface) {
+        self.queue_redraw();
+    }
+    fn app_id_changed(&mut self, _: ToplevelSurface) {
+        self.queue_redraw();
     }
 
     fn new_popup(&mut self, _: PopupSurface, _: PositionerState) {}
@@ -373,6 +398,7 @@ impl XdgShellHandler for Patina {
             self.focus_window(&window);
         }
         self.refresh_hover();
+        self.queue_redraw();
     }
 }
 
@@ -411,8 +437,27 @@ impl WlrLayerShellHandler for Patina {
             .and_then(Output::from_resource)
             .or_else(|| self.output.clone());
         let Some(output) = output else { return };
-        let mut map = layer_map_for_output(&output);
-        let _ = map.map_layer(&DesktopLayerSurface::new(surface, namespace));
+        {
+            let mut map = layer_map_for_output(&output);
+            let _ = map.map_layer(&DesktopLayerSurface::new(surface, namespace));
+        }
+        self.queue_redraw();
+    }
+
+    fn layer_destroyed(&mut self, surface: smithay::wayland::shell::wlr_layer::LayerSurface) {
+        if let Some(output) = self.output.clone() {
+            let mut map = layer_map_for_output(&output);
+            let layer = map
+                .layers()
+                .find(|l| l.layer_surface() == &surface)
+                .cloned();
+            if let Some(layer) = layer {
+                map.unmap_layer(&layer);
+            }
+        }
+        // The map lock is released above; fitting windows takes it again.
+        self.fit_windows_to_zone();
+        self.queue_redraw();
     }
 }
 

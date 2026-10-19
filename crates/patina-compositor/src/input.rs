@@ -67,7 +67,14 @@ impl Patina {
         pointer.frame(self);
     }
 
+    /// Handles one input event, then asks for a frame: input can move the cursor, change hover,
+    /// or move, resize and close windows.
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
+        self.handle_input_event(event);
+        self.queue_redraw();
+    }
+
+    fn handle_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
         let Some(pointer) = self.seat.get_pointer() else {
             return;
         };
