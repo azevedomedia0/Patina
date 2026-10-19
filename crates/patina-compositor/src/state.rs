@@ -51,6 +51,12 @@ use smithay::{
 
 pub struct Patina {
     pub start_time: Instant,
+    pub loop_handle: smithay::reexports::calloop::LoopHandle<'static, Patina>,
+    /// DRM backend state; `None` when running nested in winit.
+    pub drm: Option<crate::drm::DrmBackend>,
+    /// We draw the pointer ourselves (DRM); winit shows the host's pointer instead.
+    pub software_cursor: bool,
+    pub cursor: Option<crate::cursor::Cursor>,
     pub rasterizer: patina_frame::Rasterizer,
     /// Shader that rounds window content corners; `None` if it failed to compile.
     pub clip_program: Option<smithay::backend::renderer::gles::GlesTexProgram>,
@@ -85,7 +91,7 @@ pub struct Patina {
 }
 
 impl Patina {
-    pub fn new(event_loop: &mut EventLoop<Self>, display: Display<Self>) -> Self {
+    pub fn new(event_loop: &mut EventLoop<'static, Self>, display: Display<Self>) -> Self {
         let dh = display.handle();
         let mut seat_state = SeatState::new();
         let mut seat = seat_state.new_wl_seat(&dh, "patina-seat0");
@@ -116,6 +122,10 @@ impl Patina {
 
         Self {
             start_time: Instant::now(),
+            loop_handle: event_loop.handle(),
+            drm: None,
+            software_cursor: false,
+            cursor: crate::cursor::load(),
             rasterizer: patina_frame::Rasterizer::new(),
             clip_program: None,
             drag: None,
@@ -137,6 +147,45 @@ impl Patina {
             seat_state,
             seat,
             display_handle: dh,
+        }
+    }
+
+    /// Draws frame callbacks for everything on `output` so clients render their next frame.
+    pub fn send_frames(&self, output: &Output) {
+        let elapsed = self.start_time.elapsed();
+        for window in self.space.elements() {
+            window.send_frame(output, elapsed, Some(std::time::Duration::ZERO), |_, _| {
+                Some(output.clone())
+            });
+        }
+        for layer in layer_map_for_output(output).layers() {
+            layer.send_frame(output, elapsed, Some(std::time::Duration::ZERO), |_, _| {
+                Some(output.clone())
+            });
+        }
+    }
+
+    /// Puts the pointer in the middle of the output.
+    pub fn center_pointer(&mut self) {
+        let Some(geo) = self
+            .output
+            .as_ref()
+            .and_then(|o| self.space.output_geometry(o))
+        else {
+            return;
+        };
+        if let Some(pointer) = self.seat.get_pointer() {
+            let centre = (geo.size.w as f64 / 2.0, geo.size.h as f64 / 2.0);
+            pointer.motion(
+                self,
+                None,
+                &smithay::input::pointer::MotionEvent {
+                    location: centre.into(),
+                    serial: SERIAL_COUNTER.next_serial(),
+                    time: 0,
+                },
+            );
+            pointer.frame(self);
         }
     }
 

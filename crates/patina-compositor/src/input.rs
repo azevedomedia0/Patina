@@ -3,13 +3,13 @@
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
-        KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
+        KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent, PointerMotionEvent,
     },
     input::{
         keyboard::{FilterResult, Keysym},
         pointer::{AxisFrame, ButtonEvent, MotionEvent},
     },
-    utils::SERIAL_COUNTER,
+    utils::{Logical, Point, SERIAL_COUNTER},
 };
 
 use patina_frame::{Control, Hit};
@@ -20,6 +20,53 @@ use crate::{
 };
 
 impl Patina {
+    fn output_size(&self) -> Option<smithay::utils::Size<i32, Logical>> {
+        self.output
+            .as_ref()
+            .and_then(|o| self.space.output_geometry(o))
+            .map(|g| g.size)
+    }
+
+    /// The pointer moved to `pos`: continue a drag, or update hover and pointer focus.
+    fn pointer_moved(&mut self, pos: Point<f64, Logical>, time: u32) {
+        let Some(pointer) = self.seat.get_pointer() else {
+            return;
+        };
+        let serial = SERIAL_COUNTER.next_serial();
+
+        if self.drag.is_some() {
+            self.apply_drag(pos);
+            pointer.motion(
+                self,
+                None,
+                &MotionEvent {
+                    location: pos,
+                    serial,
+                    time,
+                },
+            );
+            pointer.frame(self);
+            return;
+        }
+
+        let pick = self.pick(pos);
+        self.update_hover(&pick);
+        let focus = match pick {
+            Pick::Surface(wl, origin, _) => Some((wl, origin)),
+            _ => None,
+        };
+        pointer.motion(
+            self,
+            focus,
+            &MotionEvent {
+                location: pos,
+                serial,
+                time,
+            },
+        );
+        pointer.frame(self);
+    }
+
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
         let Some(pointer) = self.seat.get_pointer() else {
             return;
@@ -38,61 +85,49 @@ impl Patina {
                     SERIAL_COUNTER.next_serial(),
                     event.time_msec(),
                     |_, mods, handle| {
-                        if pressed && mods.alt && handle.modified_sym() == Keysym::m {
+                        let sym = handle.modified_sym();
+                        if pressed && mods.alt && sym == Keysym::m {
                             FilterResult::Intercept(Action::RestoreMinimized)
+                        } else if pressed && (0x1008_FE01..=0x1008_FE0C).contains(&sym.raw()) {
+                            // Ctrl+Alt+F1..F12 arrive as XF86Switch_VT_1..12.
+                            FilterResult::Intercept(Action::VtSwitch(
+                                (sym.raw() - 0x1008_FE01 + 1) as i32,
+                            ))
                         } else {
                             FilterResult::Forward
                         }
                     },
                 );
-                if let Some(Action::RestoreMinimized) = action {
-                    self.restore_minimized();
+                match action {
+                    Some(Action::RestoreMinimized) => self.restore_minimized(),
+                    Some(Action::VtSwitch(vt)) => {
+                        if let Some(drm) = &mut self.drm {
+                            if let Err(e) =
+                                smithay::backend::session::Session::change_vt(&mut drm.session, vt)
+                            {
+                                tracing::warn!(vt, error = ?e, "VT switch failed");
+                            }
+                        }
+                    }
+                    None => {}
                 }
             }
             InputEvent::PointerMotionAbsolute { event } => {
-                let Some(size) = self
-                    .output
-                    .as_ref()
-                    .and_then(|o| self.space.output_geometry(o))
-                    .map(|g| g.size)
-                else {
+                let Some(size) = self.output_size() else {
                     return;
                 };
-                let pos = event.position_transformed(size);
-                let serial = SERIAL_COUNTER.next_serial();
-                let time = event.time_msec();
-
-                if self.drag.is_some() {
-                    self.apply_drag(pos);
-                    pointer.motion(
-                        self,
-                        None,
-                        &MotionEvent {
-                            location: pos,
-                            serial,
-                            time,
-                        },
-                    );
-                    pointer.frame(self);
+                self.pointer_moved(event.position_transformed(size), event.time_msec());
+            }
+            InputEvent::PointerMotion { event } => {
+                let Some(size) = self.output_size() else {
                     return;
-                }
-
-                let pick = self.pick(pos);
-                self.update_hover(&pick);
-                let focus = match pick {
-                    Pick::Surface(wl, origin, _) => Some((wl, origin)),
-                    _ => None,
                 };
-                pointer.motion(
-                    self,
-                    focus,
-                    &MotionEvent {
-                        location: pos,
-                        serial,
-                        time,
-                    },
-                );
-                pointer.frame(self);
+                let loc = pointer.current_location() + event.delta();
+                let pos = Point::from((
+                    loc.x.clamp(0.0, size.w as f64 - 1.0),
+                    loc.y.clamp(0.0, size.h as f64 - 1.0),
+                ));
+                self.pointer_moved(pos, event.time_msec());
             }
             InputEvent::PointerButton { event } => {
                 let serial = SERIAL_COUNTER.next_serial();

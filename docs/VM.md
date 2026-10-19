@@ -16,3 +16,11 @@ Notes
 - The VM has virtio-gpu without 3D, so OpenGL is llvmpipe. Use `WGPU_BACKEND=gl` for iced apps.
 - `ci/vm/state/` (disk, ssh key, firmware vars) is not committed.
 - x86_64 builds run in Docker/CI, not here.
+
+## Running the compositor on the VM's display (DRM)
+
+```sh
+ci/vm/ssh.sh 'sh PatineDE/ci/vm/guest/drm-up.sh'      # compositor on /dev/dri/card0 via seatd, panel and a terminal
+ci/vm/qmp.py screendump out.png                       # what the virtual monitor shows
+```
+QEMU's `screendump` omits the hardware cursor plane. Start with `PATINA_NO_PLANES=1` to composite the cursor into the frame when you need it in a capture.

@@ -1,7 +1,5 @@
 //! Nested backend: runs the compositor inside a window of another compositor.
 
-use std::time::Duration;
-
 use smithay::{
     backend::{
         renderer::{damage::OutputDamageTracker, gles::GlesRenderer},
@@ -21,13 +19,7 @@ pub fn init(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (mut backend, winit_source) = winit::init::<GlesRenderer>()?;
 
-    state.clip_program = match crate::clip::compile(backend.renderer()) {
-        Ok(program) => Some(program),
-        Err(e) => {
-            tracing::warn!(error = %e, "corner clipping disabled");
-            None
-        }
-    };
+    state.clip_program = crate::clip::compile_logged(backend.renderer());
 
     let mode = Mode {
         size: backend.window_size(),
@@ -91,17 +83,7 @@ pub fn init(
                 }
                 backend.submit(Some(&[damage])).unwrap();
 
-                let elapsed = state.start_time.elapsed();
-                for window in state.space.elements() {
-                    window.send_frame(&output, elapsed, Some(Duration::ZERO), |_, _| {
-                        Some(output.clone())
-                    });
-                }
-                for layer in layer_map_for_output(&output).layers() {
-                    layer.send_frame(&output, elapsed, Some(Duration::ZERO), |_, _| {
-                        Some(output.clone())
-                    });
-                }
+                state.send_frames(&output);
                 backend.window().request_redraw();
             }
             WinitEvent::CloseRequested => state.loop_signal.stop(),

@@ -7,6 +7,8 @@
 //! once the compositor is listening, with `WAYLAND_DISPLAY` pointing at it.
 
 mod clip;
+mod cursor;
+mod drm;
 mod input;
 mod render;
 mod state;
@@ -26,11 +28,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    let mut event_loop: EventLoop<Patina> = EventLoop::try_new()?;
+    let mut event_loop: EventLoop<'static, Patina> = EventLoop::try_new()?;
     let display = smithay::reexports::wayland_server::Display::new()?;
     let mut state = Patina::new(&mut event_loop, display);
 
-    winit::init(&mut event_loop, &mut state)?;
+    // Nested inside another session: winit. From a TTY: DRM. PATINA_BACKEND=drm|winit overrides.
+    let nested =
+        std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some();
+    match std::env::var("PATINA_BACKEND").as_deref() {
+        Ok("winit") => winit::init(&mut event_loop, &mut state)?,
+        Ok("drm") => drm::init(&mut event_loop, &mut state)?,
+        _ if nested => winit::init(&mut event_loop, &mut state)?,
+        _ => drm::init(&mut event_loop, &mut state)?,
+    }
 
     tracing::info!(socket = ?state.socket_name, "listening");
     for cmd in std::env::args().skip(1) {

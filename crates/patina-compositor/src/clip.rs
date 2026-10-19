@@ -31,6 +31,17 @@ pub fn compile(renderer: &mut GlesRenderer) -> Result<GlesTexProgram, GlesError>
     )
 }
 
+/// Compiles the shader, logging and returning `None` on failure (windows then keep square corners).
+pub fn compile_logged(renderer: &mut GlesRenderer) -> Option<GlesTexProgram> {
+    match compile(renderer) {
+        Ok(program) => Some(program),
+        Err(e) => {
+            tracing::warn!(error = %e, "corner clipping disabled");
+            None
+        }
+    }
+}
+
 pub struct ClippedSurface {
     inner: WaylandSurfaceRenderElement<GlesRenderer>,
     program: GlesTexProgram,

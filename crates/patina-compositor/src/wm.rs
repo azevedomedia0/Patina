@@ -83,6 +83,8 @@ pub enum Pick {
 #[derive(Debug, Clone, Copy)]
 pub enum Action {
     RestoreMinimized,
+    /// Switch to virtual terminal `n` (Ctrl+Alt+Fn).
+    VtSwitch(i32),
 }
 
 impl Patina {

@@ -193,3 +193,29 @@ pub fn elements(
     }));
     out
 }
+
+/// The pointer, drawn by the compositor when there is no host to draw it (DRM backend).
+pub fn cursor_element(state: &mut Patina, renderer: &mut GlesRenderer) -> Option<PatinaElement> {
+    if !state.software_cursor {
+        return None;
+    }
+    let cursor = state.cursor.as_ref()?;
+    let pos = state.seat.get_pointer()?.current_location();
+    let output = state.output.as_ref()?;
+    let scale = Scale::from(output.current_scale().fractional_scale());
+    let at: Point<f64, Physical> = Point::from((
+        (pos.x - cursor.hotspot.x as f64) * scale.x,
+        (pos.y - cursor.hotspot.y as f64) * scale.y,
+    ));
+    MemoryRenderBufferRenderElement::from_buffer(
+        renderer,
+        at,
+        &cursor.buffer,
+        None,
+        None,
+        None,
+        Kind::Cursor,
+    )
+    .ok()
+    .map(PatinaElement::Image)
+}

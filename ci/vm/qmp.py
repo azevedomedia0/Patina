@@ -6,6 +6,7 @@
   qmp.py down|up [left]  press or release a button (for drags)
   qmp.py drag X1 Y1 X2 Y2  press at (X1,Y1), move to (X2,Y2) in steps, release
   qmp.py combo alt m     hold modifiers, tap the last key
+  qmp.py screendump FILE.png  capture the VM's display (what a monitor would show)
   qmp.py key ret         press and release a key (QMP key names: a, ret, esc, ctrl, ...)
 """
 import json, os, socket, sys, time
@@ -63,6 +64,10 @@ def main(argv):
             at(x1 + (x2 - x1) * i / 10, y1 + (y2 - y1) * i / 10); time.sleep(0.05)
         time.sleep(0.15)
         events(f, [{"type": "btn", "data": {"button": "left", "down": False}}])
+    elif cmd == "screendump":
+        r = send(f, {"execute": "screendump", "arguments": {"filename": os.path.abspath(argv[2]), "format": "png"}})
+        if "error" in r:
+            sys.exit(r["error"]["desc"])
     elif cmd == "combo":
         keys = [{"type": "qcode", "data": k} for k in argv[2:]]
         for k in keys:
