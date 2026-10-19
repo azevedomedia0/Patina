@@ -18,6 +18,7 @@ fn main() {
             active,
             hover,
             maximized,
+            scale: 1.0,
         };
         let bm = r.draw(&bar);
         // Composite over the wallpaper blue so translucency is visible, then save RGBA.
@@ -76,6 +77,7 @@ pub fn mock(dir: &str, r: &mut Rasterizer, active: bool) {
         active,
         hover: None,
         maximized: false,
+        scale: 1.0,
     });
     canvas.draw_pixmap(
         ox,

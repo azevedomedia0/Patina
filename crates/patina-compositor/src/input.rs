@@ -168,7 +168,9 @@ impl Patina {
                 let serial = SERIAL_COUNTER.next_serial();
                 let pos = pointer.current_location();
 
-                if event.state() == ButtonState::Released {
+                if pointer.is_grabbed() && self.drag.is_none() && !self.frame_press {
+                    // An open menu has the pointer: it decides, and closes on a click outside.
+                } else if event.state() == ButtonState::Released {
                     if self.frame_press || self.drag.is_some() {
                         self.frame_press = false;
                         self.end_drag();

@@ -26,6 +26,16 @@ use crate::state::Patina;
 /// Two clicks on a titlebar within this time maximise or restore the window.
 const DOUBLE_CLICK_MS: u128 = 400;
 
+/// A drawn bitmap and its size in pixels, which smithay needs to map all of it onto a
+/// logical size (it would otherwise crop to the logical size).
+pub struct Image {
+    pub buffer: MemoryRenderBuffer,
+    pub pixels: (i32, i32),
+}
+
+/// What a cached shadow was drawn for: frame width, frame height, active, scale (`f32` bits).
+pub type ShadowKey = (i32, i32, bool, u32);
+
 /// Per-window compositor state, stored in the window's user data.
 #[derive(Default)]
 pub struct WinState {
@@ -35,11 +45,14 @@ pub struct WinState {
     /// Client rectangle to return to when un-maximising.
     pub restore: Option<Rectangle<i32, Logical>>,
     pub hover: Option<Control>,
-    /// Cached titlebar texture and the description it was drawn from.
-    pub bar: Option<(TitleBar, MemoryRenderBuffer)>,
-    /// Cached shadow texture: (frame width, frame height, active) it was drawn for, the
-    /// texture, and its padding around the window.
-    pub shadow: Option<((i32, i32, bool), MemoryRenderBuffer, i32)>,
+    /// Cached titlebar textures and the descriptions they were drawn from: one per output
+    /// scale the window is on (at most two).
+    pub bars: Vec<(TitleBar, Image)>,
+    /// Cached shadow textures: (frame width, frame height, active, scale bits) each was drawn
+    /// for, the texture, and its padding around the window (logical pixels).
+    pub shadows: Vec<(ShadowKey, Image, i32)>,
+    /// The window has been given its place on screen (done once it knows its size).
+    pub placed: bool,
 }
 
 /// Whether the initial configure has gone out. Until the client's first commit, configures
@@ -145,6 +158,15 @@ impl Patina {
             return hit;
         }
         for window in self.space.elements().rev() {
+            // A window's menus first: they may reach outside its frame.
+            let origin =
+                self.space.element_location(window).unwrap_or_default() - window.geometry().loc;
+            if let Some((wl, loc)) = window.surface_under(
+                pos - origin.to_f64(),
+                WindowSurfaceType::POPUP | WindowSurfaceType::SUBSURFACE,
+            ) {
+                return Pick::Surface(wl, (loc + origin).to_f64(), Some(window.clone()));
+            }
             let Some(frame) = self.frame_rect(window) else {
                 continue;
             };
@@ -235,7 +257,28 @@ impl Patina {
         }
     }
 
-    pub fn title_bar_for(&self, window: &Window, width: i32) -> TitleBar {
+    /// Gives a new window its place, once its size is known: centred in the free area of the
+    /// output the pointer is on, stepped 32 px right and down while another window already
+    /// starts there, and kept inside that area (a window too big for it starts at its top-left).
+    pub fn place_new_window(&mut self, window: &Window) {
+        if std::mem::replace(&mut win_state(window).borrow_mut().placed, true) {
+            return;
+        }
+        let Some(rect) = self.client_rect(window) else {
+            return;
+        };
+        let zone = self.usable_zone();
+        let others: Vec<Point<i32, Logical>> = self
+            .space
+            .elements()
+            .filter(|w| *w != window)
+            .filter_map(|w| self.client_rect(w).map(|r| r.loc))
+            .collect();
+        let loc = placement(zone, rect.size, &others);
+        self.space.map_element(window.clone(), loc, false);
+    }
+
+    pub fn title_bar_for(&self, window: &Window, width: i32, scale: f32) -> TitleBar {
         let title = window
             .toplevel()
             .and_then(|t| {
@@ -256,6 +299,7 @@ impl Patina {
             active,
             hover: st.hover,
             maximized: st.maximized,
+            scale,
         }
     }
 
@@ -428,5 +472,86 @@ impl Patina {
             Some((now, window.clone()))
         };
         double
+    }
+}
+
+/// Where a new window with a client area of `size` goes in `zone` (the free area of an output),
+/// given where the other windows' client areas start. Returns the client area's top-left; the
+/// titlebar sits above it.
+pub fn placement(
+    zone: Rectangle<i32, Logical>,
+    size: Size<i32, Logical>,
+    others: &[Point<i32, Logical>],
+) -> Point<i32, Logical> {
+    const STEP: i32 = 32;
+    let (fw, fh) = (size.w, size.h + TITLEBAR_H);
+    let keep_in = |x: i32, y: i32| {
+        let max_x = (zone.loc.x + zone.size.w - fw).max(zone.loc.x);
+        let max_y = (zone.loc.y + zone.size.h - fh).max(zone.loc.y);
+        (x.clamp(zone.loc.x, max_x), y.clamp(zone.loc.y, max_y))
+    };
+    let (mut x, mut y) = keep_in(
+        zone.loc.x + (zone.size.w - fw) / 2,
+        zone.loc.y + (zone.size.h - fh) / 2,
+    );
+    let taken = |x: i32, y: i32| {
+        others
+            .iter()
+            .any(|p| (p.x - x).abs() < STEP / 2 && (p.y - TITLEBAR_H - y).abs() < STEP / 2)
+    };
+    for _ in 0..64 {
+        if !taken(x, y) {
+            break;
+        }
+        let (nx, ny) = keep_in(x + STEP, y + STEP);
+        // At the bottom-right corner of the area: start again from its top-left.
+        (x, y) = if (nx, ny) == (x, y) {
+            (zone.loc.x, zone.loc.y)
+        } else {
+            (nx, ny)
+        };
+    }
+    Point::from((x, y + TITLEBAR_H))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn zone() -> Rectangle<i32, Logical> {
+        Rectangle::new((0, 36).into(), (1280, 764).into())
+    }
+
+    #[test]
+    fn the_first_window_is_centred_below_the_panel() {
+        let p = placement(zone(), Size::from((600, 400)), &[]);
+        // Frame 600 x 438 centred in the zone; the client area starts below the titlebar.
+        assert_eq!(p, Point::from((340, 36 + (764 - 438) / 2 + TITLEBAR_H)));
+    }
+
+    #[test]
+    fn the_next_window_steps_down_and_right() {
+        let first = placement(zone(), Size::from((600, 400)), &[]);
+        let second = placement(zone(), Size::from((600, 400)), &[first]);
+        assert_eq!(second, Point::from((first.x + 32, first.y + 32)));
+        let third = placement(zone(), Size::from((600, 400)), &[first, second]);
+        assert_eq!(third, Point::from((first.x + 64, first.y + 64)));
+    }
+
+    #[test]
+    fn a_window_too_big_for_the_area_starts_at_its_top_left() {
+        let p = placement(zone(), Size::from((2000, 1200)), &[]);
+        assert_eq!(p, Point::from((0, 36 + TITLEBAR_H)));
+    }
+
+    #[test]
+    fn windows_never_leave_the_area() {
+        let mut others = Vec::new();
+        for _ in 0..40 {
+            let p = placement(zone(), Size::from((900, 600)), &others);
+            assert!(p.x >= 0 && p.x + 900 <= 1280);
+            assert!(p.y - TITLEBAR_H >= 36 && p.y + 600 <= 800);
+            others.push(p);
+        }
     }
 }

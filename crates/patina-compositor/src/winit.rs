@@ -40,10 +40,12 @@ pub fn init(
         },
     );
     let _global = output.create_global::<Patina>(&state.display_handle);
+    // Nested, the host's window decides the density; PATINA_SCALE can still set one.
+    let scale = crate::outputs::scale_for("patina-nested", (0, 0), (0, 0));
     output.change_current_state(
         Some(mode),
         Some(Transform::Flipped180),
-        None,
+        Some(crate::outputs::output_scale(scale)),
         Some((0, 0).into()),
     );
     output.set_preferred(mode);
@@ -94,7 +96,9 @@ pub fn init(
                 let size = backend.window_size();
                 let damage = Rectangle::from_size(size);
                 state.space.refresh();
+                state.popups.cleanup();
                 state.refresh_toplevel_info();
+                state.update_surface_scales();
                 {
                     let (renderer, mut framebuffer) = backend.bind().unwrap();
                     let elements = crate::render::frame_elements(

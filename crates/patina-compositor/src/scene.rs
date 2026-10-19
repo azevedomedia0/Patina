@@ -19,7 +19,7 @@ use smithay::{
         },
     },
     reexports::wayland_server::backend::ObjectId,
-    utils::{Buffer, Physical, Rectangle, Scale, Size, Transform},
+    utils::{Buffer, Logical, Physical, Rectangle, Scale, Size, Transform},
 };
 
 use crate::{
@@ -351,13 +351,24 @@ impl Scene {
     }
 
     /// The composed scene, as an element covering the whole output.
-    pub fn element(&self) -> PatinaElement {
+    /// The composed frame as one element covering the output. The texture is in device pixels,
+    /// so it is given the output's logical size, which `scale` maps back to those pixels.
+    pub fn element(&self, scale: Scale<f64>) -> PatinaElement {
+        let size = self.size();
+        let logical = Size::<i32, Logical>::from((
+            (size.w as f64 / scale.x).round() as i32,
+            (size.h as f64 / scale.y).round() as i32,
+        ));
         PatinaElement::Scene(TextureRenderElement::from_texture_render_buffer(
             (0.0, 0.0),
             &self.buffer,
             None,
-            None,
-            None,
+            // All of the texture, mapped onto the logical size.
+            Some(Rectangle::from_size(Size::from((
+                size.w as f64,
+                size.h as f64,
+            )))),
+            Some(logical),
             Kind::Unspecified,
         ))
     }

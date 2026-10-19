@@ -3,13 +3,15 @@
 use std::{ffi::OsString, os::unix::io::OwnedFd, sync::Arc, time::Instant};
 
 use smithay::{
-    delegate_compositor, delegate_cursor_shape, delegate_data_device, delegate_layer_shell,
-    delegate_output, delegate_seat, delegate_shm, delegate_viewporter, delegate_xdg_decoration,
-    delegate_xdg_shell,
+    delegate_compositor, delegate_cursor_shape, delegate_data_device, delegate_fractional_scale,
+    delegate_layer_shell, delegate_output, delegate_seat, delegate_shm, delegate_viewporter,
+    delegate_xdg_decoration, delegate_xdg_shell,
     desktop::{
-        layer_map_for_output, LayerSurface as DesktopLayerSurface, Space, Window, WindowSurfaceType,
+        find_popup_root_surface, get_popup_toplevel_coords, layer_map_for_output,
+        LayerSurface as DesktopLayerSurface, PopupKeyboardGrab, PopupKind, PopupManager,
+        PopupPointerGrab, PopupUngrabStrategy, Space, Window, WindowSurfaceType,
     },
-    input::pointer::CursorIcon,
+    input::pointer::{CursorIcon, Focus},
     input::{keyboard::XkbConfig, pointer::CursorImageStatus, Seat, SeatHandler, SeatState},
     output::Output,
     reexports::{
@@ -32,6 +34,9 @@ use smithay::{
             CompositorState,
         },
         cursor_shape::CursorShapeManagerState,
+        fractional_scale::{
+            with_fractional_scale, FractionalScaleHandler, FractionalScaleManagerState,
+        },
         output::{OutputHandler, OutputManagerState},
         selection::{
             data_device::{
@@ -63,7 +68,8 @@ pub struct Patina {
     pub redraw_wanted: bool,
     /// Wakes the event loop to draw; registered by the active backend.
     pub redraw_ping: Option<smithay::reexports::calloop::ping::Ping>,
-    pub cursor: Option<crate::cursor::Cursor>,
+    /// The design's arrow, per output scale.
+    pub cursor: crate::cursor::Arrows,
     pub cursor_theme: crate::cursor::Theme,
     /// What the client under the pointer last asked for. Smithay resets it on focus changes.
     pub cursor_status: CursorImageStatus,
@@ -98,6 +104,8 @@ pub struct Patina {
 
     /// Windows, and the outputs placed side by side in it.
     pub space: Space<Window>,
+    /// Menus and other popups of windows and panels.
+    pub popups: PopupManager,
 
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
@@ -112,6 +120,9 @@ pub struct Patina {
     /// Held only to keep the cursor-shape global alive.
     #[allow(dead_code)]
     pub cursor_shape_state: CursorShapeManagerState,
+    /// Held only to keep the fractional-scale global alive.
+    #[allow(dead_code)]
+    pub fractional_scale_state: FractionalScaleManagerState,
     /// Held only to keep the xdg-output global alive.
     #[allow(dead_code)]
     pub output_manager_state: OutputManagerState,
@@ -157,7 +168,7 @@ impl Patina {
             software_cursor: false,
             redraw_wanted: false,
             redraw_ping: None,
-            cursor: crate::cursor::load(),
+            cursor: crate::cursor::Arrows::default(),
             cursor_theme: crate::cursor::Theme::load(),
             cursor_status: CursorImageStatus::default_named(),
             frame_cursor: None,
@@ -180,6 +191,7 @@ impl Patina {
             loop_signal: event_loop.get_signal(),
             socket_name,
             space: Space::default(),
+            popups: PopupManager::default(),
             compositor_state: CompositorState::new::<Self>(&dh),
             xdg_shell_state: XdgShellState::new::<Self>(&dh),
             layer_shell_state: WlrLayerShellState::new::<Self>(&dh),
@@ -187,6 +199,7 @@ impl Patina {
             shm_state: ShmState::new::<Self>(&dh, vec![]),
             viewporter_state: ViewporterState::new::<Self>(&dh),
             cursor_shape_state: CursorShapeManagerState::new::<Self>(&dh),
+            fractional_scale_state: FractionalScaleManagerState::new::<Self>(&dh),
             output_manager_state: OutputManagerState::new_with_xdg_output::<Self>(&dh),
             data_device_state: DataDeviceState::new::<Self>(&dh),
             seat_state,
@@ -307,6 +320,14 @@ impl CompositorHandler for Patina {
         smithay::backend::renderer::utils::on_commit_buffer_handler::<Self>(surface);
         self.queue_redraw();
 
+        // Popups wait for their initial configure, like toplevels.
+        self.popups.commit(surface);
+        if let Some(PopupKind::Xdg(popup)) = self.popups.find_popup(surface) {
+            if !popup.is_initial_configure_sent() {
+                let _ = popup.send_configure();
+            }
+        }
+
         if !is_sync_subsurface(surface) {
             let mut root = surface.clone();
             while let Some(parent) = get_parent(&root) {
@@ -339,6 +360,8 @@ impl CompositorHandler for Patina {
                         first
                     };
                     if first {
+                        // Now that its size is known, give it its place.
+                        self.place_new_window(&window);
                         self.focus_window(&window);
                     }
                 }
@@ -441,9 +464,62 @@ impl XdgShellHandler for Patina {
         self.queue_redraw();
     }
 
-    fn new_popup(&mut self, _: PopupSurface, _: PositionerState) {}
-    fn grab(&mut self, _: PopupSurface, _: wl_seat::WlSeat, _: Serial) {}
-    fn reposition_request(&mut self, _: PopupSurface, _: PositionerState, _: u32) {}
+    fn new_popup(&mut self, surface: PopupSurface, _: PositionerState) {
+        self.unconstrain_popup(&surface);
+        if let Err(e) = self.popups.track_popup(PopupKind::Xdg(surface)) {
+            tracing::warn!(error = ?e, "cannot track popup");
+        }
+    }
+
+    fn reposition_request(
+        &mut self,
+        surface: PopupSurface,
+        positioner: PositionerState,
+        token: u32,
+    ) {
+        surface.with_pending_state(|state| {
+            state.geometry = positioner.get_geometry();
+            state.positioner = positioner;
+        });
+        self.unconstrain_popup(&surface);
+        surface.send_repositioned(token);
+    }
+
+    /// A menu that takes the keyboard and pointer until it is dismissed (a click outside it
+    /// closes it).
+    fn grab(&mut self, surface: PopupSurface, seat: wl_seat::WlSeat, serial: Serial) {
+        let Some(seat) = Seat::<Patina>::from_resource(&seat) else {
+            return;
+        };
+        let kind = PopupKind::Xdg(surface);
+        let Ok(root) = find_popup_root_surface(&kind) else {
+            return;
+        };
+        let Ok(mut grab) = self.popups.grab_popup(root, kind, &seat, serial) else {
+            return;
+        };
+        if let Some(keyboard) = seat.get_keyboard() {
+            if keyboard.is_grabbed()
+                && !(keyboard.has_grab(serial)
+                    || keyboard.has_grab(grab.previous_serial().unwrap_or(serial)))
+            {
+                grab.ungrab(PopupUngrabStrategy::All);
+                return;
+            }
+            keyboard.set_focus(self, grab.current_grab(), serial);
+            keyboard.set_grab(self, PopupKeyboardGrab::new(&grab), serial);
+        }
+        if let Some(pointer) = seat.get_pointer() {
+            if pointer.is_grabbed()
+                && !(pointer.has_grab(serial)
+                    || pointer.has_grab(grab.previous_serial().unwrap_or_else(|| grab.serial())))
+            {
+                grab.ungrab(PopupUngrabStrategy::All);
+                return;
+            }
+            pointer.set_grab(self, PopupPointerGrab::new(&grab), serial, Focus::Keep);
+        }
+    }
 
     fn toplevel_destroyed(&mut self, surface: ToplevelSurface) {
         self.forget_window(surface.wl_surface());
@@ -506,6 +582,15 @@ impl WlrLayerShellHandler for Patina {
         self.queue_redraw();
     }
 
+    fn new_popup(
+        &mut self,
+        _parent: smithay::wayland::shell::wlr_layer::LayerSurface,
+        popup: PopupSurface,
+    ) {
+        // Tracked by the xdg-shell handler already; now that it has a parent, keep it on screen.
+        self.unconstrain_popup(&popup);
+    }
+
     fn layer_destroyed(&mut self, surface: smithay::wayland::shell::wlr_layer::LayerSurface) {
         for output in self.outputs() {
             let mut map = layer_map_for_output(&output);
@@ -523,6 +608,70 @@ impl WlrLayerShellHandler for Patina {
     }
 }
 
+impl FractionalScaleHandler for Patina {
+    fn new_fractional_scale(&mut self, surface: WlSurface) {
+        // Until the surface is on an output, assume the first one.
+        let scale = self
+            .space
+            .outputs()
+            .next()
+            .map(|o| o.current_scale().fractional_scale())
+            .unwrap_or(1.0);
+        with_states(&surface, |states| {
+            with_fractional_scale(states, |fs| fs.set_preferred_scale(scale))
+        });
+        self.queue_redraw();
+    }
+}
+
+impl Patina {
+    /// Moves or flips a popup so it stays on the output of the window or panel it belongs to,
+    /// as its positioner allows.
+    fn unconstrain_popup(&self, popup: &PopupSurface) {
+        let kind = PopupKind::Xdg(popup.clone());
+        let Ok(root) = find_popup_root_surface(&kind) else {
+            return;
+        };
+        // Positions are relative to the parent; parents of nested menus are offset again.
+        let nested = get_popup_toplevel_coords(&kind);
+        let window = self
+            .space
+            .elements()
+            .find(|w| w.toplevel().is_some_and(|t| t.wl_surface() == &root))
+            .cloned();
+        let target = if let Some(window) = window {
+            let (Some(loc), Some(output)) = (
+                self.space.element_location(&window),
+                self.output_for_window(&window),
+            ) else {
+                return;
+            };
+            let Some(mut area) = self.space.output_geometry(&output) else {
+                return;
+            };
+            area.loc -= loc + nested;
+            area
+        } else {
+            let found = self.outputs().into_iter().find_map(|output| {
+                let map = layer_map_for_output(&output);
+                let layer = map.layer_for_surface(&root, WindowSurfaceType::TOPLEVEL)?;
+                let geo = map.layer_geometry(layer)?;
+                let size = self.space.output_geometry(&output)?.size;
+                Some(Rectangle::<i32, Logical>::new(
+                    (-geo.loc.x - nested.x, -geo.loc.y - nested.y).into(),
+                    size,
+                ))
+            });
+            let Some(area) = found else { return };
+            area
+        };
+        popup.with_pending_state(|state| {
+            state.geometry = state.positioner.get_unconstrained_geometry(target);
+        });
+    }
+}
+
+delegate_fractional_scale!(Patina);
 delegate_compositor!(Patina);
 delegate_shm!(Patina);
 delegate_output!(Patina);

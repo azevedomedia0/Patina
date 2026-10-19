@@ -12,21 +12,27 @@ use smithay::{
             element::{
                 memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
                 render_elements,
-                surface::WaylandSurfaceRenderElement,
+                surface::{render_elements_from_surface_tree, WaylandSurfaceRenderElement},
                 texture::TextureRenderElement,
                 AsRenderElements, Kind,
             },
             gles::{GlesRenderer, GlesTexProgram, GlesTexture},
         },
     },
-    desktop::{layer_map_for_output, LayerSurface as DesktopLayerSurface, Window},
+    desktop::{layer_map_for_output, LayerSurface as DesktopLayerSurface, PopupManager, Window},
     output::Output,
     reexports::wayland_server::{backend::ObjectId, Resource},
     utils::{Logical, Physical, Point, Rectangle, Scale, Size, Transform},
     wayland::shell::wlr_layer::Layer,
 };
 
-use crate::{blur::Backdrop, clip::ClippedSurface, scene::Scene, state::Patina, wm::win_state};
+use crate::{
+    blur::Backdrop,
+    clip::ClippedSurface,
+    scene::Scene,
+    state::Patina,
+    wm::{win_state, Image},
+};
 use patina_frame::{glass, shadow, TITLEBAR_H};
 
 render_elements! {
@@ -84,6 +90,11 @@ fn upload(bgra: &[u8], width: i32, height: i32) -> MemoryRenderBuffer {
     )
 }
 
+/// All of a `pixels`-sized buffer drawn at buffer scale 1, as smithay's source rectangle.
+pub fn whole(pixels: (i32, i32)) -> Rectangle<f64, Logical> {
+    Rectangle::from_size(Size::from((pixels.0 as f64, pixels.1 as f64)))
+}
+
 fn physical(r: Rectangle<i32, Logical>, scale: Scale<f64>) -> Rectangle<i32, Physical> {
     Rectangle::new(
         Point::from((r.loc.x as f64 * scale.x, r.loc.y as f64 * scale.y)).to_i32_round(),
@@ -137,6 +148,7 @@ fn wallpaper_element(
     rs: &mut OutputRender,
     renderer: &mut GlesRenderer,
     size: Size<i32, Physical>,
+    scale: Scale<f64>,
 ) -> Option<PatinaElement> {
     let key = (size.w, size.h);
     if rs.wallpaper.as_ref().is_none_or(|(k, _)| *k != key) {
@@ -144,13 +156,18 @@ fn wallpaper_element(
         rs.wallpaper = Some((key, upload(&bitmap.bgra, bitmap.width, bitmap.height)));
     }
     let (_, buffer) = rs.wallpaper.as_ref()?;
+    // Drawn at device resolution, so it covers the output's logical size.
+    let logical = Size::<i32, Logical>::from((
+        (size.w as f64 / scale.x).round() as i32,
+        (size.h as f64 / scale.y).round() as i32,
+    ));
     MemoryRenderBufferRenderElement::from_buffer(
         renderer,
         Point::<f64, Physical>::from((0.0, 0.0)),
         buffer,
         None,
-        None,
-        None,
+        Some(whole((size.w, size.h))),
+        Some(logical),
         Kind::Unspecified,
     )
     .ok()
@@ -198,7 +215,7 @@ pub fn groups(
         .filter(|l| is_below(l.kind))
         .flat_map(|l| layer_group(renderer, l, scale).elements)
         .collect();
-    base.extend(wallpaper_element(rs, renderer, size));
+    base.extend(wallpaper_element(rs, renderer, size, scale));
     groups.push(Group {
         key: None,
         elements: base,
@@ -228,47 +245,67 @@ pub fn groups(
         }
         let geo = Rectangle::new(global.loc - offset, global.size);
         let mut out: Vec<PatinaElement> = Vec::new();
-        let bar = state.title_bar_for(&window, geo.size.w);
+        let bar = state.title_bar_for(&window, geo.size.w, scale.x as f32);
         let alpha = if bar.active { 1.0 } else { INACTIVE_ALPHA };
         let maximized = bar.maximized;
 
         // Client surfaces, with the bottom corners rounded unless the window fills the screen.
+        // Popups (menus) come first, being on top, and are not clipped to the window.
         let origin = state.space.element_location(&window).unwrap_or_default()
             - window.geometry().loc
             - offset;
+        let at = origin.to_physical_precise_round(scale);
         let content = physical(geo, scale);
         let radius = patina_frame::geometry::RADIUS * scale.x as f32;
-        for el in window.render_elements::<WaylandSurfaceRenderElement<GlesRenderer>>(
-            renderer,
-            origin.to_physical_precise_round(scale),
-            scale,
-            alpha,
-        ) {
-            match (clip_program, maximized) {
-                (Some(program), false) => out.push(PatinaElement::Clipped(ClippedSurface::new(
-                    el,
-                    program.clone(),
-                    content,
-                    radius,
-                    scale,
-                ))),
-                _ => out.push(PatinaElement::Surface(el)),
+        if let Some(toplevel) = window.toplevel() {
+            let surface = toplevel.wl_surface();
+            for (popup, popup_offset) in PopupManager::popups_for_surface(surface) {
+                let popup_at = (window.geometry().loc + popup_offset - popup.geometry().loc)
+                    .to_physical_precise_round(scale);
+                out.extend(
+                    render_elements_from_surface_tree::<_, WaylandSurfaceRenderElement<GlesRenderer>>(
+                        renderer,
+                        popup.wl_surface(),
+                        at + popup_at,
+                        scale,
+                        1.0,
+                        Kind::Unspecified,
+                    )
+                    .into_iter()
+                    .map(PatinaElement::Surface),
+                );
+            }
+            for el in render_elements_from_surface_tree::<
+                _,
+                WaylandSurfaceRenderElement<GlesRenderer>,
+            >(renderer, surface, at, scale, alpha, Kind::Unspecified)
+            {
+                match (clip_program, maximized) {
+                    (Some(program), false) => out.push(PatinaElement::Clipped(
+                        ClippedSurface::new(el, program.clone(), content, radius, scale),
+                    )),
+                    _ => out.push(PatinaElement::Surface(el)),
+                }
             }
         }
 
-        // Titlebar texture, redrawn only when what it shows changes.
+        // Titlebar texture, redrawn only when what it shows changes. Drawn at the output's
+        // scale; a window across two outputs keeps one for each.
         let cell = win_state(&window);
-        if cell
-            .borrow()
-            .bar
-            .as_ref()
-            .is_none_or(|(key, _)| *key != bar)
-        {
+        if !cell.borrow().bars.iter().any(|(key, _)| *key == bar) {
             let bitmap = state.rasterizer.draw(&bar);
-            let buffer = upload(&bitmap.bgra, bitmap.width, bitmap.height);
-            cell.borrow_mut().bar = Some((bar.clone(), buffer));
+            let image = Image {
+                buffer: upload(&bitmap.bgra, bitmap.width, bitmap.height),
+                pixels: (bitmap.width, bitmap.height),
+            };
+            let mut st = cell.borrow_mut();
+            st.bars.retain(|(k, _)| k.scale != bar.scale);
+            st.bars.push((bar.clone(), image));
+            if st.bars.len() > 2 {
+                st.bars.remove(0);
+            }
         }
-        if let Some((_, buffer)) = cell.borrow().bar.as_ref() {
+        if let Some((_, image)) = cell.borrow().bars.iter().find(|(key, _)| *key == bar) {
             let at: Point<f64, Physical> = Point::from((
                 geo.loc.x as f64 * scale.x,
                 (geo.loc.y - TITLEBAR_H) as f64 * scale.y,
@@ -276,31 +313,35 @@ pub fn groups(
             if let Ok(el) = MemoryRenderBufferRenderElement::from_buffer(
                 renderer,
                 at,
-                buffer,
+                &image.buffer,
                 Some(alpha),
-                None,
-                None,
+                Some(whole(image.pixels)),
+                Some(Size::from((geo.size.w, TITLEBAR_H))),
                 Kind::Unspecified,
             ) {
                 out.push(PatinaElement::Image(el));
             }
         }
 
-        // Shadow and outline, redrawn when the frame size or activity changes.
+        // Shadow and outline, redrawn when the frame size, activity or scale changes.
         if !maximized {
             let (fw, fh) = (geo.size.w, geo.size.h + TITLEBAR_H);
-            let key = (fw, fh, bar.active);
-            if cell
-                .borrow()
-                .shadow
-                .as_ref()
-                .is_none_or(|(k, _, _)| *k != key)
-            {
-                let s = shadow::render(fw, fh, bar.active);
-                let buffer = upload(&s.bitmap.bgra, s.bitmap.width, s.bitmap.height);
-                cell.borrow_mut().shadow = Some((key, buffer, s.pad));
+            let key = (fw, fh, bar.active, bar.scale.to_bits());
+            if !cell.borrow().shadows.iter().any(|(k, _, _)| *k == key) {
+                let s = shadow::render_scaled(fw, fh, bar.active, bar.scale);
+                let image = Image {
+                    buffer: upload(&s.bitmap.bgra, s.bitmap.width, s.bitmap.height),
+                    pixels: (s.bitmap.width, s.bitmap.height),
+                };
+                let mut st = cell.borrow_mut();
+                st.shadows.retain(|(k, _, _)| k.3 != key.3);
+                st.shadows.push((key, image, s.pad));
+                if st.shadows.len() > 2 {
+                    st.shadows.remove(0);
+                }
             }
-            if let Some((_, buffer, pad)) = cell.borrow().shadow.as_ref() {
+            if let Some((_, image, pad)) = cell.borrow().shadows.iter().find(|(k, _, _)| *k == key)
+            {
                 let at: Point<f64, Physical> = Point::from((
                     (geo.loc.x - pad) as f64 * scale.x,
                     (geo.loc.y - TITLEBAR_H - pad) as f64 * scale.y,
@@ -308,10 +349,10 @@ pub fn groups(
                 if let Ok(el) = MemoryRenderBufferRenderElement::from_buffer(
                     renderer,
                     at,
-                    buffer,
+                    &image.buffer,
                     Some(alpha),
-                    None,
-                    None,
+                    Some(whole(image.pixels)),
+                    Some(Size::from((fw + 2 * pad, fh + 2 * pad))),
                     Kind::Unspecified,
                 ) {
                     out.push(PatinaElement::Image(el));
@@ -385,7 +426,7 @@ pub fn frame_elements(
         rs.unavailable = true;
         return flatten(groups);
     }
-    let element = scene.element();
+    let element = scene.element(scale);
 
     // PATINA_VERIFY_RECOMPOSE=1: also compose every frame in full and compare, to catch stale
     // pixels left by partial updates.
@@ -502,14 +543,16 @@ pub fn cursor_elements(
         };
     let image = |renderer: &mut GlesRenderer,
                  buffer: &MemoryRenderBuffer,
-                 hotspot: smithay::utils::Point<i32, smithay::utils::Logical>| {
+                 hotspot: smithay::utils::Point<i32, smithay::utils::Logical>,
+                 size: Size<i32, Logical>,
+                 pixels: (i32, i32)| {
         MemoryRenderBufferRenderElement::from_buffer(
             renderer,
             at(hotspot),
             buffer,
             None,
-            None,
-            None,
+            Some(whole(pixels)),
+            Some(size),
             Kind::Cursor,
         )
         .ok()
@@ -544,12 +587,24 @@ pub fn cursor_elements(
             // The design's arrow is the default pointer; everything else is the system theme's,
             // falling back to the arrow if the theme lacks it.
             if icon != CursorIcon::Default {
-                if let Some(named) = state.cursor_theme.get(icon) {
-                    return image(renderer, &named.buffer, named.hotspot);
+                if let Some(named) = state.cursor_theme.get(icon, scale.x) {
+                    return image(
+                        renderer,
+                        &named.buffer,
+                        named.hotspot,
+                        named.size,
+                        named.pixels,
+                    );
                 }
             }
-            match &state.cursor {
-                Some(arrow) => image(renderer, &arrow.buffer, arrow.hotspot),
+            match state.cursor.get(scale.x) {
+                Some(arrow) => image(
+                    renderer,
+                    &arrow.buffer,
+                    arrow.hotspot,
+                    arrow.size,
+                    arrow.pixels,
+                ),
                 None => Vec::new(),
             }
         }

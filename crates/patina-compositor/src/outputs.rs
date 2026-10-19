@@ -7,11 +7,59 @@
 use patina_frame::TITLEBAR_H;
 use smithay::{
     desktop::{layer_map_for_output, Window},
-    output::Output,
-    utils::{Logical, Point, Rectangle},
+    output::{Output, Scale},
+    utils::{Logical, Point, Rectangle, Transform},
+    wayland::{compositor::send_surface_state, fractional_scale::with_fractional_scale},
 };
 
 use crate::state::Patina;
+
+/// The scale for a display: `PATINA_SCALE` if it says so, else from its pixel density.
+///
+/// `PATINA_SCALE` is either one number for every display (`1.5`) or a list by display name
+/// (`eDP-1=2,HDMI-A-1=1`). Without it, about 96 dots per inch is 100%, rounded to the
+/// nearest quarter between 100% and 200%. Displays that report no size, or an implausible
+/// one (projectors, virtual machines), get 100%.
+pub fn scale_for(name: &str, pixels: (i32, i32), millimetres: (u32, u32)) -> f64 {
+    if let Some(s) = std::env::var("PATINA_SCALE")
+        .ok()
+        .and_then(|v| scale_override(&v, name))
+    {
+        return s;
+    }
+    auto_scale(pixels, millimetres)
+}
+
+/// The scale `spec` (the value of `PATINA_SCALE`) gives display `name`, if any.
+fn scale_override(spec: &str, name: &str) -> Option<f64> {
+    let valid = |s: f64| (0.5..=4.0).contains(&s).then_some(s);
+    if let Ok(all) = spec.trim().parse::<f64>() {
+        return valid(all);
+    }
+    spec.split(',').find_map(|entry| {
+        let (n, v) = entry.split_once('=')?;
+        (n.trim() == name).then(|| v.trim().parse().ok().and_then(valid))?
+    })
+}
+
+fn auto_scale((w, _h): (i32, i32), (mm_w, mm_h): (u32, u32)) -> f64 {
+    // Under 10 x 6 cm is not a real screen size; neither is a 1 cm-per-pixel projector guess.
+    if mm_w < 100 || mm_h < 60 || w <= 0 {
+        return 1.0;
+    }
+    let dpi = w as f64 * 25.4 / mm_w as f64;
+    ((dpi / 96.0 * 4.0).round() / 4.0).clamp(1.0, 2.0)
+}
+
+/// What to tell smithay: whole scales as integers, so clients without fractional scaling get
+/// exact buffers.
+pub fn output_scale(scale: f64) -> Scale {
+    if (scale - scale.round()).abs() < f64::EPSILON {
+        Scale::Integer(scale.round() as i32)
+    } else {
+        Scale::Fractional(scale)
+    }
+}
 
 /// The point of `rect` closest to `p`.
 fn nearest_in(rect: Rectangle<i32, Logical>, p: Point<f64, Logical>) -> Point<f64, Logical> {
@@ -115,6 +163,32 @@ impl Patina {
             .unwrap_or_default()
     }
 
+    /// Tells every window and panel the scale of the output it is on, so clients draw at the
+    /// right density (`wp_fractional_scale` for those that support it, the integer buffer scale
+    /// for the rest). Cheap: nothing is sent unless it changed.
+    pub fn update_surface_scales(&self) {
+        let first = self.space.outputs().next().cloned();
+        let tell = |output: &Output| {
+            let scale = output.current_scale();
+            let (int, frac) = (scale.integer_scale(), scale.fractional_scale());
+            move |surface: &smithay::reexports::wayland_server::protocol::wl_surface::WlSurface,
+                  states: &smithay::wayland::compositor::SurfaceData| {
+                send_surface_state(surface, states, int, Transform::Normal);
+                with_fractional_scale(states, |fs| fs.set_preferred_scale(frac));
+            }
+        };
+        for window in self.space.elements() {
+            if let Some(output) = self.output_for_window(window).or_else(|| first.clone()) {
+                window.with_surfaces(tell(&output));
+            }
+        }
+        for output in self.space.outputs() {
+            for layer in layer_map_for_output(output).layers() {
+                layer.with_surfaces(tell(output));
+            }
+        }
+    }
+
     /// Starts the per-output command (the panel) for `output`.
     pub fn spawn_panel(&mut self, output: &Output) {
         let Some(cmd) = self.per_output_cmd.clone() else {
@@ -212,6 +286,44 @@ mod tests {
     fn a_point_outside_moves_to_the_edge() {
         let p = nearest_in(r(1280, 0, 1280, 800), Point::from((3000.0, -5.0)));
         assert_eq!(p, Point::from((2559.0, 0.0)));
+    }
+
+    #[test]
+    fn ordinary_monitors_are_100_percent() {
+        // 24 inch 1080p: about 92 dpi.
+        assert_eq!(auto_scale((1920, 1080), (531, 299)), 1.0);
+    }
+
+    #[test]
+    fn dense_monitors_scale_up_in_quarters() {
+        // 27 inch 4K: about 163 dpi, 170% rounds to 175%.
+        assert_eq!(auto_scale((3840, 2160), (597, 336)), 1.75);
+        // 13 inch 2560x1600 laptop: about 227 dpi, capped at 200%.
+        assert_eq!(auto_scale((2560, 1600), (286, 179)), 2.0);
+        // 14 inch 1080p laptop: about 157 dpi, 175%.
+        assert_eq!(auto_scale((1920, 1080), (310, 174)), 1.75);
+    }
+
+    #[test]
+    fn missing_or_silly_sizes_mean_100_percent() {
+        assert_eq!(auto_scale((1280, 800), (0, 0)), 1.0);
+        assert_eq!(auto_scale((1920, 1080), (16, 9)), 1.0);
+    }
+
+    #[test]
+    fn the_override_applies_to_all_or_by_name() {
+        assert_eq!(scale_override("1.5", "eDP-1"), Some(1.5));
+        assert_eq!(scale_override("eDP-1=2, HDMI-A-1=1", "eDP-1"), Some(2.0));
+        assert_eq!(scale_override("eDP-1=2,HDMI-A-1=1", "HDMI-A-1"), Some(1.0));
+        assert_eq!(scale_override("eDP-1=2", "DP-1"), None);
+        assert_eq!(scale_override("banana", "DP-1"), None);
+        assert_eq!(scale_override("9", "DP-1"), None);
+    }
+
+    #[test]
+    fn whole_scales_are_integers() {
+        assert!(matches!(output_scale(2.0), Scale::Integer(2)));
+        assert!(matches!(output_scale(1.5), Scale::Fractional(f) if f == 1.5));
     }
 
     #[test]

@@ -373,10 +373,13 @@ fn add_output(
     );
     let out_mode = OutputMode::from(mode);
     let x = state.next_output_x();
+    let (mw, mh) = mode.size();
+    let scale =
+        crate::outputs::scale_for(&name, (mw as i32, mh as i32), info.size().unwrap_or((0, 0)));
     output.change_current_state(
         Some(out_mode),
         Some(Transform::Normal),
-        None,
+        Some(crate::outputs::output_scale(scale)),
         Some((x, 0).into()),
     );
     output.set_preferred(out_mode);
@@ -420,7 +423,7 @@ fn add_output(
         ))
     };
 
-    tracing::info!(output = %name, ?mode, x, gpu = ?gpu.path, "display connected");
+    tracing::info!(output = %name, ?mode, x, scale, mm = ?info.size(), gpu = ?gpu.path, "display connected");
     let first = state.space.outputs().next().is_none();
     let global = output.create_global::<Patina>(&state.display_handle);
     state.space.map_output(&output, (x, 0));
@@ -508,7 +511,9 @@ impl Patina {
     pub fn render_drm(&mut self) {
         let fresh = std::mem::take(&mut self.redraw_wanted);
         self.space.refresh();
+        self.popups.cleanup();
         self.refresh_toplevel_info();
+        self.update_surface_scales();
         let mut failed = false;
         self.with_drm(|state, drm| {
             for gpu in &mut drm.gpus {

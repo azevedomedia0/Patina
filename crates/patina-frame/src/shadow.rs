@@ -38,8 +38,25 @@ pub struct Shadow {
 
 /// Shadow for a window frame (titlebar and client area) of `width` x `height`.
 pub fn render(width: i32, height: i32, active: bool) -> Shadow {
-    let spec = if active { ACTIVE } else { INACTIVE };
-    let pad = spec.blur + spec.offset_y;
+    render_scaled(width, height, active, 1.0)
+}
+
+/// Like [`render`], at `scale` device pixels per logical pixel. `width`, `height` and the
+/// returned `pad` are logical; the bitmap is in device pixels.
+pub fn render_scaled(width: i32, height: i32, active: bool, scale: f32) -> Shadow {
+    let s = if scale > 0.0 { scale } else { 1.0 };
+    let logical = if active { ACTIVE } else { INACTIVE };
+    let logical_pad = logical.blur + logical.offset_y;
+    let px = |v: i32| (v as f32 * s).round() as i32;
+    let spec = Spec {
+        offset_y: px(logical.offset_y),
+        blur: px(logical.blur),
+        spread: px(logical.spread),
+        alpha: logical.alpha,
+    };
+    let pad = px(logical_pad);
+    let (width, height) = (px(width), px(height));
+    let radius = RADIUS * s;
     let (w, h) = (width + 2 * pad, height + 2 * pad);
 
     // 1. The shadow shape: the window shrunk by the spread, shifted down.
@@ -49,7 +66,7 @@ pub fn render(width: i32, height: i32, active: bool) -> Shadow {
         (pad + spec.offset_y) as f32 + inset,
         width as f32 - 2.0 * inset,
         height as f32 - 2.0 * inset,
-        (RADIUS - inset).max(0.0),
+        (radius - inset).max(0.0),
     );
     let mut mask = Pixmap::new(w as u32, h as u32).expect("non-empty shadow");
     if let Some(shape) = shape {
@@ -75,7 +92,7 @@ pub fn render(width: i32, height: i32, active: bool) -> Shadow {
     }
 
     // 3. Cut the window out, then add the 1 px outline just outside it.
-    let window = rounded_rect(pad as f32, pad as f32, width as f32, height as f32, RADIUS);
+    let window = rounded_rect(pad as f32, pad as f32, width as f32, height as f32, radius);
     if let Some(window) = &window {
         let clear = Paint {
             blend_mode: BlendMode::Clear,
@@ -89,12 +106,14 @@ pub fn render(width: i32, height: i32, active: bool) -> Shadow {
             None,
         );
     }
+    // A 1 logical pixel outline: `s` device pixels wide, just outside the window.
+    let half = 0.5 * s;
     if let Some(ring) = rounded_rect(
-        pad as f32 - 0.5,
-        pad as f32 - 0.5,
-        width as f32 + 1.0,
-        height as f32 + 1.0,
-        RADIUS + 0.5,
+        pad as f32 - half,
+        pad as f32 - half,
+        width as f32 + 2.0 * half,
+        height as f32 + 2.0 * half,
+        radius + half,
     ) {
         let mut paint = Paint {
             anti_alias: true,
@@ -105,7 +124,7 @@ pub fn render(width: i32, height: i32, active: bool) -> Shadow {
             &ring,
             &paint,
             &Stroke {
-                width: 1.0,
+                width: s,
                 ..Stroke::default()
             },
             Transform::identity(),
@@ -123,7 +142,7 @@ pub fn render(width: i32, height: i32, active: bool) -> Shadow {
             height: h,
             bgra,
         },
-        pad,
+        pad: logical_pad,
     }
 }
 
@@ -269,6 +288,15 @@ mod tests {
         let a_below = alpha(&a, a.pad + 200, a.pad + 300 + 10);
         let i_below = alpha(&i, i.pad + 200, i.pad + 300 + 10);
         assert!(i_below < a_below);
+    }
+
+    #[test]
+    fn hidpi_shadows_double_the_bitmap_but_keep_the_logical_padding() {
+        let one = render(300, 200, true);
+        let two = render_scaled(300, 200, true, 2.0);
+        assert_eq!(two.pad, one.pad);
+        assert_eq!(two.bitmap.width, one.bitmap.width * 2);
+        assert_eq!(two.bitmap.height, one.bitmap.height * 2);
     }
 
     #[test]

@@ -30,6 +30,9 @@ pub struct TitleBar {
     pub hover: Option<Control>,
     /// Maximised windows have square corners.
     pub maximized: bool,
+    /// Output scale: the bitmap has `scale` pixels per logical pixel, so it stays sharp on
+    /// HiDPI screens. 1.0 on ordinary ones.
+    pub scale: f32,
 }
 
 /// Premultiplied BGRA pixels, row-major, `width * height * 4` bytes.
@@ -60,9 +63,14 @@ impl Rasterizer {
         }
     }
 
+    /// Draws `bar`. The bitmap is `width * scale` by `TITLEBAR_H * scale` pixels (rounded up);
+    /// everything is laid out in logical pixels and scaled while drawing.
     pub fn draw(&mut self, bar: &TitleBar) -> Bitmap {
         let (w, h) = (bar.width.max(1), TITLEBAR_H);
-        let mut pm = Pixmap::new(w as u32, h as u32).expect("non-empty titlebar");
+        let s = if bar.scale > 0.0 { bar.scale } else { 1.0 };
+        let (pw, ph) = ((w as f32 * s).ceil() as u32, (h as f32 * s).ceil() as u32);
+        let mut pm = Pixmap::new(pw, ph).expect("non-empty titlebar");
+        let scaled = Transform::from_scale(s, s);
 
         // Body and hairline.
         let radius = if bar.maximized { 0.0 } else { RADIUS };
@@ -71,7 +79,7 @@ impl Rasterizer {
                 &body,
                 &paint(color(tok::SURFACE_WINDOW)),
                 FillRule::Winding,
-                Transform::identity(),
+                scaled,
                 None,
             );
         }
@@ -85,12 +93,12 @@ impl Rasterizer {
                         &circle,
                         &paint(color(tok::SURFACE_HOVER)),
                         FillRule::Winding,
-                        Transform::identity(),
+                        scaled,
                         None,
                     );
                 }
             }
-            draw_icon(&mut pm, c, cx, cy);
+            draw_icon(&mut pm, c, cx, cy, s);
         }
 
         // Title, truncated with an ellipsis so it never runs under the controls.
@@ -102,18 +110,29 @@ impl Rasterizer {
         } else {
             tok::TEXT_MUTED
         };
-        self.draw_title(&mut pm, &bar.title, left as f32, avail, text_color);
+        self.draw_title(&mut pm, &bar.title, left as f32, avail, text_color, s);
 
         Bitmap {
-            width: w,
-            height: h,
+            width: pw as i32,
+            height: ph as i32,
             bgra: to_bgra(&pm),
         }
     }
 
-    fn draw_title(&mut self, pm: &mut Pixmap, title: &str, x: f32, avail: f32, c: tok::Color) {
-        let size = tok::FS_SMALL;
+    /// Draws the title at logical `x`, fitting `avail` logical pixels, at scale `s`.
+    fn draw_title(
+        &mut self,
+        pm: &mut Pixmap,
+        title: &str,
+        x: f32,
+        avail: f32,
+        c: tok::Color,
+        s: f32,
+    ) {
+        // Text is shaped at the device size, so glyphs are hinted for the real pixels.
+        let size = tok::FS_SMALL * s;
         let line = size * tok::LH_BODY;
+        let (x, avail) = (x * s, avail * s);
         let attrs = Attrs::new()
             .family(Family::Name("Plus Jakarta Sans"))
             .weight(Weight::SEMIBOLD);
@@ -143,7 +162,7 @@ impl Rasterizer {
             text.pop();
         }
 
-        let y = ((TITLEBAR_H as f32 - line) / 2.0).round();
+        let y = ((TITLEBAR_H as f32 * s - line) / 2.0).round();
         let fg = cosmic_text::Color::rgb(c.r, c.g, c.b);
         buf.draw(
             &mut self.fonts,
@@ -208,10 +227,13 @@ fn rounded_rect(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<Path> {
     pb.finish()
 }
 
-/// Lucide `minus`, `square` and `x` (24 px grid, stroke 2), scaled to 14 px and centred on `(cx, cy)`.
-fn draw_icon(pm: &mut Pixmap, control: Control, cx: f32, cy: f32) {
+/// Lucide `minus`, `square` and `x` (24 px grid, stroke 2), scaled to 14 px and centred on
+/// logical `(cx, cy)`, then by the output scale `s`.
+fn draw_icon(pm: &mut Pixmap, control: Control, cx: f32, cy: f32, s: f32) {
     let scale = 14.0 / 24.0;
-    let t = Transform::from_scale(scale, scale).post_translate(cx - 7.0, cy - 7.0);
+    let t = Transform::from_scale(scale, scale)
+        .post_translate(cx - 7.0, cy - 7.0)
+        .post_scale(s, s);
     let mut pb = PathBuilder::new();
     let path = match control {
         Control::Minimize => {
@@ -258,6 +280,7 @@ mod tests {
             active: true,
             hover: None,
             maximized: false,
+            scale: 1.0,
         }
     }
 
@@ -345,6 +368,31 @@ mod tests {
                 assert!(px(&b, x, y)[2] < 120, "text spilled at x={x}");
             }
         }
+    }
+
+    #[test]
+    fn hidpi_bars_have_more_pixels_and_the_same_layout() {
+        let mut r = Rasterizer::new();
+        let one = r.draw(&bar(400));
+        let mut b2 = bar(400);
+        b2.scale = 2.0;
+        let two = r.draw(&b2);
+        assert_eq!((two.width, two.height), (800, 76));
+        // The same spot (logical 200, 30) has the same body colour.
+        assert_eq!(px(&one, 200, 30), px(&two, 400, 60));
+        // The close icon's cross centre is drawn at both scales.
+        let c = control_rect(400, Control::Close);
+        let (cx, cy) = (c.x + c.w / 2, c.y + c.h / 2);
+        assert!(px(&one, cx, cy)[2] > 100);
+        assert!(px(&two, cx * 2, cy * 2)[2] > 100);
+    }
+
+    #[test]
+    fn fractional_scales_round_the_bitmap_up() {
+        let mut b = bar(401);
+        b.scale = 1.5;
+        let bm = Rasterizer::new().draw(&b);
+        assert_eq!((bm.width, bm.height), (602, 57));
     }
 
     #[test]
