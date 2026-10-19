@@ -1,0 +1,4 @@
+target/release/patina-compositor usr/bin
+target/release/patina-panel usr/bin
+packaging/common/patina-session usr/bin
+packaging/common/patina.desktop usr/share/wayland-sessions

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Patina
-Comment=Patina Desktop on IronTide OS
+Comment=Patina Desktop, a Wayland desktop environment
 Exec=patina-session
 TryExec=patina-session
 Type=Application

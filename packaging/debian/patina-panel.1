@@ -1,0 +1,25 @@
+.TH PATINA-PANEL 1 "2026-10-18" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-panel \- top panel of the Patina desktop
+.SH SYNOPSIS
+.B patina-panel
+.SH DESCRIPTION
+.B patina-panel
+draws the 36 pixel panel along the top edge of the screen as a layer-shell client of the
+compositor: launcher button, workspace buttons, the title of the active app, a clock, and
+status icons.
+It is normally started by
+.BR patina-session (1).
+.SH BUGS
+This is a pre-release. The panel shows placeholder data: the clock, battery level, active
+title and notification badge are fixed sample values, and the launcher button and status
+icons do not do anything yet.
+.SH ENVIRONMENT
+.TP
+.B WGPU_BACKEND
+Graphics API. Use
+.B gl
+in virtual machines and on machines without a Vulkan driver.
+.SH SEE ALSO
+.BR patina-session (1),
+.BR patina-compositor (1)

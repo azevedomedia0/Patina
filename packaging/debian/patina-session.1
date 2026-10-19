@@ -1,0 +1,41 @@
+.TH PATINA-SESSION 1 "2026-10-18" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-session \- start a Patina desktop session
+.SH SYNOPSIS
+.B patina-session
+.RI [ COMMAND ...]
+.SH DESCRIPTION
+.B patina-session
+starts the Patina compositor with the top panel, inside a D-Bus session bus if one is not
+already running.
+It is what the "Patina" entry in a display manager's session list runs, and it can also be
+run from a text console: switch to one with Ctrl+Alt+F3, log in, and run
+.BR patina-session .
+.PP
+Each
+.I COMMAND
+is a shell command that the compositor starts after the panel, with
+.B WAYLAND_DISPLAY
+pointing at it.
+.PP
+The session runs the compositor on the display directly (DRM/KMS), so it must be started from
+a login session on a seat, not from inside another graphical session.
+Run inside one, the compositor opens in a window instead, which is useful for testing.
+.SH ENVIRONMENT
+.TP
+.B WGPU_BACKEND
+Graphics API used by the panel. Defaults to
+.B gl
+because it works on real GPUs and in virtual machines; software Vulkan cannot run the panel.
+.SH FILES
+.TP
+.I ~/.config/patina/session.env
+Optional shell fragment sourced before the session starts, for example
+.RB \(lq WGPU_BACKEND=vulkan \(rq.
+.TP
+.I ~/.local/state/patina/session.log
+Output of the session. The previous log is kept as
+.IR session.log.old .
+.SH SEE ALSO
+.BR patina-compositor (1),
+.BR patina-panel (1)

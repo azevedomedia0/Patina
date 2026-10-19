@@ -275,25 +275,31 @@ impl CompositorHandler for Patina {
 
         // Layer surfaces: re-arrange on commit, and send the initial configure the
         // client is waiting for before it may attach a buffer.
-        if let Some(output) = &self.output {
-            let mut map = layer_map_for_output(output);
-            if map
+        let output = self.output.clone();
+        if let Some(output) = output {
+            let is_layer = layer_map_for_output(&output)
                 .layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
-                .is_some()
-            {
-                let initial_configure_sent = with_states(surface, |states| {
-                    states
-                        .data_map
-                        .get::<LayerSurfaceData>()
-                        .is_some_and(|d| d.lock().unwrap().initial_configure_sent)
-                });
-                map.arrange();
-                if !initial_configure_sent {
-                    if let Some(layer) = map.layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
-                    {
-                        layer.layer_surface().send_configure();
+                .is_some();
+            if is_layer {
+                {
+                    let mut map = layer_map_for_output(&output);
+                    let initial_configure_sent = with_states(surface, |states| {
+                        states
+                            .data_map
+                            .get::<LayerSurfaceData>()
+                            .is_some_and(|d| d.lock().unwrap().initial_configure_sent)
+                    });
+                    map.arrange();
+                    if !initial_configure_sent {
+                        if let Some(layer) =
+                            map.layer_for_surface(surface, WindowSurfaceType::TOPLEVEL)
+                        {
+                            layer.layer_surface().send_configure();
+                        }
                     }
                 }
+                // The reserved area may have changed (a panel appeared or resized).
+                self.fit_windows_to_zone();
             }
         }
     }

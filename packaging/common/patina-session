@@ -1,9 +1,35 @@
 #!/bin/sh
-# Starts a Patina Wayland session. Installed to /usr/bin/patina-session.
+# Starts a Patina Wayland session.
+#
+# Installed as /usr/bin/patina-session. The "Patina" entry in a display manager's session
+# list runs this, and so can you from a text console (Ctrl+Alt+F3, log in, patina-session).
+# Extra arguments are shell commands that the compositor starts alongside the panel.
+#
+# Optional per-user settings go in ~/.config/patina/session.env, for example:
+#   WGPU_BACKEND=vulkan
 export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=Patina
 export XDG_SESSION_DESKTOP=Patina
-if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-  exec dbus-run-session -- patina-compositor "$@"
+
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/patina/session.env"
+# shellcheck disable=SC1090
+[ -r "$CONFIG" ] && . "$CONFIG"
+
+# OpenGL works on real GPUs and in virtual machines; software Vulkan (lavapipe) cannot run the
+# shell's renderer. Override in session.env.
+export WGPU_BACKEND="${WGPU_BACKEND:-gl}"
+
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/patina"
+mkdir -p "$STATE"
+LOG="$STATE/session.log"
+# Keep one previous log, so a crash can be inspected after logging in again.
+if [ -f "$LOG" ] && [ "$(wc -c <"$LOG")" -gt 1048576 ]; then
+  mv -f "$LOG" "$LOG.old"
 fi
-exec patina-compositor "$@"
+exec >>"$LOG" 2>&1
+echo "=== patina-session started $(date)"
+
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
+  exec dbus-run-session -- patina-compositor patina-panel "$@"
+fi
+exec patina-compositor patina-panel "$@"

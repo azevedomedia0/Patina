@@ -7,3 +7,12 @@
 .DS_Store
 /ci/spike/out/
 /ci/vm/state/
+/dist
+/debian
+/packaging/debian/.debhelper/
+/packaging/debian/patina-desktop/
+/packaging/debian/*.substvars
+/packaging/debian/*.debhelper.log
+/packaging/debian/debhelper-build-stamp
+/packaging/debian/files
+/packaging/debian/third-party-crates.txt

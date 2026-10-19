@@ -1,15 +1,42 @@
 #!/usr/bin/make -f
+# Needs Rust 1.85 or newer, which is newer than the Rust in Debian 12 and Ubuntu 22.04.
+# packaging/debian/build.sh installs the pinned toolchain from packaging/RUST_VERSION and
+# then runs dpkg-buildpackage; calling dpkg-buildpackage directly works if cargo is new enough.
+# The build downloads crates from crates.io, so it needs network access.
+
+export CARGO_TARGET_DIR = $(CURDIR)/target
+BINARIES = -p patina-compositor -p patina-panel
+
 %:
 	dh $@
 
-override_dh_auto_build:
-	cargo build --release --locked
+override_dh_auto_configure:
+	@v=$$(rustc --version | sed -E 's/rustc ([0-9]+)\.([0-9]+).*/\1 \2/'); \
+	set -- $$v; \
+	if [ "$$1" -lt 1 ] || { [ "$$1" -eq 1 ] && [ "$$2" -lt 85 ]; }; then \
+	  echo "error: Rust 1.85 or newer is required, found $$(rustc --version)." >&2; \
+	  echo "       Run packaging/debian/build.sh, which installs the pinned toolchain." >&2; \
+	  exit 1; \
+	fi
 
-override_dh_auto_install:
-	for b in patina-compositor patina-panel patina-launcher; do \
-	  install -Dm755 target/release/$$b debian/patina-desktop/usr/bin/$$b; \
-	done
-	install -Dm755 packaging/common/patina-session debian/patina-desktop/usr/bin/patina-session
-	install -Dm644 packaging/common/patina.desktop debian/patina-desktop/usr/share/wayland-sessions/patina.desktop
+override_dh_auto_build:
+	cargo build --release --locked $(BINARIES)
+	python3 packaging/common/crate-licenses.py > debian/third-party-crates.txt
 
 override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	cargo test --release --locked -p patina-tokens -p patina-frame -p patina-panel
+endif
+
+override_dh_auto_clean:
+	rm -f debian/third-party-crates.txt
+
+override_dh_installdocs:
+	dh_installdocs
+	install -Dm644 debian/third-party-crates.txt debian/patina-desktop/usr/share/doc/patina-desktop/third-party-crates.txt
+
+# Rust's DWARF trips up dwz, and the symbols are not needed in a pre-release package.
+override_dh_dwz:
+
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym

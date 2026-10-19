@@ -176,6 +176,36 @@ impl Patina {
         self.update_hover(&pick);
     }
 
+    /// Moves windows out from under panels and refits maximised ones, after the area reserved
+    /// by layer-shell surfaces changed.
+    pub fn fit_windows_to_zone(&mut self) {
+        let zone = self.usable_zone();
+        let windows: Vec<Window> = self.space.elements().cloned().collect();
+        for window in windows {
+            let Some(rect) = self.client_rect(&window) else {
+                continue;
+            };
+            if win_state(&window).borrow().maximized {
+                let area = Rectangle::new(
+                    (zone.loc.x, zone.loc.y + TITLEBAR_H).into(),
+                    (zone.size.w, zone.size.h - TITLEBAR_H).into(),
+                );
+                if rect != area {
+                    if let Some(t) = window.toplevel() {
+                        t.with_pending_state(|s| s.size = Some(area.size));
+                        if initial_configure_sent(t) {
+                            t.send_pending_configure();
+                        }
+                    }
+                    self.space.map_element(window, area.loc, false);
+                }
+            } else if rect.loc.y - TITLEBAR_H < zone.loc.y {
+                let loc = Point::from((rect.loc.x, zone.loc.y + TITLEBAR_H));
+                self.space.map_element(window, loc, false);
+            }
+        }
+    }
+
     pub fn title_bar_for(&self, window: &Window, width: i32) -> TitleBar {
         let title = window
             .toplevel()

@@ -1,0 +1,5 @@
+# The binaries are written in Rust, which does not use the C fortify macros.
+patina-desktop: hardening-no-fortify-functions [usr/bin/patina-compositor]
+patina-desktop: hardening-no-fortify-functions [usr/bin/patina-panel]
+# polkitd replaced policykit-1 in Debian 12, but Ubuntu 22.04 and Linux Mint 21 only have the old name.
+patina-desktop: ored-depends-on-obsolete-package Recommends: policykit-1 => polkitd and optionally pkexec

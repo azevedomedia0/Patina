@@ -1,0 +1,61 @@
+.TH PATINA-COMPOSITOR 1 "2026-10-18" "patina-desktop 0.1.0" "Patina Desktop"
+.SH NAME
+patina-compositor \- Wayland compositor of the Patina desktop
+.SH SYNOPSIS
+.B patina-compositor
+.RI [ COMMAND ...]
+.SH DESCRIPTION
+.B patina-compositor
+is a Wayland compositor with floating windows.
+Window titlebars, shadows and rounded corners are drawn by the compositor, and clients are
+asked not to draw their own.
+It supports xdg-shell, layer-shell, xdg-decoration and viewporter.
+.PP
+Each
+.I COMMAND
+is a shell command started once the compositor is listening, with
+.B WAYLAND_DISPLAY
+set to its socket. Usually this is done by
+.BR patina-session (1).
+.PP
+When started from a login session on a seat it drives the display through DRM/KMS and reads
+input with libinput. When
+.B WAYLAND_DISPLAY
+or
+.B DISPLAY
+is set it runs inside that session as a window. This pre-release uses one GPU and one display.
+.SH MOUSE AND KEYBOARD
+.TP
+Drag the titlebar
+Move the window.
+.TP
+Double-click the titlebar
+Maximise or restore the window.
+.TP
+Drag the bottom-right corner
+Resize the window.
+.TP
+Titlebar buttons
+Minimise, maximise or restore, and close.
+.TP
+Alt+M
+Bring back the most recently minimised window. This is temporary, until the dock exists.
+.TP
+Ctrl+Alt+F1 to F12
+Switch to another virtual terminal (DRM backend only).
+.SH ENVIRONMENT
+.TP
+.B PATINA_BACKEND
+.BR drm " or " winit .
+Overrides the automatic choice of backend.
+.TP
+.B PATINA_NO_PLANES
+When set, everything including the pointer is drawn into one frame instead of using hardware
+planes. Needed when capturing the screen from a virtual machine.
+.TP
+.B RUST_LOG
+Log filter, for example
+.BR patina_compositor=debug .
+.SH SEE ALSO
+.BR patina-session (1),
+.BR patina-panel (1)

@@ -1,19 +1,59 @@
 Source: patina-desktop
 Section: x11
 Priority: optional
-Maintainer: Patina contributors <patina@example.invalid>
-Build-Depends: debhelper-compat (= 13), cargo, rustc, pkg-config, libwayland-dev,
- libxkbcommon-dev, libinput-dev, libgbm-dev, libseat-dev, libudev-dev, libegl1-mesa-dev
+Maintainer: PatineDE contributors <patina@example.invalid>
+Rules-Requires-Root: no
 Standards-Version: 4.6.2
-Homepage: https://github.com/azevedomedia0/Patina
+Homepage: https://github.com/azevedomedia0/PatineDE
+Build-Depends:
+ debhelper-compat (= 13),
+ libdrm-dev,
+ libgbm-dev,
+ libinput-dev,
+ libseat-dev,
+ libudev-dev,
+ libwayland-dev,
+ libxkbcommon-dev,
+ pkg-config,
+ python3,
 
 Package: patina-desktop
 Architecture: amd64 arm64
-Depends: ${shlibs:Depends}, ${misc:Depends}, seatd, pipewire, wireplumber,
- network-manager, bluez, upower, policykit-1, xwayland, xdg-desktop-portal,
- fonts-jetbrains-mono
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ default-dbus-session-bus | dbus-session-bus,
+ libegl1,
+ libgl1-mesa-dri,
+ libgles2,
+ libwayland-client0,
+ libwayland-egl1,
+ libxkbcommon0,
+ xkb-data,
+Recommends:
+ bluez,
+ foot,
+ network-manager,
+ pipewire,
+ polkitd | policykit-1,
+ upower,
+ wireplumber,
+ xdg-desktop-portal,
+ xwayland,
+Suggests:
+ mesa-vulkan-drivers,
+ seatd,
 Description: Patina Desktop, a Wayland desktop environment written in Rust
- Compositor, panel, dock and launcher. Installs a "Patina" session
- that appears in the login screen.
+ Patina is a Wayland compositor and desktop shell written in Rust. This
+ pre-release provides the compositor, with floating windows, titlebars drawn
+ by the compositor and DRM/KMS output, and the top panel. It adds a "Patina"
+ session to the login screen and a patina-session command for starting it
+ from a text console.
  .
- Targets Debian 12+, Linux Mint 21+ and LMDE 6+. Placeholder packaging, untested.
+ Not yet included: dock, launcher, notifications, quick settings, lock
+ screen, and the Terminal, File Bin and Settings apps. Until the Terminal
+ app exists, install a Wayland terminal such as foot to have something to
+ run.
+ .
+ The LightDM login manager cannot start Wayland sessions; use GDM or SDDM,
+ or run patina-session from a text console.

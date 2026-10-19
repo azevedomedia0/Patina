@@ -4,7 +4,7 @@
 export XDG_RUNTIME_DIR=/tmp/xdg-patina
 # Process names are truncated to 15 characters, so match full command lines. The [x] bracket
 # trick stops pkill matching its own shell.
-for p in '^sway' '[t]arget/release/patina-compositor' '[t]arget/release/patina-panel' '^foot' '^weston-simple-shm' '^swaybg'; do pkill -u "$(id -u)" -f "$p" >/dev/null 2>&1; done
+for p in '^sway' '[t]arget/release/patina-compositor' '[t]arget/release/patina-panel' '^patina-' '^dbus-run-session' '^foot' '^weston-simple-shm' '^swaybg'; do pkill -u "$(id -u)" -f "$p" >/dev/null 2>&1; done
 sleep 1
 rm -rf "$XDG_RUNTIME_DIR"; mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"
 export WLR_BACKENDS=headless,libinput LIBSEAT_BACKEND=seatd WLR_RENDERER=pixman
