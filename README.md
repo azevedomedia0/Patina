@@ -1,6 +1,6 @@
 <img width="512" height="512" alt="Patina-Logo" src="https://github.com/user-attachments/assets/8a501008-f481-48f0-8159-5733e9a21cab" />
 
-# PatineDE
+# PatinaDE
 
 Patina Desktop: a Wayland desktop environment written in Rust. Installs as a normal session on Debian 12+, Ubuntu 22.04+, Linux Mint 21+/LMDE 6, Fedora and Arch (x86_64, aarch64).
 
