@@ -20,6 +20,10 @@ CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/patina/session.env"
 # shell's renderer. Override in session.env.
 export WGPU_BACKEND="${WGPU_BACKEND:-gl}"
 
+# The Patina pointer theme (/usr/share/icons/Patina). Cursors it lacks, such as the horizontal
+# and vertical resize arrows, come from Adwaita. Override in session.env.
+export XCURSOR_THEME="${XCURSOR_THEME:-Patina}"
+
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/patina"
 mkdir -p "$STATE"
 LOG="$STATE/session.log"

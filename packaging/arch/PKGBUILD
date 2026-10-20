@@ -28,4 +28,6 @@ package() {
   done
   install -Dm755 "$srcdir/patina-session" "$pkgdir/usr/bin/patina-session"
   install -Dm644 "$srcdir/patina.desktop" "$pkgdir/usr/share/wayland-sessions/patina.desktop"
+  install -d "$pkgdir/usr/share/icons"
+  cp -a assets/cursors/Patina "$pkgdir/usr/share/icons/Patina"
 }

@@ -16,6 +16,13 @@ What the package contains: `/usr/bin/patina-compositor`, `/usr/bin/patina-panel`
 copyright file and a list of the Rust crates linked in. Fonts and icons are compiled into the
 binaries, so no font packages are needed.
 
+The pointer theme is installed as `/usr/share/icons/Patina` (an XCursor theme with the design's
+nine cursors plus the usual X11 and CSS names for them; the session sets `XCURSOR_THEME=Patina`).
+It inherits Adwaita for cursors it lacks (horizontal and vertical resize, crosshair, zoom). The
+theme is generated from `design/assets/cursors/*.png` by `packaging/common/make-cursor-theme.py`
+(needs Pillow) and the output in `assets/cursors/Patina` is committed, so building a package
+needs no Python imaging library. Run the script again whenever a cursor image changes.
+
 Decisions worth knowing:
 - **Rust toolchain.** Debian 12 ships Rust 1.63 and Ubuntu 22.04 ships 1.75; the code needs
   1.85. The package therefore builds with a pinned rustup toolchain and needs network access

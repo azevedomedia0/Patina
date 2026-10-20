@@ -7,3 +7,4 @@ target/release/patina-autostart usr/bin
 target/release/patina-session-ctl usr/bin
 packaging/common/patina-session usr/bin
 packaging/common/patina.desktop usr/share/wayland-sessions
+assets/cursors/Patina usr/share/icons

@@ -60,7 +60,7 @@ Use `_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/*.css` as th
 `assets/files.png` (File Bin, user supplied), `assets/monitor.png` (System, user supplied), `assets/terminal.png` and `assets/xeyes.png` (drawn placeholders), `assets/cursors/` (nine cursors, user supplied, see Cursors below). No Patina or BeaconHub logos exist yet.
 
 ## Cursors
-Nine user-supplied cursor images in `assets/cursors/` (48 x 48 RGBA PNG, light grey with soft shadow). Hotspots are in image pixels. For the Rust build, convert to an XCursor theme (for example with `xcursorgen`) using the CSS/XCursor names below, so Smithay's cursor handling and XWayland apps pick them up.
+Nine user-supplied cursor images in `assets/cursors/` (48 x 48 RGBA PNG, light grey with soft shadow). Hotspots are in image pixels. In the Rust repo they are packaged as the XCursor theme `Patina` (`assets/cursors/Patina`, installed to `/usr/share/icons/Patina`, built by `packaging/common/make-cursor-theme.py`) using the CSS/XCursor names below, so the compositor's cursor handling and XWayland apps pick them up.
 
 | File | Source name | Use (CSS / XCursor name) | Hotspot |
 | --- | --- | --- | --- |
