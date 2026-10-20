@@ -25,15 +25,15 @@ Start a new Claude Code project in an empty repo and give it this folder. First 
 - Later: Flatpak for apps, CI that builds and smoke-tests in Debian, Ubuntu, Mint and Arch containers and VMs.
 
 ## Milestones (suggested order)
-0. Repo, toolchain, CI, cross-compile (x86_64, aarch64), decide GUI toolkit.
-1. Compositor: nested window (winit) first, then DRM/KMS; floating windows, focus, drag, resize, minimise, maximise.
-2. Shell: top panel (36 px), floating left dock, launcher grid, notifications, quick settings.
-3. Session: login greeter, lock screen, log off, restart, shut down, switch user, autostart, idle and suspend.
-4. XWayland and permission prompts (screen capture, mic, camera, location, keyboard monitoring) via portals.
-5. Core apps: File Bin (files), System (processes and settings), Terminal.
-6. Settings pages and system services wiring.
-7. Input and i18n: keyboard layouts, input methods (IME), right-to-left layout and text, localisation.
-8. Accessibility, light theme, low-spec mode, packaging, QA.
+0. Repo, toolchain, CI, cross-compile (x86_64, aarch64), decide GUI toolkit. The toolkit must support right-to-left mirroring, text shaping for Arabic and Hebrew, and a software-rendering fallback, because milestones 2, 7 and 8 depend on them.
+1. Compositor: nested window (winit) first, then DRM/KMS; floating windows, focus, drag, resize, minimise, maximise. Also four workspaces (Super + 1-4) and the tiling toggle (Super + T).
+2. Shell: top panel (36 px), floating dock (left or right, icon size, auto-hide), launcher grid, notifications with unread badge, quick settings. Panel clock options (12 h / 24 h, date) and the input-source indicator. Build layout direction-aware from the start so RTL mirroring is not a retrofit.
+3. Session: login greeter, lock screen, log off, restart, shut down, switch user, autostart, idle and suspend. End of milestone: first installable .deb and PKGBUILD that start a Patina session, tested in Debian, Ubuntu, Mint and Arch VMs.
+4. XWayland and permission prompts (screen capture, mic, camera, location, keyboard monitoring) via portals. Includes the amber in-use indicator, per-app Ask / Allow / Deny rules, the X11 isolation default, and the XWayland on/off and scaling options.
+5. Core apps: File Bin (files), System (processes), Terminal.
+6. Settings app and system services wiring. Pages: Display, Sound, Network, Appearance, Keyboard, Power, Language & region, Privacy, X11 apps, Dock & panel. Wire each to PipeWire, NetworkManager, BlueZ, UPower and logind.
+7. Input and i18n: keyboard layouts (US, UK, DE, Arabic, Hebrew), input methods (IME, Japanese romaji to hiragana as the reference case), source switching (Ctrl + Space or the panel indicator), RTL layout and text (Auto / LTR / RTL), interface localisation (English, Deutsch, العربية, עברית).
+8. Accessibility (text size, reduce motion), light theme pass (not yet designed), low-spec mode (software rendering), packaging for all four distros, QA.
 Full checklist: the 19 engineering items in the project todo list (compositor, window management, rendering, XWayland, shell UI, quick settings, toolkit, settings app, system services, session, core apps, packaging, input and i18n, accessibility, security, performance, testing, docs).
 
 ## Screens and behaviour in the prototype (`Patina Desktop.dc.html`)
@@ -57,10 +57,27 @@ Use `_ds/patina-desktop-ad7af6dc-1540-4ce8-903e-584d99abf18a/tokens/*.css` as th
 - Icons: Lucide, stroke 2. App icons: squircle PNGs in `assets/`.
 
 ## Assets
-`assets/files.png` (File Bin, user supplied), `assets/monitor.png` (System, user supplied), `assets/terminal.png` and `assets/xeyes.png` (drawn placeholders), `uploads/cursor.png` (cursor, user supplied). No Patina or BeaconHub logos exist yet.
+`assets/files.png` (File Bin, user supplied), `assets/monitor.png` (System, user supplied), `assets/terminal.png` and `assets/xeyes.png` (drawn placeholders), `assets/cursors/` (nine cursors, user supplied, see Cursors below). No Patina or BeaconHub logos exist yet.
+
+## Cursors
+Nine user-supplied cursor images in `assets/cursors/` (48 x 48 RGBA PNG, light grey with soft shadow). Hotspots are in image pixels. For the Rust build, convert to an XCursor theme (for example with `xcursorgen`) using the CSS/XCursor names below, so Smithay's cursor handling and XWayland apps pick them up.
+
+| File | Source name | Use (CSS / XCursor name) | Hotspot |
+| --- | --- | --- | --- |
+| `default.png` | Mouse Cursor | default (`default`, `left_ptr`) | 5, 3 |
+| `pointer.png` | Link Select | links and buttons (`pointer`, `hand2`) | 10, 4 |
+| `text.png` | Text Select | text fields (`text`, `xterm`) | 13, 24 |
+| `move.png` | Move | window drag, titlebar (`move`, `grab`, `fleur`) | 24, 24 |
+| `nwse-resize.png` | Diagonal Resize 1 | window corner resize, top-left / bottom-right (`nwse-resize`) | 24, 24 |
+| `nesw-resize.png` | Diagonal Resize 2 | window corner resize, top-right / bottom-left (`nesw-resize`) | 24, 24 |
+| `wait.png` | Mouse Cursor Busy | app starting or busy (`wait`, `progress`) | 19, 16 |
+| `help.png` | Mouse Cursor Help | help (`help`) | 5, 3 |
+| `not-allowed.png` | Mouse Cursor UNavailable | action unavailable (`not-allowed`) | 5, 3 |
+
+In `Patina Desktop.dc.html` the default, pointer, move (drag handles), text and nwse-resize cursors are wired to the existing elements. The busy cursor (`wait`) shows across the whole lock screen. The sign-in screen keeps the normal arrow. `nesw-resize`, `help` and `not-allowed` are defined as classes (`.cur-nesw-resize`, `.cur-help`, `.cur-not-allowed`) but no prototype element uses them yet. The File Bin panel splitter keeps the browser's `ew-resize` because no horizontal or vertical resize cursor was supplied. Those are still needed (`ew-resize`, `ns-resize`), along with `grabbing`, and are not designed yet. `uploads/cursor.png` is the earlier arrow and is no longer referenced.
 
 ## Not designed yet
-Input methods, right-to-left layout and localisation (requested, not built); workspace overview and Alt+Tab; BeaconHub app; calendar and weather popover; real Wi-Fi and Bluetooth pairing; light-theme pass; file operations in File Bin; wallpaper picker.
+Workspace overview and Alt+Tab; BeaconHub app; calendar and weather popover; real Wi-Fi and Bluetooth pairing; light-theme pass; file operations in File Bin; wallpaper picker.
 
 ## Files
 - `Patina Desktop.dc.html`: main prototype (open in a browser).
